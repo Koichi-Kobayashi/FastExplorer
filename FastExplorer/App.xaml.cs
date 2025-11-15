@@ -46,10 +46,21 @@ namespace FastExplorer
                 services.AddSingleton<INavigationWindow, MainWindow>();
                 services.AddSingleton<MainWindowViewModel>();
 
+                // FileSystemService
+                services.AddSingleton<Services.FileSystemService>();
+
+                // FavoriteService
+                services.AddSingleton<Services.FavoriteService>();
+
+                // WindowSettingsService
+                services.AddSingleton<Services.WindowSettingsService>();
+
                 services.AddSingleton<DashboardPage>();
                 services.AddSingleton<DashboardViewModel>();
                 services.AddSingleton<DataPage>();
                 services.AddSingleton<DataViewModel>();
+                services.AddSingleton<Views.Pages.ExplorerPage>();
+                services.AddSingleton<ViewModels.Pages.ExplorerPageViewModel>();
                 services.AddSingleton<SettingsPage>();
                 services.AddSingleton<SettingsViewModel>();
             }).Build();

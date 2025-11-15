@@ -4,13 +4,23 @@ using Wpf.Ui.Abstractions.Controls;
 
 namespace FastExplorer.ViewModels.Pages
 {
+    /// <summary>
+    /// データページのViewModel
+    /// </summary>
     public partial class DataViewModel : ObservableObject, INavigationAware
     {
         private bool _isInitialized = false;
 
+        /// <summary>
+        /// データカラーのコレクションを取得または設定します
+        /// </summary>
         [ObservableProperty]
         private IEnumerable<DataColor> _colors;
 
+        /// <summary>
+        /// ページにナビゲートされたときに呼び出されます
+        /// </summary>
+        /// <returns>完了を表すタスク</returns>
         public Task OnNavigatedToAsync()
         {
             if (!_isInitialized)
@@ -19,8 +29,15 @@ namespace FastExplorer.ViewModels.Pages
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// ページから離れるときに呼び出されます
+        /// </summary>
+        /// <returns>完了を表すタスク</returns>
         public Task OnNavigatedFromAsync() => Task.CompletedTask;
 
+        /// <summary>
+        /// ViewModelを初期化します
+        /// </summary>
         private void InitializeViewModel()
         {
             var random = new Random();

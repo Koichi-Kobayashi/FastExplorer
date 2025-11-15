@@ -12,6 +12,14 @@
                 <ui:ThemesDictionary Theme="Light" />
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
+            <helpers:DirectoryIconConverter x:Key="DirectoryIconConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
+            <helpers:PathToBreadcrumbConverter x:Key="PathToBreadcrumbConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
+            
+            <!-- グローバルスタイル: Frameのスクロールバーを無効化 -->
+            <Style TargetType="Frame">
+                <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+                <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
