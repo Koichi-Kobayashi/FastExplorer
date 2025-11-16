@@ -22,22 +22,35 @@ namespace FastExplorer.Services
 
             try
             {
-                // ディレクトリを先に追加
-                var directories = Directory.GetDirectories(path);
-                foreach (var dir in directories)
+                var dirInfo = new DirectoryInfo(path);
+                
+                // EnumerateFileSystemInfosを使用してディレクトリとファイルを一度に取得
+                // これにより、GetDirectories()とGetFiles()を別々に呼び出すよりも高速
+                foreach (var info in dirInfo.EnumerateFileSystemInfos("*", new EnumerationOptions
+                {
+                    IgnoreInaccessible = true,
+                    ReturnSpecialDirectories = false
+                }))
                 {
                     try
                     {
-                        var dirInfo = new DirectoryInfo(dir);
+                        var isDirectory = (info.Attributes & FileAttributes.Directory) == FileAttributes.Directory;
+                        long size = 0;
+                        
+                        if (!isDirectory && info is FileInfo fileInfo)
+                        {
+                            size = fileInfo.Length;
+                        }
+                        
                         items.Add(new FileSystemItem
                         {
-                            Name = dirInfo.Name,
-                            FullPath = dirInfo.FullName,
-                            Extension = string.Empty,
-                            Size = 0,
-                            LastModified = dirInfo.LastWriteTime,
-                            IsDirectory = true,
-                            Attributes = dirInfo.Attributes
+                            Name = info.Name,
+                            FullPath = info.FullName,
+                            Extension = isDirectory ? string.Empty : info.Extension,
+                            Size = size,
+                            LastModified = info.LastWriteTime,
+                            IsDirectory = isDirectory,
+                            Attributes = info.Attributes
                         });
                     }
                     catch (UnauthorizedAccessException)
@@ -45,29 +58,9 @@ namespace FastExplorer.Services
                         // アクセス権限がない場合はスキップ
                         continue;
                     }
-                }
-
-                // ファイルを追加
-                var files = Directory.GetFiles(path);
-                foreach (var file in files)
-                {
-                    try
+                    catch (FileNotFoundException)
                     {
-                        var fileInfo = new FileInfo(file);
-                        items.Add(new FileSystemItem
-                        {
-                            Name = fileInfo.Name,
-                            FullPath = fileInfo.FullName,
-                            Extension = fileInfo.Extension,
-                            Size = fileInfo.Length,
-                            LastModified = fileInfo.LastWriteTime,
-                            IsDirectory = false,
-                            Attributes = fileInfo.Attributes
-                        });
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        // アクセス権限がない場合はスキップ
+                        // ファイルが削除された場合はスキップ
                         continue;
                     }
                 }
@@ -78,7 +71,7 @@ namespace FastExplorer.Services
             }
 
             // ディレクトリを先に、その後ファイルを名前順でソート
-            return items.OrderByDescending(x => x.IsDirectory).ThenBy(x => x.Name);
+            return items.OrderByDescending(x => x.IsDirectory).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>

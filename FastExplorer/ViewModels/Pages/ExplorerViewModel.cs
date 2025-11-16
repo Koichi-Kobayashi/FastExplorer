@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using FastExplorer.Models;
 using FastExplorer.Services;
 using Wpf.Ui.Abstractions.Controls;
@@ -19,6 +22,7 @@ namespace FastExplorer.ViewModels.Pages
         private readonly Stack<string> _forwardHistory = new();
         private bool _isNavigating = false;
         private readonly List<FileSystemItem> _recentFiles = new();
+        private CancellationTokenSource? _navigationCancellationTokenSource;
 
         /// <summary>
         /// 現在表示しているファイルシステムアイテムのコレクション
@@ -295,6 +299,12 @@ namespace FastExplorer.ViewModels.Pages
             if (_isNavigating)
                 return;
 
+            // 前のナビゲーションをキャンセル
+            _navigationCancellationTokenSource?.Cancel();
+            _navigationCancellationTokenSource?.Dispose();
+            _navigationCancellationTokenSource = new CancellationTokenSource();
+            var cancellationToken = _navigationCancellationTokenSource.Token;
+
             _isNavigating = true;
 
             // 履歴に追加する場合、現在のパスを戻る履歴に追加し、進む履歴をクリア
@@ -309,23 +319,59 @@ namespace FastExplorer.ViewModels.Pages
             Items.Clear();
             IsHomePage = false;
 
-            try
+            // 非同期でファイル一覧を読み込み（UIスレッドをブロックしない）
+            _ = Task.Run(async () =>
             {
-                var fileItems = _fileSystemService.GetItems(path);
-                foreach (var item in fileItems)
+                try
                 {
-                    Items.Add(item);
+                    var fileItems = _fileSystemService.GetItems(path).ToList();
+                    
+                    // キャンセルされた場合は処理を中断
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+
+                    // UIスレッドでバッチ更新（100件ずつ追加してUIの応答性を保つ）
+                    const int batchSize = 100;
+                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    if (dispatcher == null)
+                        return;
+
+                    for (int i = 0; i < fileItems.Count; i += batchSize)
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                            return;
+
+                        var batch = fileItems.Skip(i).Take(batchSize).ToList();
+                        
+                        await dispatcher.InvokeAsync(() =>
+                        {
+                            if (!cancellationToken.IsCancellationRequested)
+                            {
+                                foreach (var item in batch)
+                                {
+                                    Items.Add(item);
+                                }
+                            }
+                        });
+                    }
                 }
-            }
-            catch (Exception)
-            {
-                // エラーハンドリング
-            }
-            finally
-            {
-                IsLoading = false;
-                _isNavigating = false;
-            }
+                catch (Exception)
+                {
+                    // エラーハンドリング
+                }
+                finally
+                {
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                        dispatcher?.Invoke(() =>
+                        {
+                            IsLoading = false;
+                            _isNavigating = false;
+                        });
+                    }
+                }
+            }, cancellationToken);
         }
 
         /// <summary>
