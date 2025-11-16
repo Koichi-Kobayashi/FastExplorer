@@ -1,4 +1,6 @@
-﻿using Wpf.Ui.Abstractions.Controls;
+﻿using FastExplorer.Services;
+using System.Windows;
+using Wpf.Ui.Abstractions.Controls;
 using Wpf.Ui.Appearance;
 
 namespace FastExplorer.ViewModels.Pages
@@ -9,6 +11,16 @@ namespace FastExplorer.ViewModels.Pages
     public partial class SettingsViewModel : ObservableObject, INavigationAware
     {
         private bool _isInitialized = false;
+        private readonly WindowSettingsService _windowSettingsService;
+
+        /// <summary>
+        /// <see cref="SettingsViewModel"/>クラスの新しいインスタンスを初期化します
+        /// </summary>
+        /// <param name="windowSettingsService">ウィンドウ設定サービス</param>
+        public SettingsViewModel(WindowSettingsService windowSettingsService)
+        {
+            _windowSettingsService = windowSettingsService;
+        }
 
         /// <summary>
         /// アプリケーションのバージョンを取得または設定します
@@ -29,7 +41,14 @@ namespace FastExplorer.ViewModels.Pages
         public Task OnNavigatedToAsync()
         {
             if (!_isInitialized)
+            {
                 InitializeViewModel();
+            }
+            else
+            {
+                // 既に初期化済みの場合でも、現在のテーマを更新
+                CurrentTheme = ApplicationThemeManager.GetAppTheme();
+            }
 
             return Task.CompletedTask;
         }
@@ -68,26 +87,50 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void OnChangeTheme(string parameter)
         {
+            ApplicationTheme newTheme;
             switch (parameter)
             {
                 case "theme_light":
                     if (CurrentTheme == ApplicationTheme.Light)
                         break;
 
-                    ApplicationThemeManager.Apply(ApplicationTheme.Light);
-                    CurrentTheme = ApplicationTheme.Light;
+                    newTheme = ApplicationTheme.Light;
+                    ApplicationThemeManager.Apply(newTheme);
+                    CurrentTheme = newTheme;
 
+                    // テーマ設定を保存
+                    SaveTheme(newTheme);
+                    
+                    // リソースディクショナリーを更新
+                    App.UpdateThemeResourcesInternal();
                     break;
 
                 default:
                     if (CurrentTheme == ApplicationTheme.Dark)
                         break;
 
-                    ApplicationThemeManager.Apply(ApplicationTheme.Dark);
-                    CurrentTheme = ApplicationTheme.Dark;
+                    newTheme = ApplicationTheme.Dark;
+                    ApplicationThemeManager.Apply(newTheme);
+                    CurrentTheme = newTheme;
 
+                    // テーマ設定を保存
+                    SaveTheme(newTheme);
+                    
+                    // リソースディクショナリーを更新
+                    App.UpdateThemeResourcesInternal();
                     break;
             }
+        }
+
+        /// <summary>
+        /// テーマ設定を保存します
+        /// </summary>
+        /// <param name="theme">保存するテーマ</param>
+        private void SaveTheme(ApplicationTheme theme)
+        {
+            var settings = _windowSettingsService.GetSettings();
+            settings.Theme = theme == ApplicationTheme.Light ? "Light" : "Dark";
+            _windowSettingsService.SaveSettings(settings);
         }
     }
 }

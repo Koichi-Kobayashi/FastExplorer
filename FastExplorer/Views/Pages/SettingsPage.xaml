@@ -20,7 +20,7 @@
         <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
     </Page.Resources>
 
-    <StackPanel>
+    <StackPanel Margin="24,24,24,0">
         <TextBlock
             FontSize="20"
             FontWeight="Medium"

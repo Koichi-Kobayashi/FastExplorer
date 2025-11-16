@@ -8,11 +8,11 @@
         /// <summary>
         /// 設定フォルダーのパスを取得または設定します
         /// </summary>
-        public string ConfigurationsFolder { get; set; }
+        public string ConfigurationsFolder { get; set; } = string.Empty;
 
         /// <summary>
         /// アプリケーションプロパティファイル名を取得または設定します
         /// </summary>
-        public string AppPropertiesFileName { get; set; }
+        public string AppPropertiesFileName { get; set; } = string.Empty;
     }
 }

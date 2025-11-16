@@ -11,12 +11,17 @@
             <ResourceDictionary.MergedDictionaries>
                 <ui:ThemesDictionary Theme="Light" />
                 <ui:ControlsDictionary />
+                <!-- ダークモード用のリソースディクショナリーはコードビハインドで動的に追加されます -->
             </ResourceDictionary.MergedDictionaries>
             <helpers:DirectoryIconConverter x:Key="DirectoryIconConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
             <helpers:PathToBreadcrumbConverter x:Key="PathToBreadcrumbConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
             <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
             <helpers:FolderIconConverter x:Key="FolderIconConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
+            <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            
+            <!-- SVGアイコンの色（ライトモード） -->
+            <SolidColorBrush x:Key="IconBrush" Color="#000000" />
             
             <!-- グローバルスタイル: Frameのスクロールバーを無効化 -->
             <Style TargetType="Frame">

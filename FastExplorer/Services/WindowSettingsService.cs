@@ -10,7 +10,7 @@ namespace FastExplorer.Services
     public class WindowSettingsService
     {
         private readonly string _settingsFilePath;
-        private WindowSettings _settings;
+        private WindowSettings _settings = new();
 
         /// <summary>
         /// <see cref="WindowSettingsService"/>クラスの新しいインスタンスを初期化します
@@ -113,6 +113,11 @@ namespace FastExplorer.Services
         /// ウィンドウの状態（最大化など）を取得または設定します
         /// </summary>
         public WindowState State { get; set; } = WindowState.Normal;
+
+        /// <summary>
+        /// アプリケーションのテーマを取得または設定します（"Light"または"Dark"）
+        /// </summary>
+        public string Theme { get; set; } = "Light";
     }
 }
 

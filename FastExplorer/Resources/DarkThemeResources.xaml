@@ -1,0 +1,19 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    
+    <!-- ダークモード時にTextBlockの文字色を白に設定 -->
+    <Style TargetType="TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    
+    <!-- ダークモード時にSymbolIconの色を白に設定 -->
+    <Style TargetType="ui:SymbolIcon">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    
+    <!-- SVGアイコンの色（ダークモード） -->
+    <SolidColorBrush x:Key="IconBrush" Color="#FFFFFF" />
+</ResourceDictionary>
+

@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 using FastExplorer.Services;
 using FastExplorer.ViewModels.Windows;
 using Wpf.Ui;
@@ -44,6 +46,10 @@ namespace FastExplorer.Views.Windows
 
             SystemThemeWatcher.Watch(this);
 
+            // 最初は最小化で作成（テーマ適用後に表示するため）
+            WindowState = WindowState.Minimized;
+            ShowInTaskbar = false; // 最小化時はタスクバーに表示しない
+
             InitializeComponent();
             SetPageService(navigationViewPageProvider);
 
@@ -54,6 +60,24 @@ namespace FastExplorer.Views.Windows
 
             // 保存されたウィンドウ設定を復元
             RestoreWindowSettings();
+            
+            // Loadedイベントでテーマを確認してから表示
+            Loaded += MainWindow_Loaded;
+        }
+
+        /// <summary>
+        /// ウィンドウが読み込まれたときに呼び出されます
+        /// </summary>
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // テーマが適用されていることを確認
+            App.UpdateThemeResourcesInternal();
+            
+            // 表示されていることを確認（ShowWindowで既にVisibleに設定されているはず）
+            if (Visibility != Visibility.Visible)
+            {
+                Visibility = Visibility.Visible;
+            }
         }
 
         #region INavigationWindow methods
@@ -69,7 +93,22 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         /// <param name="pageType">ナビゲートするページのタイプ</param>
         /// <returns>ナビゲートに成功した場合はtrue、それ以外の場合はfalse</returns>
-        public bool Navigate(Type pageType) => RootNavigation.Navigate(pageType);
+        public bool Navigate(Type pageType)
+        {
+            if (RootNavigation == null)
+            {
+                // RootNavigationが初期化されていない場合は、Loadedイベントでナビゲート
+                Loaded += (s, e) =>
+                {
+                    if (RootNavigation != null)
+                    {
+                        RootNavigation.Navigate(pageType);
+                    }
+                };
+                return false;
+            }
+            return RootNavigation.Navigate(pageType);
+        }
 
         /// <summary>
         /// ページサービスを設定します
@@ -80,7 +119,36 @@ namespace FastExplorer.Views.Windows
         /// <summary>
         /// ウィンドウを表示します
         /// </summary>
-        public void ShowWindow() => Show();
+        public async void ShowWindow()
+        {
+            // テーマを確認して適用
+            App.UpdateThemeResourcesInternal();
+            
+            // ウィンドウを表示（最小化状態で表示される）
+            Show();
+            
+            // 1秒待ってからテーマを適用して表示
+            await Task.Delay(1000);
+            
+            // UIスレッドで実行
+            _ = Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                // 再度テーマを確認
+                App.UpdateThemeResourcesInternal();
+                
+                // タスクバーに表示するように戻す
+                ShowInTaskbar = true;
+                
+                // 通常表示に戻す
+                WindowState = WindowState.Normal;
+                
+                // ウィンドウが表示された後にもう一度テーマを確認
+                _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    App.UpdateThemeResourcesInternal();
+                }), DispatcherPriority.Loaded);
+            }), DispatcherPriority.Loaded);
+        }
 
         /// <summary>
         /// ウィンドウを閉じます
@@ -98,7 +166,28 @@ namespace FastExplorer.Views.Windows
             // ウィンドウサイズと位置を保存
             SaveWindowSettings();
             
+            // 現在のテーマを保存
+            SaveCurrentTheme();
+            
             base.OnClosing(e);
+        }
+
+        /// <summary>
+        /// 現在のテーマを保存します
+        /// </summary>
+        private void SaveCurrentTheme()
+        {
+            try
+            {
+                var currentTheme = ApplicationThemeManager.GetAppTheme();
+                var settings = _windowSettingsService.GetSettings();
+                settings.Theme = currentTheme == ApplicationTheme.Light ? "Light" : "Dark";
+                _windowSettingsService.SaveSettings(settings);
+            }
+            catch
+            {
+                // エラーハンドリング：保存に失敗してもウィンドウの閉じる処理は続行
+            }
         }
 
         /// <summary>

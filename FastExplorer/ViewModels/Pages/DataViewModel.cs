@@ -15,7 +15,7 @@ namespace FastExplorer.ViewModels.Pages
         /// データカラーのコレクションを取得または設定します
         /// </summary>
         [ObservableProperty]
-        private IEnumerable<DataColor> _colors;
+        private IEnumerable<DataColor> _colors = Array.Empty<DataColor>();
 
         /// <summary>
         /// ページにナビゲートされたときに呼び出されます

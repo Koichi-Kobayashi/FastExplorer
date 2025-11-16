@@ -8,6 +8,7 @@
     xmlns:models="clr-namespace:FastExplorer.Models"
     xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:controls="clr-namespace:FastExplorer.Controls"
     d:DataContext="{d:DesignInstance local:ExplorerPage,
                                      IsDesignTimeCreatable=False}"
     d:DesignHeight="450"
@@ -411,10 +412,11 @@
                                                             <ColumnDefinition Width="*" />
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
-                                                        <svgc:SvgViewbox
+                                                        <controls:ThemedSvgIcon
                                                             Width="32"
                                                             Height="32"
                                                             Margin="0,0,10,0"
+                                                            IconBrush="{DynamicResource IconBrush}"
                                                             Source="pack://application:,,,/Assets/Drive-Regular_48_48.svg" />
                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                             <TextBlock FontWeight="SemiBold" Text="{Binding Name, Mode=OneWay}" />
