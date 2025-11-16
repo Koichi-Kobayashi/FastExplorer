@@ -143,6 +143,67 @@ namespace FastExplorer.Views.Pages
                 e.Handled = true;
             }
         }
+
+        /// <summary>
+        /// ピン留めフォルダーがクリックされたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void PinnedFolder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (ViewModel.SelectedTab == null)
+                return;
+
+            var border = sender as System.Windows.Controls.Border;
+            if (border?.DataContext is Models.FavoriteItem favorite)
+            {
+                ViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(favorite.Path);
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// ドライブがクリックされたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void Drive_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (ViewModel.SelectedTab == null)
+                return;
+
+            var border = sender as System.Windows.Controls.Border;
+            if (border?.DataContext is Models.DriveInfoModel drive)
+            {
+                ViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(drive.Path);
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// 最近使用したファイルがクリックされたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void RecentFile_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (ViewModel.SelectedTab == null)
+                return;
+
+            var border = sender as System.Windows.Controls.Border;
+            if (border?.DataContext is Models.FileSystemItem fileItem)
+            {
+                if (fileItem.IsDirectory)
+                {
+                    ViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(fileItem.FullPath);
+                }
+                else
+                {
+                    ViewModel.SelectedTab.ViewModel.NavigateToItemCommand.Execute(fileItem);
+                }
+                e.Handled = true;
+            }
+        }
     }
 }
 

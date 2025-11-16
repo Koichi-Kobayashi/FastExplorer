@@ -62,10 +62,10 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void CreateNewTab()
         {
-            var viewModel = new ExplorerViewModel(_fileSystemService);
+            var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
             var tab = new ExplorerTab
             {
-                Title = "PC",
+                Title = "ホーム",
                 CurrentPath = string.Empty,
                 ViewModel = viewModel
             };
@@ -87,7 +87,7 @@ namespace FastExplorer.ViewModels.Pages
 
             // タブを追加する前に初期化を完了させる
             // これにより、タブが追加された直後にフォルダーをダブルクリックしても問題が発生しない
-            tab.ViewModel.NavigateToDrives();
+            tab.ViewModel.NavigateToHome();
             
             Tabs.Add(tab);
             SelectedTab = tab;
@@ -125,7 +125,7 @@ namespace FastExplorer.ViewModels.Pages
         {
             if (string.IsNullOrEmpty(tab.ViewModel.CurrentPath))
             {
-                tab.Title = "PC";
+                tab.Title = "ホーム";
             }
             else
             {
@@ -184,7 +184,7 @@ namespace FastExplorer.ViewModels.Pages
                 
                 if (string.IsNullOrEmpty(path))
                 {
-                    mainWindowViewModel.StatusBarText = $"パス: PC {itemCount}個の項目";
+                    mainWindowViewModel.StatusBarText = $"パス: ホーム {itemCount}個の項目";
                 }
                 else
                 {

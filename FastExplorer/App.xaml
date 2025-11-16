@@ -14,6 +14,9 @@
             </ResourceDictionary.MergedDictionaries>
             <helpers:DirectoryIconConverter x:Key="DirectoryIconConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
             <helpers:PathToBreadcrumbConverter x:Key="PathToBreadcrumbConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
+            <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
+            <helpers:FolderIconConverter x:Key="FolderIconConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             
             <!-- グローバルスタイル: Frameのスクロールバーを無効化 -->
             <Style TargetType="Frame">

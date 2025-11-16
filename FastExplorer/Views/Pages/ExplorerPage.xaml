@@ -250,6 +250,206 @@
                             </Grid>
                         </Border>
 
+                        <!--  ホームページ  -->
+                        <ScrollViewer
+                            Grid.Row="2"
+                            HorizontalScrollBarVisibility="Auto"
+                            VerticalScrollBarVisibility="Auto"
+                            Visibility="{Binding ViewModel.IsHomePage, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel Margin="16">
+                                <!--  クイックアクセス  -->
+                                <StackPanel Margin="0,0,0,24">
+                                    <TextBlock
+                                        Margin="0,0,0,12"
+                                        FontSize="16"
+                                        FontWeight="SemiBold"
+                                        Text="クイック アクセス" />
+                                    <ItemsControl ItemsSource="{Binding ViewModel.PinnedFolders, Mode=OneWay}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="6" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type models:FavoriteItem}">
+                                                <Border
+                                                    Margin="4"
+                                                    Padding="12"
+                                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Cursor="Hand"
+                                                    MouseLeftButtonDown="PinnedFolder_MouseLeftButtonDown">
+                                                    <StackPanel>
+                                                        <ui:SymbolIcon
+                                                            Width="48"
+                                                            Height="48"
+                                                            Margin="0,0,0,8"
+                                                            HorizontalAlignment="Center"
+                                                            Symbol="{Binding Name, Mode=OneWay, Converter={StaticResource FolderIconConverter}}" />
+                                                        <TextBlock
+                                                            HorizontalAlignment="Center"
+                                                            FontSize="12"
+                                                            Text="{Binding Name, Mode=OneWay}"
+                                                            TextAlignment="Center"
+                                                            TextTrimming="CharacterEllipsis"
+                                                            TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!--  ドライブ  -->
+                                <StackPanel Margin="0,0,0,24">
+                                    <TextBlock
+                                        Margin="0,0,0,12"
+                                        FontSize="16"
+                                        FontWeight="SemiBold"
+                                        Text="ドライブ" />
+                                    <ItemsControl ItemsSource="{Binding ViewModel.Drives, Mode=OneWay}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Vertical" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type models:DriveInfoModel}">
+                                                <Border
+                                                    Margin="0,0,0,8"
+                                                    Padding="12"
+                                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Cursor="Hand"
+                                                    MouseLeftButtonDown="Drive_MouseLeftButtonDown">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <ui:SymbolIcon
+                                                            Grid.Column="0"
+                                                            Width="32"
+                                                            Height="32"
+                                                            Margin="0,0,12,0"
+                                                            VerticalAlignment="Center"
+                                                            Symbol="HardDrive24" />
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock
+                                                                FontWeight="SemiBold"
+                                                                Text="{Binding Name, Mode=OneWay}" />
+                                                            <TextBlock
+                                                                FontSize="12"
+                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                Text="{Binding Path, Mode=OneWay}" />
+                                                            <ProgressBar
+                                                                Margin="0,4,0,0"
+                                                                Height="4"
+                                                                Maximum="1"
+                                                                Value="{Binding UsagePercentage, Mode=OneWay}" />
+                                                            <TextBlock
+                                                                FontSize="11"
+                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                                                <Run Text="空き領域 " />
+                                                                <Run Text="{Binding FormattedFreeSpace, Mode=OneWay}" />
+                                                                <Run Text="/" />
+                                                                <Run Text="{Binding FormattedTotalSize, Mode=OneWay}" />
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!--  ネットワークの場所  -->
+                                <StackPanel Margin="0,0,0,24">
+                                    <TextBlock
+                                        Margin="0,0,0,12"
+                                        FontSize="16"
+                                        FontWeight="SemiBold"
+                                        Text="ネットワークの場所" />
+                                    <Border
+                                        Padding="12"
+                                        Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                        BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                        <TextBlock
+                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                            Text="ネットワークの場所がありません。ネットワークの場所を使用しない場合は、ウィジェットを無効にすることができます。"
+                                            TextWrapping="Wrap" />
+                                    </Border>
+                                </StackPanel>
+
+                                <!--  最近使用したファイル  -->
+                                <StackPanel>
+                                    <TextBlock
+                                        Margin="0,0,0,12"
+                                        FontSize="16"
+                                        FontWeight="SemiBold"
+                                        Text="最近使用したファイル" />
+                                    <ItemsControl ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Vertical" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type models:FileSystemItem}">
+                                                <Border
+                                                    Margin="0,0,0,4"
+                                                    Padding="8,6"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    CornerRadius="4"
+                                                    Cursor="Hand"
+                                                    MouseLeftButtonDown="RecentFile_MouseLeftButtonDown">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <ui:SymbolIcon
+                                                            Grid.Column="0"
+                                                            Width="20"
+                                                            Height="20"
+                                                            Margin="0,0,12,0"
+                                                            VerticalAlignment="Center"
+                                                            Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay}" />
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Name, Mode=OneWay}" />
+                                                            <TextBlock
+                                                                FontSize="11"
+                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                Text="{Binding FullPath, Mode=OneWay}"
+                                                                TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+
                         <!--  ファイルリスト  -->
                         <ListView
                             x:Name="FileListView"
@@ -264,7 +464,8 @@
                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                             SelectedItem="{Binding ViewModel.SelectedItem, Mode=TwoWay}"
-                            SelectionMode="Single">
+                            SelectionMode="Single"
+                            Visibility="{Binding ViewModel.IsHomePage, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                             <ListView.Resources>
                                 <Style TargetType="GridViewColumnHeader">
                                     <Setter Property="Padding" Value="8,6" />

@@ -13,10 +13,12 @@ namespace FastExplorer.ViewModels.Pages
     public partial class ExplorerViewModel : ObservableObject, INavigationAware
     {
         private readonly FileSystemService _fileSystemService;
+        private readonly FavoriteService? _favoriteService;
         private bool _isInitialized = false;
         private readonly Stack<string> _backHistory = new();
         private readonly Stack<string> _forwardHistory = new();
         private bool _isNavigating = false;
+        private readonly List<FileSystemItem> _recentFiles = new();
 
         /// <summary>
         /// 現在表示しているファイルシステムアイテムのコレクション
@@ -43,12 +45,38 @@ namespace FastExplorer.ViewModels.Pages
         private bool _isLoading;
 
         /// <summary>
+        /// ピン留めされたフォルダーのコレクション
+        /// </summary>
+        [ObservableProperty]
+        private ObservableCollection<FavoriteItem> _pinnedFolders = new();
+
+        /// <summary>
+        /// ドライブ情報のコレクション
+        /// </summary>
+        [ObservableProperty]
+        private ObservableCollection<DriveInfoModel> _drives = new();
+
+        /// <summary>
+        /// 最近使用したファイルのコレクション
+        /// </summary>
+        [ObservableProperty]
+        private ObservableCollection<FileSystemItem> _recentFilesList = new();
+
+        /// <summary>
+        /// ホームページを表示するかどうか
+        /// </summary>
+        [ObservableProperty]
+        private bool _isHomePage = true;
+
+        /// <summary>
         /// <see cref="ExplorerViewModel"/>クラスの新しいインスタンスを初期化します
         /// </summary>
         /// <param name="fileSystemService">ファイルシステムサービス</param>
-        public ExplorerViewModel(FileSystemService fileSystemService)
+        /// <param name="favoriteService">お気に入りサービス</param>
+        public ExplorerViewModel(FileSystemService fileSystemService, FavoriteService? favoriteService = null)
         {
             _fileSystemService = fileSystemService;
+            _favoriteService = favoriteService;
         }
 
         /// <summary>
@@ -78,10 +106,10 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private void InitializeViewModel()
         {
-            // デフォルトでマイコンピュータ（ドライブ一覧）を表示
+            // デフォルトでホームページを表示
             if (!_isInitialized)
             {
-                NavigateToDrives();
+                NavigateToHome();
                 _isInitialized = true;
             }
         }
@@ -89,20 +117,20 @@ namespace FastExplorer.ViewModels.Pages
         /// <summary>
         /// 指定されたパスにナビゲートします
         /// </summary>
-        /// <param name="path">ナビゲートするパス。nullまたは空の場合はドライブ一覧を表示</param>
+        /// <param name="path">ナビゲートするパス。nullまたは空の場合はホームページを表示</param>
         [RelayCommand]
         private void NavigateToPath(string? path)
         {
             if (string.IsNullOrEmpty(path))
             {
-                NavigateToDrives();
+                NavigateToHome();
                 return;
             }
 
-            // パスが空文字列の場合はドライブ一覧に戻る
+            // パスが空文字列の場合はホームページに戻る
             if (string.IsNullOrWhiteSpace(path))
             {
-                NavigateToDrives();
+                NavigateToHome();
                 return;
             }
 
@@ -147,7 +175,7 @@ namespace FastExplorer.ViewModels.Pages
                 var previousPath = _backHistory.Pop();
                 if (string.IsNullOrEmpty(previousPath))
                 {
-                    NavigateToDrives(addToHistory: false);
+                    NavigateToHome(addToHistory: false);
                 }
                 else
                 {
@@ -159,7 +187,7 @@ namespace FastExplorer.ViewModels.Pages
             // 履歴がない場合は、親ディレクトリに移動
             if (string.IsNullOrEmpty(CurrentPath))
             {
-                NavigateToDrives();
+                NavigateToHome();
                 return;
             }
 
@@ -195,7 +223,7 @@ namespace FastExplorer.ViewModels.Pages
             var nextPath = _forwardHistory.Pop();
             if (string.IsNullOrEmpty(nextPath))
             {
-                NavigateToDrives(addToHistory: false);
+                NavigateToHome(addToHistory: false);
             }
             else
             {
@@ -222,6 +250,9 @@ namespace FastExplorer.ViewModels.Pages
                 // ファイルの場合は開く
                 try
                 {
+                    // 最近使用したファイルに追加
+                    AddToRecentFiles(item.FullPath);
+
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                     {
                         FileName = item.FullPath,
@@ -243,7 +274,7 @@ namespace FastExplorer.ViewModels.Pages
         {
             if (string.IsNullOrEmpty(CurrentPath))
             {
-                NavigateToDrives();
+                NavigateToHome();
             }
             else
             {
@@ -276,6 +307,7 @@ namespace FastExplorer.ViewModels.Pages
             IsLoading = true;
             CurrentPath = path;
             Items.Clear();
+            IsHomePage = false;
 
             try
             {
@@ -297,10 +329,10 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
-        /// ドライブ一覧を表示します
+        /// ホームページを表示します
         /// </summary>
         /// <param name="addToHistory">履歴に追加するかどうか</param>
-        public void NavigateToDrives(bool addToHistory = true)
+        public void NavigateToHome(bool addToHistory = true)
         {
             if (_isNavigating)
                 return;
@@ -317,7 +349,58 @@ namespace FastExplorer.ViewModels.Pages
             IsLoading = true;
             CurrentPath = string.Empty;
             Items.Clear();
+            IsHomePage = true;
 
+            try
+            {
+                // ピン留めフォルダーを読み込み
+                LoadPinnedFolders();
+
+                // ドライブ情報を読み込み
+                LoadDrives();
+
+                // 最近使用したファイルを読み込み
+                LoadRecentFiles();
+            }
+            catch (Exception)
+            {
+                // エラーハンドリング
+            }
+            finally
+            {
+                IsLoading = false;
+                _isNavigating = false;
+            }
+        }
+
+        /// <summary>
+        /// ピン留めフォルダーを読み込みます
+        /// </summary>
+        private void LoadPinnedFolders()
+        {
+            PinnedFolders.Clear();
+            if (_favoriteService == null)
+                return;
+
+            var favorites = _favoriteService.GetFavorites();
+            foreach (var favorite in favorites)
+            {
+                // 標準的なWindowsフォルダのみをピン留めとして表示
+                var name = favorite.Name;
+                if (name == "デスクトップ" || name == "ダウンロード" || name == "ドキュメント" ||
+                    name == "ピクチャ" || name == "ミュージック" || name == "ビデオ" || name == "ごみ箱")
+                {
+                    PinnedFolders.Add(favorite);
+                }
+            }
+        }
+
+        /// <summary>
+        /// ドライブ情報を読み込みます
+        /// </summary>
+        private void LoadDrives()
+        {
+            Drives.Clear();
             try
             {
                 var drives = _fileSystemService.GetDrives();
@@ -328,15 +411,17 @@ namespace FastExplorer.ViewModels.Pages
                         var driveInfo = new DriveInfo(drive);
                         if (driveInfo.IsReady)
                         {
-                            Items.Add(new FileSystemItem
+                            var driveName = string.IsNullOrEmpty(driveInfo.VolumeLabel)
+                                ? $"ローカルディスク ({drive.TrimEnd('\\')})"
+                                : $"{driveInfo.VolumeLabel} ({drive.TrimEnd('\\')})";
+                            
+                            Drives.Add(new DriveInfoModel
                             {
-                                Name = $"{driveInfo.Name} ({driveInfo.VolumeLabel})",
-                                FullPath = driveInfo.RootDirectory.FullName,
-                                Extension = string.Empty,
-                                Size = driveInfo.TotalSize,
-                                LastModified = driveInfo.RootDirectory.LastWriteTime,
-                                IsDirectory = true,
-                                Attributes = FileAttributes.Directory
+                                Name = driveName,
+                                Path = driveInfo.RootDirectory.FullName,
+                                VolumeLabel = driveInfo.VolumeLabel,
+                                TotalSize = driveInfo.TotalSize,
+                                FreeSpace = driveInfo.AvailableFreeSpace
                             });
                         }
                     }
@@ -351,11 +436,74 @@ namespace FastExplorer.ViewModels.Pages
             {
                 // エラーハンドリング
             }
-            finally
+        }
+
+        /// <summary>
+        /// 最近使用したファイルを読み込みます
+        /// </summary>
+        private void LoadRecentFiles()
+        {
+            RecentFilesList.Clear();
+            // 簡易実装：最近アクセスしたファイルを保持
+            // 実際の実装では、Windowsのジャンプリストやファイルアクセス履歴を使用
+            foreach (var file in _recentFiles.Take(10))
             {
-                IsLoading = false;
-                _isNavigating = false;
+                if (File.Exists(file.FullPath) || Directory.Exists(file.FullPath))
+                {
+                    RecentFilesList.Add(file);
+                }
             }
+        }
+
+        /// <summary>
+        /// ファイルを最近使用したファイルリストに追加します
+        /// </summary>
+        /// <param name="filePath">ファイルパス</param>
+        public void AddToRecentFiles(string filePath)
+        {
+            try
+            {
+                var fileInfo = new FileInfo(filePath);
+                var item = new FileSystemItem
+                {
+                    Name = fileInfo.Name,
+                    FullPath = fileInfo.FullName,
+                    Extension = fileInfo.Extension,
+                    Size = fileInfo.Length,
+                    LastModified = fileInfo.LastWriteTime,
+                    IsDirectory = false,
+                    Attributes = fileInfo.Attributes
+                };
+
+                // 既に存在する場合は削除
+                _recentFiles.RemoveAll(f => f.FullPath.Equals(filePath, StringComparison.OrdinalIgnoreCase));
+                // 先頭に追加
+                _recentFiles.Insert(0, item);
+                // 最大20件まで保持
+                if (_recentFiles.Count > 20)
+                {
+                    _recentFiles.RemoveRange(20, _recentFiles.Count - 20);
+                }
+
+                // ホームページ表示中の場合は更新
+                if (IsHomePage)
+                {
+                    LoadRecentFiles();
+                }
+            }
+            catch
+            {
+                // エラーハンドリング
+            }
+        }
+
+        /// <summary>
+        /// ドライブ一覧を表示します（後方互換性のため残す）
+        /// </summary>
+        /// <param name="addToHistory">履歴に追加するかどうか</param>
+        public void NavigateToDrives(bool addToHistory = true)
+        {
+            NavigateToHome(addToHistory);
         }
     }
 }
