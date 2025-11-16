@@ -36,7 +36,7 @@ namespace FastExplorer.Controls
 
         private bool _brushApplied = false;
         private ApplicationTheme _lastTheme = ApplicationTheme.Light;
-        private Brush? _lastBrush = null;
+        private Color? _lastBrushColor = null;
 
         /// <summary>
         /// <see cref="ThemedSvgIcon"/>クラスの新しいインスタンスを初期化します
@@ -49,7 +49,7 @@ namespace FastExplorer.Controls
             Loaded += (_, __) => 
             {
                 _brushApplied = false;
-                _lastBrush = null;
+                _lastBrushColor = null;
                 ApplyIconBrushDelayed();
             };
             
@@ -62,16 +62,34 @@ namespace FastExplorer.Controls
             {
                 // テーマが変更された場合は再適用
                 var currentTheme = ApplicationThemeManager.GetAppTheme();
-                var currentBrush = IconBrush;
                 
-                if (currentTheme != _lastTheme || currentBrush != _lastBrush)
+                // DynamicResourceから直接取得して色を比較（リソースが更新された場合を検出するため）
+                Color? currentBrushColor = null;
+                try
+                {
+                    var resource = FindResource("IconBrush");
+                    if (resource is SolidColorBrush solidBrush)
+                    {
+                        currentBrushColor = solidBrush.Color;
+                    }
+                }
+                catch
+                {
+                    // リソースが見つからない場合はIconBrushプロパティから取得
+                    if (IconBrush is SolidColorBrush scb)
+                    {
+                        currentBrushColor = scb.Color;
+                    }
+                }
+                
+                if (currentTheme != _lastTheme || currentBrushColor != _lastBrushColor)
                 {
                     _lastTheme = currentTheme;
-                    _lastBrush = currentBrush;
+                    _lastBrushColor = currentBrushColor;
                     _brushApplied = false;
                     ApplyIconBrushDelayed();
                 }
-                else if (!_brushApplied && IconBrush != null)
+                else if (!_brushApplied && currentBrushColor != null)
                 {
                     ApplyIconBrushDelayed();
                 }
@@ -82,7 +100,7 @@ namespace FastExplorer.Controls
             sourceDescriptor?.AddValueChanged(this, (s, e) => 
             {
                 _brushApplied = false;
-                _lastBrush = null;
+                _lastBrushColor = null;
                 ApplyIconBrushDelayed();
             });
         }
@@ -95,7 +113,14 @@ namespace FastExplorer.Controls
             if (d is ThemedSvgIcon icon)
             {
                 icon._brushApplied = false; // 強制的に再適用
-                icon._lastBrush = e.NewValue as Brush;
+                if (e.NewValue is SolidColorBrush scb)
+                {
+                    icon._lastBrushColor = scb.Color;
+                }
+                else
+                {
+                    icon._lastBrushColor = null;
+                }
                 icon.ApplyIconBrushDelayed();
             }
         }
@@ -149,27 +174,36 @@ namespace FastExplorer.Controls
         /// </summary>
         private void ApplyIconBrush()
         {
-            // DynamicResourceから直接取得を試みる
-            Brush? brushToApply = IconBrush;
-            if (brushToApply == null)
+            // DynamicResourceから常に最新の値を取得（リソースが更新された場合に対応）
+            Brush? brushToApply = null;
+            try
             {
-                // IconBrushがnullの場合、DynamicResourceから直接取得を試みる
-                try
+                var resource = FindResource("IconBrush");
+                if (resource is Brush resourceBrush)
                 {
-                    var resource = FindResource("IconBrush");
-                    if (resource is Brush resourceBrush)
-                    {
-                        brushToApply = resourceBrush;
-                    }
+                    brushToApply = resourceBrush;
                 }
-                catch
-                {
-                    // リソースが見つからない場合は無視
-                }
+            }
+            catch
+            {
+                // リソースが見つからない場合はIconBrushプロパティを使用
+                brushToApply = IconBrush;
             }
             
             if (brushToApply == null)
                 return;
+
+            // Foregroundプロパティを設定（currentColorが正しく解決されるように）
+            // ViewboxはFrameworkElementを継承しているが、ForegroundはControlのプロパティ
+            // そのため、TextElement.ForegroundPropertyを使用
+            try
+            {
+                SetValue(System.Windows.Documents.TextElement.ForegroundProperty, brushToApply);
+            }
+            catch
+            {
+                // Foregroundプロパティが設定できない場合は無視
+            }
 
             // ChildからDrawingを取得
             if (Child is SvgDrawingCanvas canvas)
@@ -304,7 +338,7 @@ namespace FastExplorer.Controls
                 if (instance != null)
                 {
                     instance._brushApplied = false;
-                    instance._lastBrush = null;
+                    instance._lastBrushColor = null;
                     instance._lastTheme = ApplicationTheme.Light; // 強制的に再適用させる
                     instance.ApplyIconBrushDelayed();
                 }

@@ -248,24 +248,42 @@ namespace FastExplorer
                         .OfType<ResourceDictionary>()
                         .FirstOrDefault(rd => rd.Source?.OriginalString?.Contains("DarkThemeResources.xaml") == true);
 
-                    if (existingDarkTheme != null)
+                    var isDark = ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark;
+                    var needsUpdate = false;
+
+                    if (isDark && existingDarkTheme == null)
                     {
-                        mergedDictionaries.Remove(existingDarkTheme);
+                        // ダークモードだがリソースが追加されていない
+                        needsUpdate = true;
+                    }
+                    else if (!isDark && existingDarkTheme != null)
+                    {
+                        // ライトモードだがリソースが残っている
+                        needsUpdate = true;
                     }
 
-                    // ダークモードの場合は追加
-                    if (ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark)
+                    // 必要な場合のみ更新（ちらつきを防ぐため）
+                    if (needsUpdate)
                     {
-                        mergedDictionaries.Add(app._darkThemeResources);
+                        if (existingDarkTheme != null)
+                        {
+                            mergedDictionaries.Remove(existingDarkTheme);
+                        }
+
+                        // ダークモードの場合は追加
+                        if (isDark)
+                        {
+                            mergedDictionaries.Add(app._darkThemeResources);
+                        }
                     }
                 }
             }
 
-            // すべてのThemedSvgIconインスタンスにブラシを再適用
+            // すべてのThemedSvgIconインスタンスにブラシを再適用（遅延実行でちらつきを防ぐ）
             Current.Dispatcher.BeginInvoke(new System.Action(() =>
             {
                 FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         /// <summary>

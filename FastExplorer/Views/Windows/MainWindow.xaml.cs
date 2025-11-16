@@ -46,19 +46,35 @@ namespace FastExplorer.Views.Windows
 
             SystemThemeWatcher.Watch(this);
 
-            // 最初は最小化で作成（テーマ適用後に表示するため）
-            WindowState = WindowState.Minimized;
-            ShowInTaskbar = false; // 最小化時はタスクバーに表示しない
+            // 最初は非表示で作成（テーマ適用後に表示するため）
+            Visibility = Visibility.Hidden;
+            ShowInTaskbar = false; // 初期状態ではタスクバーに表示しない
 
             InitializeComponent();
-            SetPageService(navigationViewPageProvider);
-
-            navigationService.SetNavigationControl(RootNavigation);
+            
+            // RootNavigationが初期化されるのを待つ
+            if (RootNavigation != null)
+            {
+                SetPageService(navigationViewPageProvider);
+                navigationService.SetNavigationControl(RootNavigation);
+            }
+            else
+            {
+                // RootNavigationが初期化されていない場合は、Loadedイベントで設定
+                Loaded += (s, e) =>
+                {
+                    if (RootNavigation != null)
+                    {
+                        SetPageService(navigationViewPageProvider);
+                        navigationService.SetNavigationControl(RootNavigation);
+                    }
+                };
+            }
             
             // ViewModelにNavigationServiceを設定
             viewModel.SetNavigationService(navigationService);
 
-            // 保存されたウィンドウ設定を復元
+            // 保存されたウィンドウ設定を復元（位置とサイズのみ、状態は復元しない）
             RestoreWindowSettings();
             
             // Loadedイベントでテーマを確認してから表示
@@ -95,59 +111,110 @@ namespace FastExplorer.Views.Windows
         /// <returns>ナビゲートに成功した場合はtrue、それ以外の場合はfalse</returns>
         public bool Navigate(Type pageType)
         {
-            if (RootNavigation == null)
+            if (RootNavigation == null || !IsLoaded)
             {
-                // RootNavigationが初期化されていない場合は、Loadedイベントでナビゲート
+                // RootNavigationが初期化されていない、またはウィンドウが読み込まれていない場合は、Loadedイベントでナビゲート
                 Loaded += (s, e) =>
                 {
-                    if (RootNavigation != null)
+                    if (RootNavigation != null && IsLoaded)
                     {
-                        RootNavigation.Navigate(pageType);
+                        try
+                        {
+                            RootNavigation.Navigate(pageType);
+                        }
+                        catch
+                        {
+                            // ナビゲーションに失敗した場合は無視
+                        }
                     }
                 };
                 return false;
             }
-            return RootNavigation.Navigate(pageType);
+            
+            try
+            {
+                return RootNavigation.Navigate(pageType);
+            }
+            catch
+            {
+                // ナビゲーションに失敗した場合は、Loadedイベントで再試行
+                Loaded += (s, e) =>
+                {
+                    if (RootNavigation != null && IsLoaded)
+                    {
+                        try
+                        {
+                            RootNavigation.Navigate(pageType);
+                        }
+                        catch
+                        {
+                            // ナビゲーションに失敗した場合は無視
+                        }
+                    }
+                };
+                return false;
+            }
         }
 
         /// <summary>
         /// ページサービスを設定します
         /// </summary>
         /// <param name="navigationViewPageProvider">ナビゲーションビューページプロバイダー</param>
-        public void SetPageService(INavigationViewPageProvider navigationViewPageProvider) => RootNavigation.SetPageProviderService(navigationViewPageProvider);
+        public void SetPageService(INavigationViewPageProvider navigationViewPageProvider)
+        {
+            if (RootNavigation != null)
+            {
+                RootNavigation.SetPageProviderService(navigationViewPageProvider);
+            }
+            else
+            {
+                // RootNavigationが初期化されていない場合は、Loadedイベントで設定
+                Loaded += (s, e) =>
+                {
+                    if (RootNavigation != null)
+                    {
+                        RootNavigation.SetPageProviderService(navigationViewPageProvider);
+                    }
+                };
+            }
+        }
 
         /// <summary>
         /// ウィンドウを表示します
         /// </summary>
         public async void ShowWindow()
         {
-            // テーマを確認して適用
+            // テーマを確認して適用（表示前に確実に適用）
             App.UpdateThemeResourcesInternal();
             
-            // ウィンドウを表示（最小化状態で表示される）
-            Show();
+            // ウィンドウ位置を中央に設定（非表示の場合は位置が設定されていない可能性があるため）
+            if (WindowStartupLocation != WindowStartupLocation.Manual)
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            }
             
-            // 1秒待ってからテーマを適用して表示
-            await Task.Delay(1000);
+            // テーマが完全に適用されるまで待機
+            await Task.Delay(100);
             
-            // UIスレッドで実行
+            // UIスレッドでウィンドウを表示（テーマ適用後に表示）
             _ = Dispatcher.BeginInvoke(new System.Action(() =>
             {
-                // 再度テーマを確認
-                App.UpdateThemeResourcesInternal();
+                Visibility = Visibility.Visible;
+                Show();
                 
                 // タスクバーに表示するように戻す
                 ShowInTaskbar = true;
                 
-                // 通常表示に戻す
+                // 通常表示に設定（最大化が保存されていた場合は後で復元）
                 WindowState = WindowState.Normal;
                 
-                // ウィンドウが表示された後にもう一度テーマを確認
-                _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                // 保存されたウィンドウ状態を復元（最大化の場合）
+                var settings = _windowSettingsService.GetSettings();
+                if (settings.State == WindowState.Maximized)
                 {
-                    App.UpdateThemeResourcesInternal();
-                }), DispatcherPriority.Loaded);
-            }), DispatcherPriority.Loaded);
+                    WindowState = WindowState.Maximized;
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         /// <summary>
@@ -220,8 +287,8 @@ namespace FastExplorer.Views.Windows
                 Height = settings.Height;
             }
 
-            // ウィンドウ位置を復元（有効な値の場合のみ）
-            if (!double.IsNaN(settings.Left) && !double.IsNaN(settings.Top))
+            // ウィンドウ位置を復元（有効な値の場合のみ、かつウィンドウが表示されている場合のみ）
+            if (!double.IsNaN(settings.Left) && !double.IsNaN(settings.Top) && Visibility == Visibility.Visible)
             {
                 // 画面の範囲内にあることを確認
                 var screenWidth = SystemParameters.PrimaryScreenWidth;
@@ -235,12 +302,14 @@ namespace FastExplorer.Views.Windows
                     WindowStartupLocation = WindowStartupLocation.Manual;
                 }
             }
-
-            // ウィンドウ状態を復元
-            if (settings.State == WindowState.Maximized)
+            else if (Visibility == Visibility.Hidden)
             {
-                WindowState = WindowState.Maximized;
+                // 非表示の場合は中央に配置（表示時に適用される）
+                WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
+
+            // ウィンドウ状態を復元（起動時は復元しない）
+            // ShowWindow()でNormalに設定されるため、ここでは復元しない
         }
 
         /// <summary>
