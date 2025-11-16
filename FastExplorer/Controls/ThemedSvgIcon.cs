@@ -5,6 +5,7 @@ using System.Windows.Media;
 using SharpVectors.Converters;
 using SharpVectors.Renderers.Wpf;
 using SharpVectors.Runtime;
+using Wpf.Ui.Appearance;
 
 namespace FastExplorer.Controls
 {
@@ -13,6 +14,7 @@ namespace FastExplorer.Controls
     /// </summary>
     public class ThemedSvgIcon : SvgViewbox
     {
+        private static readonly System.Collections.Generic.List<ThemedSvgIcon> _instances = new();
         /// <summary>
         /// アイコンのブラシを取得または設定します
         /// </summary>
@@ -33,21 +35,43 @@ namespace FastExplorer.Controls
         }
 
         private bool _brushApplied = false;
+        private ApplicationTheme _lastTheme = ApplicationTheme.Light;
+        private Brush? _lastBrush = null;
 
         /// <summary>
         /// <see cref="ThemedSvgIcon"/>クラスの新しいインスタンスを初期化します
         /// </summary>
         public ThemedSvgIcon()
         {
+            _instances.Add(this);
+            _lastTheme = ApplicationThemeManager.GetAppTheme();
+            
             Loaded += (_, __) => 
             {
                 _brushApplied = false;
+                _lastBrush = null;
                 ApplyIconBrushDelayed();
+            };
+            
+            Unloaded += (_, __) =>
+            {
+                _instances.Remove(this);
             };
             
             LayoutUpdated += (_, __) =>
             {
-                if (!_brushApplied && IconBrush != null)
+                // テーマが変更された場合は再適用
+                var currentTheme = ApplicationThemeManager.GetAppTheme();
+                var currentBrush = IconBrush;
+                
+                if (currentTheme != _lastTheme || currentBrush != _lastBrush)
+                {
+                    _lastTheme = currentTheme;
+                    _lastBrush = currentBrush;
+                    _brushApplied = false;
+                    ApplyIconBrushDelayed();
+                }
+                else if (!_brushApplied && IconBrush != null)
                 {
                     ApplyIconBrushDelayed();
                 }
@@ -58,6 +82,7 @@ namespace FastExplorer.Controls
             sourceDescriptor?.AddValueChanged(this, (s, e) => 
             {
                 _brushApplied = false;
+                _lastBrush = null;
                 ApplyIconBrushDelayed();
             });
         }
@@ -69,6 +94,8 @@ namespace FastExplorer.Controls
         {
             if (d is ThemedSvgIcon icon)
             {
+                icon._brushApplied = false; // 強制的に再適用
+                icon._lastBrush = e.NewValue as Brush;
                 icon.ApplyIconBrushDelayed();
             }
         }
@@ -122,7 +149,26 @@ namespace FastExplorer.Controls
         /// </summary>
         private void ApplyIconBrush()
         {
-            if (IconBrush == null)
+            // DynamicResourceから直接取得を試みる
+            Brush? brushToApply = IconBrush;
+            if (brushToApply == null)
+            {
+                // IconBrushがnullの場合、DynamicResourceから直接取得を試みる
+                try
+                {
+                    var resource = FindResource("IconBrush");
+                    if (resource is Brush resourceBrush)
+                    {
+                        brushToApply = resourceBrush;
+                    }
+                }
+                catch
+                {
+                    // リソースが見つからない場合は無視
+                }
+            }
+            
+            if (brushToApply == null)
                 return;
 
             // ChildからDrawingを取得
@@ -136,7 +182,7 @@ namespace FastExplorer.Controls
                 {
                     foreach (var drawing in drawObjects)
                     {
-                        ApplyBrushRecursive(drawing, IconBrush);
+                        ApplyBrushRecursive(drawing, brushToApply);
                         applied = true;
                     }
                 }
@@ -152,7 +198,7 @@ namespace FastExplorer.Controls
                             var value = prop.GetValue(canvas);
                             if (value is Drawing drawing)
                             {
-                                ApplyBrushRecursive(drawing, IconBrush);
+                                ApplyBrushRecursive(drawing, brushToApply);
                                 applied = true;
                             }
                         }
@@ -174,7 +220,7 @@ namespace FastExplorer.Controls
                             var value = field.GetValue(canvas);
                             if (value is Drawing drawing)
                             {
-                                ApplyBrushRecursive(drawing, IconBrush);
+                                ApplyBrushRecursive(drawing, brushToApply);
                                 applied = true;
                             }
                         }
@@ -194,7 +240,7 @@ namespace FastExplorer.Controls
                         var drawing = drawingVisual.Drawing;
                         if (drawing != null)
                         {
-                            ApplyBrushRecursive(drawing, IconBrush);
+                            ApplyBrushRecursive(drawing, brushToApply);
                             applied = true;
                         }
                     }
@@ -244,6 +290,23 @@ namespace FastExplorer.Controls
                 if (glyph.ForegroundBrush != null)
                 {
                     glyph.ForegroundBrush = brush;
+                }
+            }
+        }
+
+        /// <summary>
+        /// すべてのインスタンスにブラシを再適用します
+        /// </summary>
+        public static void RefreshAllInstances()
+        {
+            foreach (var instance in _instances.ToArray())
+            {
+                if (instance != null)
+                {
+                    instance._brushApplied = false;
+                    instance._lastBrush = null;
+                    instance._lastTheme = ApplicationTheme.Light; // 強制的に再適用させる
+                    instance.ApplyIconBrushDelayed();
                 }
             }
         }

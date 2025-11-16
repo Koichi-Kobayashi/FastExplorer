@@ -50,6 +50,16 @@ namespace FastExplorer.Views.Windows
                 }
             }
         }
+
+        /// <summary>
+        /// ウィンドウが閉じられているかどうかを確認します
+        /// </summary>
+        public bool IsClosed()
+        {
+            // Windowが閉じられているかどうかを確認
+            // IsLoadedがfalseの場合、ウィンドウは閉じられているか、まだ読み込まれていない
+            return !IsLoaded;
+        }
     }
 }
 

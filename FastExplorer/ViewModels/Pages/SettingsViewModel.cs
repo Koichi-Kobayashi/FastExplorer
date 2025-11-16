@@ -103,6 +103,12 @@ namespace FastExplorer.ViewModels.Pages
                     
                     // リソースディクショナリーを更新
                     App.UpdateThemeResourcesInternal();
+                    
+                    // ThemedSvgIconに通知
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
                     break;
 
                 default:
@@ -118,6 +124,12 @@ namespace FastExplorer.ViewModels.Pages
                     
                     // リソースディクショナリーを更新
                     App.UpdateThemeResourcesInternal();
+                    
+                    // ThemedSvgIconに通知
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
                     break;
             }
         }

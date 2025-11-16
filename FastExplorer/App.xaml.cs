@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Windows;
@@ -113,7 +114,7 @@ namespace FastExplorer
                 UpdateThemeResources();
                 
                 // スプラッシュウィンドウの色を適用
-                if (_splashWindow != null)
+                if (_splashWindow != null && !_splashWindow.IsClosed())
                 {
                     _splashWindow.ApplyThemeColors();
                 }
@@ -121,12 +122,28 @@ namespace FastExplorer
                 // UIスレッドでスプラッシュウィンドウを表示
                 _ = Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    if (_splashWindow != null)
+                    if (_splashWindow != null && !_splashWindow.IsClosed())
                     {
-                        // スプラッシュウィンドウを表示
-                        _splashWindow.Visibility = Visibility.Visible;
-                        _splashWindow.Show();
-                        _splashWindow.UpdateLayout();
+                        try
+                        {
+                            // スプラッシュウィンドウを表示
+                            if (_splashWindow.Visibility != Visibility.Visible)
+                            {
+                                _splashWindow.Visibility = Visibility.Visible;
+                            }
+                            
+                            // ウィンドウがまだ表示されていない場合のみShow()を呼ぶ
+                            if (!_splashWindow.IsLoaded)
+                            {
+                                _splashWindow.Show();
+                            }
+                            
+                            _splashWindow.UpdateLayout();
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // ウィンドウが既に閉じられている場合は無視
+                        }
                     }
                 }), DispatcherPriority.Loaded);
             }), DispatcherPriority.Loaded);
@@ -244,6 +261,11 @@ namespace FastExplorer
                 }
             }
 
+            // すべてのThemedSvgIconインスタンスにブラシを再適用
+            Current.Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         /// <summary>
