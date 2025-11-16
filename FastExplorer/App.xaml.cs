@@ -15,7 +15,7 @@ using Wpf.Ui.DependencyInjection;
 namespace FastExplorer
 {
     /// <summary>
-    /// Interaction logic for App.xaml
+    /// App.xamlの相互作用ロジック
     /// </summary>
     public partial class App
     {
@@ -66,7 +66,7 @@ namespace FastExplorer
             }).Build();
 
         /// <summary>
-        /// Gets services.
+        /// サービスプロバイダーを取得します
         /// </summary>
         public static IServiceProvider Services
         {
@@ -74,16 +74,20 @@ namespace FastExplorer
         }
 
         /// <summary>
-        /// Occurs when the application is loading.
+        /// アプリケーションが読み込まれるときに呼び出されます
         /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">スタートアップイベント引数</param>
         private async void OnStartup(object sender, StartupEventArgs e)
         {
             await _host.StartAsync();
         }
 
         /// <summary>
-        /// Occurs when the application is closing.
+        /// アプリケーションが閉じられるときに呼び出されます
         /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">終了イベント引数</param>
         private async void OnExit(object sender, ExitEventArgs e)
         {
             await _host.StopAsync();
@@ -92,8 +96,10 @@ namespace FastExplorer
         }
 
         /// <summary>
-        /// Occurs when an exception is thrown by an application but not handled.
+        /// アプリケーションによってスローされたが処理されていない例外が発生したときに呼び出されます
         /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">未処理例外イベント引数</param>
         private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
             // For more info see https://docs.microsoft.com/en-us/dotnet/api/system.windows.application.dispatcherunhandledexception?view=windowsdesktop-6.0
