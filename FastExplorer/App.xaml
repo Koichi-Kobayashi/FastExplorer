@@ -23,6 +23,15 @@
             <!-- SVGアイコンの色（ライトモード） -->
             <SolidColorBrush x:Key="IconBrush" Color="#000000" />
             
+            <!-- FluentIconスタイル -->
+            <Style x:Key="FluentIcon" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Segoe Fluent Icons" />
+                <Setter Property="FontSize" Value="32" />
+                <Setter Property="Foreground" Value="{DynamicResource IconBrush}" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="HorizontalAlignment" Value="Center" />
+            </Style>
+            
             <!-- グローバルスタイル: Frameのスクロールバーを無効化 -->
             <Style TargetType="Frame">
                 <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />

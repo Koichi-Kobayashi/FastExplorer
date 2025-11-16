@@ -63,22 +63,26 @@ namespace FastExplorer.Controls
                 // テーマが変更された場合は再適用
                 var currentTheme = ApplicationThemeManager.GetAppTheme();
                 
-                // DynamicResourceから直接取得して色を比較（リソースが更新された場合を検出するため）
+                // IconBrushプロパティから色を取得（DynamicResourceが解決された値を使用）
                 Color? currentBrushColor = null;
-                try
+                if (IconBrush is SolidColorBrush scb)
                 {
-                    var resource = FindResource("IconBrush");
-                    if (resource is SolidColorBrush solidBrush)
-                    {
-                        currentBrushColor = solidBrush.Color;
-                    }
+                    currentBrushColor = scb.Color;
                 }
-                catch
+                else
                 {
-                    // リソースが見つからない場合はIconBrushプロパティから取得
-                    if (IconBrush is SolidColorBrush scb)
+                    // IconBrushプロパティがnullの場合は、リソースから直接取得を試みる
+                    try
                     {
-                        currentBrushColor = scb.Color;
+                        var resource = FindResource("IconBrush");
+                        if (resource is SolidColorBrush solidBrush)
+                        {
+                            currentBrushColor = solidBrush.Color;
+                        }
+                    }
+                    catch
+                    {
+                        // リソースが見つからない場合は無視
                     }
                 }
                 
@@ -150,6 +154,12 @@ namespace FastExplorer.Controls
             {
                 ApplyIconBrush();
             }), System.Windows.Threading.DispatcherPriority.Background);
+            
+            // さらに遅延して再試行（確実に適用するため）
+            Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                ApplyIconBrush();
+            }), System.Windows.Threading.DispatcherPriority.SystemIdle);
         }
 
         /// <summary>
@@ -174,43 +184,36 @@ namespace FastExplorer.Controls
         /// </summary>
         private void ApplyIconBrush()
         {
-            // DynamicResourceから常に最新の値を取得（リソースが更新された場合に対応）
-            Brush? brushToApply = null;
-            try
+            // IconBrushプロパティから取得（DynamicResourceが解決された値を使用）
+            Brush? brushToApply = IconBrush;
+            
+            // IconBrushプロパティがnullの場合は、リソースから直接取得を試みる
+            if (brushToApply == null)
             {
-                var resource = FindResource("IconBrush");
-                if (resource is Brush resourceBrush)
+                try
                 {
-                    brushToApply = resourceBrush;
+                    var resource = FindResource("IconBrush");
+                    if (resource is Brush resourceBrush)
+                    {
+                        brushToApply = resourceBrush;
+                    }
                 }
-            }
-            catch
-            {
-                // リソースが見つからない場合はIconBrushプロパティを使用
-                brushToApply = IconBrush;
+                catch
+                {
+                    // リソースが見つからない場合は終了
+                    return;
+                }
             }
             
             if (brushToApply == null)
                 return;
-
-            // Foregroundプロパティを設定（currentColorが正しく解決されるように）
-            // ViewboxはFrameworkElementを継承しているが、ForegroundはControlのプロパティ
-            // そのため、TextElement.ForegroundPropertyを使用
-            try
-            {
-                SetValue(System.Windows.Documents.TextElement.ForegroundProperty, brushToApply);
-            }
-            catch
-            {
-                // Foregroundプロパティが設定できない場合は無視
-            }
 
             // ChildからDrawingを取得
             if (Child is SvgDrawingCanvas canvas)
             {
                 bool applied = false;
 
-                // DrawObjectsプロパティにアクセス
+                // DrawObjectsプロパティにアクセス（最も確実な方法）
                 var drawObjects = canvas.DrawObjects;
                 if (drawObjects != null && drawObjects.Count > 0)
                 {
@@ -221,61 +224,71 @@ namespace FastExplorer.Controls
                     }
                 }
 
-                // すべてのプロパティをリフレクションで探索
-                var properties = typeof(SvgDrawingCanvas).GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                foreach (var prop in properties)
+                // DrawObjectsが空の場合、または適用できなかった場合は、他の方法を試す
+                if (!applied)
                 {
-                    if (prop.PropertyType == typeof(Drawing) || prop.PropertyType.IsSubclassOf(typeof(Drawing)))
+                    // すべてのプロパティをリフレクションで探索
+                    var properties = typeof(SvgDrawingCanvas).GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    foreach (var prop in properties)
                     {
-                        try
+                        if (prop.PropertyType == typeof(Drawing) || prop.PropertyType.IsSubclassOf(typeof(Drawing)))
                         {
-                            var value = prop.GetValue(canvas);
-                            if (value is Drawing drawing)
+                            try
                             {
-                                ApplyBrushRecursive(drawing, brushToApply);
-                                applied = true;
+                                var value = prop.GetValue(canvas);
+                                if (value is Drawing drawing)
+                                {
+                                    ApplyBrushRecursive(drawing, brushToApply);
+                                    applied = true;
+                                }
+                            }
+                            catch
+                            {
+                                // プロパティにアクセスできない場合は無視
                             }
                         }
-                        catch
-                        {
-                            // プロパティにアクセスできない場合は無視
-                        }
                     }
-                }
 
-                // フィールドも探索
-                var fields = typeof(SvgDrawingCanvas).GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                foreach (var field in fields)
-                {
-                    if (field.FieldType == typeof(Drawing) || field.FieldType.IsSubclassOf(typeof(Drawing)))
+                    // フィールドも探索
+                    if (!applied)
                     {
-                        try
+                        var fields = typeof(SvgDrawingCanvas).GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        foreach (var field in fields)
                         {
-                            var value = field.GetValue(canvas);
-                            if (value is Drawing drawing)
+                            if (field.FieldType == typeof(Drawing) || field.FieldType.IsSubclassOf(typeof(Drawing)))
                             {
-                                ApplyBrushRecursive(drawing, brushToApply);
-                                applied = true;
+                                try
+                                {
+                                    var value = field.GetValue(canvas);
+                                    if (value is Drawing drawing)
+                                    {
+                                        ApplyBrushRecursive(drawing, brushToApply);
+                                        applied = true;
+                                    }
+                                }
+                                catch
+                                {
+                                    // フィールドにアクセスできない場合は無視
+                                }
                             }
                         }
-                        catch
-                        {
-                            // フィールドにアクセスできない場合は無視
-                        }
                     }
-                }
 
-                // VisualTreeHelperで子要素を探索
-                for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(canvas); i++)
-                {
-                    var child = System.Windows.Media.VisualTreeHelper.GetChild(canvas, i);
-                    if (child is DrawingVisual drawingVisual)
+                    // VisualTreeHelperで子要素を探索
+                    if (!applied)
                     {
-                        var drawing = drawingVisual.Drawing;
-                        if (drawing != null)
+                        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(canvas); i++)
                         {
-                            ApplyBrushRecursive(drawing, brushToApply);
-                            applied = true;
+                            var child = System.Windows.Media.VisualTreeHelper.GetChild(canvas, i);
+                            if (child is DrawingVisual drawingVisual)
+                            {
+                                var drawing = drawingVisual.Drawing;
+                                if (drawing != null)
+                                {
+                                    ApplyBrushRecursive(drawing, brushToApply);
+                                    applied = true;
+                                }
+                            }
                         }
                     }
                 }

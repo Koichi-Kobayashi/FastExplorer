@@ -412,12 +412,16 @@
                                                             <ColumnDefinition Width="*" />
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
-                                                        <controls:ThemedSvgIcon
+                                                        <TextBlock
+                                                            FontFamily="Segoe Fluent Icons"
+                                                            FontSize="32"
                                                             Width="32"
                                                             Height="32"
                                                             Margin="0,0,10,0"
-                                                            IconBrush="{DynamicResource IconBrush}"
-                                                            Source="pack://application:,,,/Assets/Drive-Regular_48_48.svg" />
+                                                            VerticalAlignment="Center"
+                                                            HorizontalAlignment="Center"
+                                                            Foreground="{DynamicResource IconBrush}"
+                                                            Text="&#xEDA2;" />
                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                             <TextBlock FontWeight="SemiBold" Text="{Binding Name, Mode=OneWay}" />
                                                             <TextBlock
