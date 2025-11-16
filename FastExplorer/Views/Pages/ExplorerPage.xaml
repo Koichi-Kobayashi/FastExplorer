@@ -6,6 +6,7 @@
     xmlns:local="clr-namespace:FastExplorer.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:FastExplorer.Models"
+    xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     d:DataContext="{d:DesignInstance local:ExplorerPage,
                                      IsDesignTimeCreatable=False}"
@@ -332,29 +333,23 @@
                                                             <ColumnDefinition Width="*" />
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
-                                                        <ui:SymbolIcon
-                                                            Grid.Column="0"
+                                                        <svgc:SvgViewbox
                                                             Width="32"
                                                             Height="32"
-                                                            Margin="0,0,12,0"
-                                                            VerticalAlignment="Center"
-                                                            Symbol="HardDrive24" />
+                                                            Margin="0,0,10,0"
+                                                            Source="pack://application:,,,/Assets/Drive-Regular_48_48.svg" />
                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                            <TextBlock
-                                                                FontWeight="SemiBold"
-                                                                Text="{Binding Name, Mode=OneWay}" />
+                                                            <TextBlock FontWeight="SemiBold" Text="{Binding Name, Mode=OneWay}" />
                                                             <TextBlock
                                                                 FontSize="12"
                                                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                                 Text="{Binding Path, Mode=OneWay}" />
                                                             <ProgressBar
-                                                                Margin="0,4,0,0"
                                                                 Height="4"
+                                                                Margin="0,4,0,0"
                                                                 Maximum="1"
                                                                 Value="{Binding UsagePercentage, Mode=OneWay}" />
-                                                            <TextBlock
-                                                                FontSize="11"
-                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                                                                 <Run Text="空き領域 " />
                                                                 <Run Text="{Binding FormattedFreeSpace, Mode=OneWay}" />
                                                                 <Run Text="/" />
@@ -458,8 +453,8 @@
                             Focusable="True"
                             ItemsSource="{Binding ViewModel.Items, Mode=OneWay}"
                             KeyDown="ListView_KeyDown"
-                            MouseDown="ListView_MouseButtonDown"
                             MouseDoubleClick="ListView_MouseDoubleClick"
+                            MouseDown="ListView_MouseButtonDown"
                             ScrollViewer.CanContentScroll="False"
                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
