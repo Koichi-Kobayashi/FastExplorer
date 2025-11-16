@@ -38,7 +38,8 @@
             MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
             PaneDisplayMode="LeftFluent"
             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-            ScrollViewer.VerticalScrollBarVisibility="Disabled">
+            ScrollViewer.VerticalScrollBarVisibility="Disabled"
+            ItemInvoked="RootNavigation_ItemInvoked">
             <ui:NavigationView.ContentOverlay>
                 <Grid ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled">
                     <ui:SnackbarPresenter x:Name="SnackbarPresenter" />

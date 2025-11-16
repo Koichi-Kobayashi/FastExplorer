@@ -1,4 +1,7 @@
-﻿using FastExplorer.Services;
+﻿using System;
+using System.Threading.Tasks;
+using System.Windows;
+using FastExplorer.Services;
 using FastExplorer.ViewModels.Windows;
 using Wpf.Ui;
 using Wpf.Ui.Abstractions;
@@ -13,6 +16,7 @@ namespace FastExplorer.Views.Windows
     public partial class MainWindow : INavigationWindow
     {
         private readonly WindowSettingsService _windowSettingsService;
+        private readonly INavigationService _navigationService;
 
         /// <summary>
         /// メインウィンドウのViewModelを取得します
@@ -36,6 +40,7 @@ namespace FastExplorer.Views.Windows
             ViewModel = viewModel;
             DataContext = this;
             _windowSettingsService = windowSettingsService;
+            _navigationService = navigationService;
 
             SystemThemeWatcher.Watch(this);
 
@@ -184,6 +189,56 @@ namespace FastExplorer.Views.Windows
         public void SetServiceProvider(IServiceProvider serviceProvider)
         {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// ナビゲーションビューのアイテムが選択されたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="args">ナビゲーションイベント引数</param>
+        private void RootNavigation_ItemInvoked(object sender, object args)
+        {
+            // NavigationViewItemがクリックされた場合の処理
+            // リフレクションを使用してInvokedItemContainerプロパティにアクセス
+            var argsType = args.GetType();
+            var invokedItemContainerProperty = argsType.GetProperty("InvokedItemContainer");
+            
+            if (invokedItemContainerProperty != null)
+            {
+                var invokedItem = invokedItemContainerProperty.GetValue(args) as NavigationViewItem;
+                if (invokedItem != null)
+                {
+                    // ホームアイテムの場合
+                    if (invokedItem.Tag is string tag && tag == "HOME")
+                    {
+                        // エクスプローラーページにナビゲート
+                        _navigationService?.Navigate(typeof(Views.Pages.ExplorerPage));
+                    }
+                    // お気に入りアイテムの場合（Tagにパスが設定されている）
+                    else if (invokedItem.Tag is string path && path != "HOME")
+                    {
+                        var explorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
+                        if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
+                        {
+                            // エクスプローラーページにナビゲート
+                            _navigationService?.Navigate(typeof(Views.Pages.ExplorerPage));
+                            
+                            // 少し遅延してからパスを設定（ページが読み込まれるのを待つ）
+                            Task.Delay(100).ContinueWith(_ =>
+                            {
+                                Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    if (explorerPageViewModel.SelectedTab != null)
+                                    {
+                                        explorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(path);
+                                    }
+                                });
+                            });
+                        }
+                    }
+                    // TargetPageTypeが設定されている場合（Settingsなど）は自動的にナビゲートされる
+                }
+            }
         }
     }
 }

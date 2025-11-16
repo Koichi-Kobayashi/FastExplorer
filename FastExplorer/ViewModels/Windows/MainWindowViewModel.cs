@@ -1,5 +1,7 @@
 ﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Threading;
 using FastExplorer.Models;
 using FastExplorer.Services;
 using Wpf.Ui;
@@ -60,12 +62,15 @@ namespace FastExplorer.ViewModels.Windows
             MenuItems.Clear();
             
             // エクスプローラーページへのリンクを追加
-            MenuItems.Add(new NavigationViewItem()
+            // TargetPageTypeを設定しないことで、Contentがクリアされないようにする
+            var explorerItem = new NavigationViewItem()
             {
-                Content = "",
+                Content = "ホーム",
                 Icon = new SymbolIcon { Symbol = SymbolRegular.Folder24 },
-                TargetPageType = typeof(Views.Pages.ExplorerPage)
-            });
+                Tag = "HOME" // ホームアイテムを識別するためのTag
+            };
+            
+            MenuItems.Add(explorerItem);
 
             // お気に入りを追加
             var favorites = _favoriteService.GetFavorites();
@@ -89,7 +94,7 @@ namespace FastExplorer.ViewModels.Windows
                 Tag = favorite.Path // パスをTagに保存
             };
 
-            // クリックイベントを設定
+            // クリックイベントを設定（ItemInvokedイベントが発火しない場合のフォールバック）
             item.Click += (s, e) =>
             {
                 NavigateToFavorite(favorite.Path);
