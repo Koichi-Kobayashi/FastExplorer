@@ -1,4 +1,5 @@
-﻿using FastExplorer.Services;
+﻿using FastExplorer.Controls;
+using FastExplorer.Services;
 using System.Windows;
 using Wpf.Ui.Abstractions.Controls;
 using Wpf.Ui.Appearance;
@@ -95,20 +96,7 @@ namespace FastExplorer.ViewModels.Pages
                         break;
 
                     newTheme = ApplicationTheme.Light;
-                    ApplicationThemeManager.Apply(newTheme);
-                    CurrentTheme = newTheme;
-
-                    // テーマ設定を保存
-                    SaveTheme(newTheme);
-                    
-                    // リソースディクショナリーを更新
-                    App.UpdateThemeResourcesInternal();
-                    
-                    // ThemedSvgIconに通知
-                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
-                    {
-                        FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
-                    }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    ApplyTheme(newTheme);
                     break;
 
                 default:
@@ -116,21 +104,58 @@ namespace FastExplorer.ViewModels.Pages
                         break;
 
                     newTheme = ApplicationTheme.Dark;
-                    ApplicationThemeManager.Apply(newTheme);
-                    CurrentTheme = newTheme;
-
-                    // テーマ設定を保存
-                    SaveTheme(newTheme);
-                    
-                    // リソースディクショナリーを更新
-                    App.UpdateThemeResourcesInternal();
-                    
-                    // ThemedSvgIconに通知
-                    System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
-                    {
-                        FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
-                    }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    ApplyTheme(newTheme);
                     break;
+            }
+        }
+        
+        /// <summary>
+        /// テーマを適用します（起動時と同じロジック）
+        /// </summary>
+        private void ApplyTheme(ApplicationTheme theme)
+        {
+            try
+            {
+                // ThemesDictionaryのThemeプロパティを先に更新（ApplicationThemeManager.Apply()の前に）
+                if (System.Windows.Application.Current.Resources is System.Windows.ResourceDictionary mainDictionary)
+                {
+                    var mergedDictionaries = mainDictionary.MergedDictionaries;
+                    var themesDict = mergedDictionaries
+                        .OfType<System.Windows.ResourceDictionary>()
+                        .FirstOrDefault(rd => rd.GetType().Name == "ThemesDictionary");
+                    
+                    if (themesDict != null)
+                    {
+                        var themeProperty = themesDict.GetType().GetProperty("Theme");
+                        if (themeProperty != null)
+                        {
+                            var themeType = themeProperty.PropertyType;
+                            var themeValue = Enum.Parse(themeType, theme == ApplicationTheme.Dark ? "Dark" : "Light");
+                            themeProperty.SetValue(themesDict, themeValue);
+                        }
+                    }
+                }
+
+                // テーマを適用
+                ApplicationThemeManager.Apply(theme);
+                CurrentTheme = theme;
+
+                // テーマ設定を保存
+                SaveTheme(theme);
+                
+                // リソースディクショナリーも即座に更新（起動時と同じ）
+                App.UpdateThemeResourcesInternal();
+                
+                // すべてのThemedSvgIconインスタンスを即座に更新（リアルタイム反映のため）
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    ThemedSvgIcon.RefreshAllInstances();
+                }), System.Windows.Threading.DispatcherPriority.Render);
+            }
+            catch
+            {
+                // エラーハンドリング：デフォルトのテーマを使用
+                ApplicationThemeManager.Apply(ApplicationTheme.Light);
             }
         }
 

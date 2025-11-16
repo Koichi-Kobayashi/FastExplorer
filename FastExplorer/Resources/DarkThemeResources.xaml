@@ -3,23 +3,13 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
     
-    <!-- ダークモード時にTextBlockの文字色を白に設定 -->
-    <Style TargetType="TextBlock">
-        <Setter Property="Foreground" Value="White" />
-    </Style>
-    
     <!-- ダークモード時にFluentIconスタイルの色を白に設定 -->
     <Style x:Key="FluentIcon" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe Fluent Icons" />
         <Setter Property="FontSize" Value="32" />
-        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Foreground" Value="{DynamicResource IconBrush}" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="HorizontalAlignment" Value="Center" />
-    </Style>
-    
-    <!-- ダークモード時にSymbolIconの色を白に設定 -->
-    <Style TargetType="ui:SymbolIcon">
-        <Setter Property="Foreground" Value="White" />
     </Style>
     
     <!-- SVGアイコンの色（ダークモード） -->

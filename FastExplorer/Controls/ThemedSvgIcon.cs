@@ -134,8 +134,8 @@ namespace FastExplorer.Controls
         /// </summary>
         private void ApplyIconBrushDelayed()
         {
-            if (IconBrush == null)
-                return;
+            // IconBrushがnullの場合でも、リソースから取得できる可能性があるため、早期リターンしない
+            // ApplyIconBrush()内でリソースから取得を試みる
 
             // 複数回試行してSVGが読み込まれるのを待つ
             Dispatcher.BeginInvoke(new System.Action(() =>
@@ -346,13 +346,33 @@ namespace FastExplorer.Controls
         /// </summary>
         public static void RefreshAllInstances()
         {
+            var currentTheme = ApplicationThemeManager.GetAppTheme();
             foreach (var instance in _instances.ToArray())
             {
                 if (instance != null)
                 {
+                    // IconBrushプロパティがDynamicResourceでバインドされている場合、リソースを再取得
+                    if (instance.IconBrush == null)
+                    {
+                        try
+                        {
+                            var resource = instance.FindResource("IconBrush");
+                            if (resource is Brush resourceBrush)
+                            {
+                                // リソースが見つかった場合、プロパティを更新（ただし、これはプロパティ変更イベントを発生させない）
+                                // 代わりに、_lastBrushColorをnullにして強制的に再適用させる
+                            }
+                        }
+                        catch
+                        {
+                            // リソースが見つからない場合は無視
+                        }
+                    }
+                    
                     instance._brushApplied = false;
                     instance._lastBrushColor = null;
-                    instance._lastTheme = ApplicationTheme.Light; // 強制的に再適用させる
+                    // 現在のテーマと異なる値に設定して、確実に再適用させる
+                    instance._lastTheme = currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark;
                     instance.ApplyIconBrushDelayed();
                 }
             }

@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using FastExplorer.Services;
 using FastExplorer.ViewModels.Pages;
@@ -243,38 +244,100 @@ namespace FastExplorer
                 {
                     var mergedDictionaries = mainDictionary.MergedDictionaries;
 
-                    // 既存のダークテーマリソースを削除
-                    var existingDarkTheme = mergedDictionaries
-                        .OfType<ResourceDictionary>()
-                        .FirstOrDefault(rd => rd.Source?.OriginalString?.Contains("DarkThemeResources.xaml") == true);
+                    // 既存のダークテーマリソースを検索（参照比較とSource比較の両方を使用）
+                    ResourceDictionary? existingDarkTheme = null;
+                    foreach (ResourceDictionary dict in mergedDictionaries)
+                    {
+                        if (dict == app._darkThemeResources)
+                        {
+                            // 参照が一致する場合
+                            existingDarkTheme = dict;
+                            break;
+                        }
+                        else if (dict.Source?.OriginalString?.Contains("DarkThemeResources.xaml") == true)
+                        {
+                            // Sourceが一致する場合
+                            existingDarkTheme = dict;
+                            break;
+                        }
+                    }
 
                     var isDark = ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark;
-                    var needsUpdate = false;
 
-                    if (isDark && existingDarkTheme == null)
+                    // リソースディクショナリーを更新（必要な場合のみ）
+                    bool resourceChanged = false;
+                    if (isDark)
                     {
-                        // ダークモードだがリソースが追加されていない
-                        needsUpdate = true;
+                        // ダークモードの場合
+                        if (existingDarkTheme == null)
+                        {
+                            // リソースが存在しない場合は追加
+                            mergedDictionaries.Add(app._darkThemeResources);
+                            resourceChanged = true;
+                        }
+                        else if (existingDarkTheme != app._darkThemeResources)
+                        {
+                            // 異なるインスタンスが存在する場合は置き換え
+                            mergedDictionaries.Remove(existingDarkTheme);
+                            mergedDictionaries.Add(app._darkThemeResources);
+                            resourceChanged = true;
+                        }
                     }
-                    else if (!isDark && existingDarkTheme != null)
+                    else
                     {
-                        // ライトモードだがリソースが残っている
-                        needsUpdate = true;
-                    }
-
-                    // 必要な場合のみ更新（ちらつきを防ぐため）
-                    if (needsUpdate)
-                    {
+                        // ライトモードの場合
                         if (existingDarkTheme != null)
                         {
+                            // リソースが存在する場合は削除
                             mergedDictionaries.Remove(existingDarkTheme);
+                            resourceChanged = true;
                         }
+                    }
 
-                        // ダークモードの場合は追加
-                        if (isDark)
+                    // IconBrushリソースを直接更新してDynamicResourceの再評価を強制
+                    // リソースを一度削除して再追加することで、DynamicResourceの再評価を確実にトリガー
+                    try
+                    {
+                        var newColor = isDark ? Color.FromRgb(255, 255, 255) : Color.FromRgb(0, 0, 0);
+                        
+                        // 既存のIconBrushリソースを削除
+                        if (mainDictionary.Contains("IconBrush"))
                         {
-                            mergedDictionaries.Add(app._darkThemeResources);
+                            mainDictionary.Remove("IconBrush");
                         }
+                        
+                        // 新しいIconBrushリソースを作成して追加
+                        var newBrush = new SolidColorBrush(newColor);
+                        mainDictionary["IconBrush"] = newBrush;
+                        resourceChanged = true;
+                    }
+                    catch
+                    {
+                        // エラーが発生した場合は無視
+                    }
+
+                    // リソースが変更された場合のみ、ウィンドウを更新
+                    if (resourceChanged)
+                    {
+                        // リソースディクショナリーを更新した後、すべてのウィンドウのリソースを更新
+                        // DynamicResourceの再評価を強制するため、ウィンドウを更新
+                        Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                        {
+                            // すべてのウィンドウのリソースを更新
+                            foreach (System.Windows.Window window in Current.Windows)
+                            {
+                                if (window != null)
+                                {
+                                    // ウィンドウのレイアウトを更新してDynamicResourceを再評価
+                                    window.UpdateLayout();
+                                    // ビジュアルを無効化してDynamicResourceの再評価を強制
+                                    window.InvalidateVisual();
+                                    
+                                    // ウィンドウ内のすべての要素のDynamicResourceを再評価
+                                    InvalidateResourcesRecursive(window);
+                                }
+                            }
+                        }), System.Windows.Threading.DispatcherPriority.Loaded);
                     }
                 }
             }
@@ -284,6 +347,42 @@ namespace FastExplorer
             {
                 FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
             }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+
+        /// <summary>
+        /// 再帰的に要素内のすべてのDependencyObjectのリソースを無効化します
+        /// </summary>
+        /// <param name="element">開始要素</param>
+        private static void InvalidateResourcesRecursive(System.Windows.DependencyObject element)
+        {
+            if (element == null)
+                return;
+
+            // TextBlockの場合、Foregroundプロパティを無効化
+            if (element is System.Windows.Controls.TextBlock textBlock)
+            {
+                // DynamicResourceの再評価を強制
+                textBlock.InvalidateProperty(System.Windows.Controls.TextBlock.ForegroundProperty);
+            }
+            // Controlの場合、Foregroundプロパティを無効化
+            else if (element is System.Windows.Controls.Control control)
+            {
+                control.InvalidateProperty(System.Windows.Controls.Control.ForegroundProperty);
+            }
+
+            // FrameworkElementの場合、Styleプロパティも無効化
+            if (element is System.Windows.FrameworkElement frameworkElement)
+            {
+                frameworkElement.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+            }
+
+            // 子要素を再帰的に処理
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(element); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
+                InvalidateResourcesRecursive(child);
+            }
         }
 
         /// <summary>
