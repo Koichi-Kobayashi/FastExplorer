@@ -258,6 +258,7 @@
                             Focusable="True"
                             ItemsSource="{Binding ViewModel.Items, Mode=OneWay}"
                             KeyDown="ListView_KeyDown"
+                            MouseDown="ListView_MouseButtonDown"
                             MouseDoubleClick="ListView_MouseDoubleClick"
                             ScrollViewer.CanContentScroll="False"
                             ScrollViewer.HorizontalScrollBarVisibility="Auto"

@@ -119,6 +119,30 @@ namespace FastExplorer.Views.Pages
                 e.Handled = true;
             }
         }
+
+        /// <summary>
+        /// リストビューでマウスボタンが押されたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void ListView_MouseButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (ViewModel.SelectedTab == null)
+                return;
+
+            // マウスのバックボタン（XButton1）が押された場合
+            if (e.ChangedButton == MouseButton.XButton1)
+            {
+                ViewModel.SelectedTab.ViewModel.NavigateToParentCommand.Execute(null);
+                e.Handled = true;
+            }
+            // マウスの進むボタン（XButton2）が押された場合
+            else if (e.ChangedButton == MouseButton.XButton2)
+            {
+                ViewModel.SelectedTab.ViewModel.NavigateForwardCommand.Execute(null);
+                e.Handled = true;
+            }
+        }
     }
 }
 

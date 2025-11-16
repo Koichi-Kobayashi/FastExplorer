@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.IO;
 using FastExplorer.Models;
 using FastExplorer.Services;
@@ -13,6 +14,9 @@ namespace FastExplorer.ViewModels.Pages
     {
         private readonly FileSystemService _fileSystemService;
         private bool _isInitialized = false;
+        private readonly Stack<string> _backHistory = new();
+        private readonly Stack<string> _forwardHistory = new();
+        private bool _isNavigating = false;
 
         /// <summary>
         /// 現在表示しているファイルシステムアイテムのコレクション
@@ -131,20 +135,71 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void NavigateToParent()
         {
+            // 戻る履歴がある場合は、履歴から戻る
+            if (_backHistory.Count > 0)
+            {
+                // 現在のパスを進む履歴に追加
+                if (!string.IsNullOrEmpty(CurrentPath))
+                {
+                    _forwardHistory.Push(CurrentPath);
+                }
+
+                var previousPath = _backHistory.Pop();
+                if (string.IsNullOrEmpty(previousPath))
+                {
+                    NavigateToDrives(addToHistory: false);
+                }
+                else
+                {
+                    NavigateToDirectory(previousPath, addToHistory: false);
+                }
+                return;
+            }
+
+            // 履歴がない場合は、親ディレクトリに移動
             if (string.IsNullOrEmpty(CurrentPath))
             {
                 NavigateToDrives();
                 return;
             }
 
+            // 現在のパスを進む履歴に追加
+            _forwardHistory.Push(CurrentPath);
+
             var parentPath = _fileSystemService.GetParentPath(CurrentPath);
             if (!string.IsNullOrEmpty(parentPath))
             {
-                NavigateToDirectory(parentPath);
+                NavigateToDirectory(parentPath, addToHistory: false);
             }
             else
             {
-                NavigateToDrives();
+                NavigateToDrives(addToHistory: false);
+            }
+        }
+
+        /// <summary>
+        /// 進む履歴の次のパスにナビゲートします
+        /// </summary>
+        [RelayCommand]
+        private void NavigateForward()
+        {
+            if (_forwardHistory.Count == 0)
+                return;
+
+            // 現在のパスを戻る履歴に追加
+            if (!string.IsNullOrEmpty(CurrentPath))
+            {
+                _backHistory.Push(CurrentPath);
+            }
+
+            var nextPath = _forwardHistory.Pop();
+            if (string.IsNullOrEmpty(nextPath))
+            {
+                NavigateToDrives(addToHistory: false);
+            }
+            else
+            {
+                NavigateToDirectory(nextPath, addToHistory: false);
             }
         }
 
@@ -200,10 +255,23 @@ namespace FastExplorer.ViewModels.Pages
         /// 指定されたディレクトリにナビゲートします
         /// </summary>
         /// <param name="path">ナビゲートするディレクトリのパス</param>
-        public void NavigateToDirectory(string path)
+        /// <param name="addToHistory">履歴に追加するかどうか</param>
+        public void NavigateToDirectory(string path, bool addToHistory = true)
         {
             if (!_fileSystemService.IsValidPath(path) || !Directory.Exists(path))
                 return;
+
+            if (_isNavigating)
+                return;
+
+            _isNavigating = true;
+
+            // 履歴に追加する場合、現在のパスを戻る履歴に追加し、進む履歴をクリア
+            if (addToHistory && !string.IsNullOrEmpty(CurrentPath) && CurrentPath != path)
+            {
+                _backHistory.Push(CurrentPath);
+                _forwardHistory.Clear();
+            }
 
             IsLoading = true;
             CurrentPath = path;
@@ -224,14 +292,28 @@ namespace FastExplorer.ViewModels.Pages
             finally
             {
                 IsLoading = false;
+                _isNavigating = false;
             }
         }
 
         /// <summary>
         /// ドライブ一覧を表示します
         /// </summary>
-        public void NavigateToDrives()
+        /// <param name="addToHistory">履歴に追加するかどうか</param>
+        public void NavigateToDrives(bool addToHistory = true)
         {
+            if (_isNavigating)
+                return;
+
+            _isNavigating = true;
+
+            // 履歴に追加する場合、現在のパスを戻る履歴に追加し、進む履歴をクリア
+            if (addToHistory && !string.IsNullOrEmpty(CurrentPath))
+            {
+                _backHistory.Push(CurrentPath);
+                _forwardHistory.Clear();
+            }
+
             IsLoading = true;
             CurrentPath = string.Empty;
             Items.Clear();
@@ -272,6 +354,7 @@ namespace FastExplorer.ViewModels.Pages
             finally
             {
                 IsLoading = false;
+                _isNavigating = false;
             }
         }
     }
