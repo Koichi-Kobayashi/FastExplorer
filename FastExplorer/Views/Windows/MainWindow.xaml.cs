@@ -213,6 +213,20 @@ namespace FastExplorer.Views.Windows
                     {
                         // エクスプローラーページにナビゲート
                         _navigationService?.Navigate(typeof(Views.Pages.ExplorerPage));
+                        
+                        // 少し遅延してからホームページを表示（ページが読み込まれるのを待つ）
+                        Task.Delay(100).ContinueWith(_ =>
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                var explorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
+                                if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
+                                {
+                                    // ホームページにナビゲート
+                                    explorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
+                                }
+                            });
+                        });
                     }
                     // お気に入りアイテムの場合（Tagにパスが設定されている）
                     else if (invokedItem.Tag is string path && path != "HOME")

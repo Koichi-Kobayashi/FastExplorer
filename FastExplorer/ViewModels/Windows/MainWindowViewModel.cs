@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using FastExplorer.Models;
@@ -70,6 +71,12 @@ namespace FastExplorer.ViewModels.Windows
                 Tag = "HOME" // ホームアイテムを識別するためのTag
             };
             
+            // Clickイベントを設定（ItemInvokedイベントが発火しない場合のフォールバック）
+            explorerItem.Click += (s, e) =>
+            {
+                NavigateToHome();
+            };
+            
             MenuItems.Add(explorerItem);
 
             // お気に入りを追加
@@ -101,6 +108,32 @@ namespace FastExplorer.ViewModels.Windows
             };
 
             return item;
+        }
+
+        /// <summary>
+        /// ホームページにナビゲートします
+        /// </summary>
+        private void NavigateToHome()
+        {
+            // エクスプローラーページにナビゲート
+            if (_navigationService != null)
+            {
+                _navigationService.Navigate(typeof(Views.Pages.ExplorerPage));
+                
+                // 少し遅延してからホームページを表示（ページが読み込まれるのを待つ）
+                Task.Delay(100).ContinueWith(_ =>
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var explorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
+                        if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
+                        {
+                            // ホームページにナビゲート
+                            explorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
+                        }
+                    });
+                });
+            }
         }
 
         /// <summary>
