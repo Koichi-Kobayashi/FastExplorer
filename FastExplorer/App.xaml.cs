@@ -173,13 +173,14 @@ namespace FastExplorer
                 var settingsFilePath = Path.Combine(appDataPath, "window_settings.json");
 
                 ApplicationTheme themeToApply = ApplicationTheme.Light;
+                Services.WindowSettings? settings = null;
                 
                 if (File.Exists(settingsFilePath))
                 {
                     try
                     {
                         var json = File.ReadAllText(settingsFilePath);
-                        var settings = System.Text.Json.JsonSerializer.Deserialize<Services.WindowSettings>(json);
+                        settings = System.Text.Json.JsonSerializer.Deserialize<Services.WindowSettings>(json);
                         
                         if (settings != null && !string.IsNullOrEmpty(settings.Theme))
                         {
@@ -217,12 +218,161 @@ namespace FastExplorer
                 
                 // リソースディクショナリーも即座に更新
                 UpdateThemeResources();
+
+                // 保存されたテーマカラーを適用
+                if (settings != null && !string.IsNullOrEmpty(settings.ThemeColorCode))
+                {
+                    ApplyThemeColorOnStartup(settings);
+                }
             }
             catch
             {
                 // エラーハンドリング：デフォルトのテーマを使用
                 ApplicationThemeManager.Apply(ApplicationTheme.Light);
             }
+        }
+
+        /// <summary>
+        /// 起動時に保存されたテーマカラーを適用します
+        /// </summary>
+        /// <param name="settings">ウィンドウ設定</param>
+        private void ApplyThemeColorOnStartup(Services.WindowSettings settings)
+        {
+            ApplyThemeColorFromSettings(settings);
+        }
+
+        /// <summary>
+        /// 設定からテーマカラーを適用します（公開メソッド）
+        /// </summary>
+        /// <param name="settings">ウィンドウ設定</param>
+        public static void ApplyThemeColorFromSettings(Services.WindowSettings settings)
+        {
+            try
+            {
+                if (Application.Current.Resources is ResourceDictionary mainDictionary)
+                {
+                    // メインカラーを適用
+                    var mainColor = (Color)ColorConverter.ConvertFromString(settings.ThemeColorCode ?? "#F5F5F5");
+                    var mainBrush = new SolidColorBrush(mainColor);
+                    
+                    // セカンダリカラーを適用
+                    var secondaryColor = (Color)ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+                    var secondaryBrush = new SolidColorBrush(secondaryColor);
+
+                    // リソースを更新
+                    if (mainDictionary.Contains("ApplicationBackgroundBrush"))
+                    {
+                        mainDictionary.Remove("ApplicationBackgroundBrush");
+                    }
+                    mainDictionary["ApplicationBackgroundBrush"] = mainBrush;
+
+                    if (mainDictionary.Contains("TabAndNavigationBackgroundBrush"))
+                    {
+                        mainDictionary.Remove("TabAndNavigationBackgroundBrush");
+                    }
+                    mainDictionary["TabAndNavigationBackgroundBrush"] = secondaryBrush;
+
+                    // アクセントカラー（タブとステータスバー用）を更新
+                    if (mainDictionary.Contains("AccentFillColorDefaultBrush"))
+                    {
+                        mainDictionary.Remove("AccentFillColorDefaultBrush");
+                    }
+                    mainDictionary["AccentFillColorDefaultBrush"] = mainBrush;
+
+                    // アクセントカラー（セカンダリ、ホバー時など）を更新
+                    var accentSecondaryColor = Color.FromRgb(
+                        (byte)Math.Max(0, mainColor.R - 20),
+                        (byte)Math.Max(0, mainColor.G - 20),
+                        (byte)Math.Max(0, mainColor.B - 20));
+                    var accentSecondaryBrush = new SolidColorBrush(accentSecondaryColor);
+                    if (mainDictionary.Contains("AccentFillColorSecondaryBrush"))
+                    {
+                        mainDictionary.Remove("AccentFillColorSecondaryBrush");
+                    }
+                    mainDictionary["AccentFillColorSecondaryBrush"] = accentSecondaryBrush;
+
+                    // ステータスバーの文字色を背景色に応じて設定
+                    var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
+                    var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;
+                    var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
+                    if (mainDictionary.Contains("StatusBarTextBrush"))
+                    {
+                        mainDictionary.Remove("StatusBarTextBrush");
+                    }
+                    mainDictionary["StatusBarTextBrush"] = statusBarTextBrush;
+
+                    // ウィンドウが表示された後に背景色を更新
+                    Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        // すべてのウィンドウの背景色を更新
+                        foreach (Window window in Application.Current.Windows)
+                        {
+                            if (window != null)
+                            {
+                                // ウィンドウの背景色を直接設定
+                                window.Background = mainBrush;
+
+                                // FluentWindowの場合は、Backgroundプロパティも更新
+                                if (window is Wpf.Ui.Controls.FluentWindow fluentWindow)
+                                {
+                                    fluentWindow.Background = mainBrush;
+                                }
+
+                                // ウィンドウ内のNavigationViewの背景色も更新
+                                var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(window);
+                                if (navigationView != null)
+                                {
+                                    navigationView.Background = secondaryBrush;
+                                }
+
+                                // ウィンドウのリソースを無効化
+                                if (window is System.Windows.FrameworkElement fe)
+                                {
+                                    fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                                    fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
+                                }
+
+                                // ウィンドウのレイアウトを更新してDynamicResourceを再評価
+                                window.UpdateLayout();
+                                window.InvalidateVisual();
+                            }
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
+                }
+            }
+            catch
+            {
+                // エラーハンドリング：デフォルトのテーマカラーを使用
+            }
+        }
+
+        /// <summary>
+        /// ビジュアルツリー内の指定された型の子要素を検索します
+        /// </summary>
+        /// <typeparam name="T">検索する型</typeparam>
+        /// <param name="parent">親要素</param>
+        /// <returns>見つかった要素、見つからない場合はnull</returns>
+        private static T? FindVisualChild<T>(System.Windows.DependencyObject parent) where T : System.Windows.DependencyObject
+        {
+            if (parent == null)
+                return null;
+
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t)
+                {
+                    return t;
+                }
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                {
+                    return childOfChild;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

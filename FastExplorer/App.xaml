@@ -23,6 +23,13 @@
             <!-- SVGアイコンの色（ライトモード） -->
             <SolidColorBrush x:Key="IconBrush" Color="#000000" />
             
+            <!-- テーマカラー（デフォルト値、コードで動的に更新される） -->
+            <SolidColorBrush x:Key="ApplicationBackgroundBrush" Color="#F5F5F5" />
+            <SolidColorBrush x:Key="TabAndNavigationBackgroundBrush" Color="#FCFCFC" />
+            
+            <!-- ステータスバーのテキスト色（背景色に応じて動的に更新される） -->
+            <SolidColorBrush x:Key="StatusBarTextBrush" Color="#FFFFFF" />
+            
             <!-- FluentIconスタイル -->
             <Style x:Key="FluentIcon" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="Segoe Fluent Icons" />

@@ -118,6 +118,21 @@ namespace FastExplorer.Services
         /// アプリケーションのテーマを取得または設定します（"Light"または"Dark"）
         /// </summary>
         public string Theme { get; set; } = "Light";
+
+        /// <summary>
+        /// 選択されたテーマカラーの名前を取得または設定します
+        /// </summary>
+        public string? ThemeColorName { get; set; }
+
+        /// <summary>
+        /// 選択されたテーマカラーのカラーコードを取得または設定します
+        /// </summary>
+        public string? ThemeColorCode { get; set; }
+
+        /// <summary>
+        /// 選択されたテーマカラーのセカンダリカラーコードを取得または設定します
+        /// </summary>
+        public string? ThemeSecondaryColorCode { get; set; }
     }
 }
 

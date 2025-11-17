@@ -55,6 +55,12 @@ namespace FastExplorer.Services
                         
                         // リソースディクショナリーも更新
                         App.UpdateThemeResourcesInternal();
+
+                        // 保存されたテーマカラーを適用
+                        if (!string.IsNullOrEmpty(settings.ThemeColorCode))
+                        {
+                            App.ApplyThemeColorFromSettings(settings);
+                        }
                     }
                 }
             }

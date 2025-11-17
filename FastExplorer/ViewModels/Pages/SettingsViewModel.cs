@@ -1,11 +1,14 @@
 ﻿using FastExplorer.Controls;
 using FastExplorer.Models;
 using FastExplorer.Services;
+using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using Wpf.Ui.Abstractions.Controls;
 using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
 
 namespace FastExplorer.ViewModels.Pages
 {
@@ -242,27 +245,159 @@ namespace FastExplorer.ViewModels.Pages
                     var secondaryColor = (Color)ColorConverter.ConvertFromString(themeColor.SecondaryColorCode);
                     var secondaryBrush = new SolidColorBrush(secondaryColor);
 
-                    // リソースを更新
-                    mainDictionary["ThemeColorBrush"] = mainBrush;
-                    mainDictionary["ThemeSecondaryColorBrush"] = secondaryBrush;
+                    // メインのリソースディクショナリーに直接追加（MergedDictionariesより優先される）
+                    // リソースを一度削除して再追加することで、DynamicResourceの再評価を強制
+                    if (mainDictionary.Contains("ApplicationBackgroundBrush"))
+                    {
+                        mainDictionary.Remove("ApplicationBackgroundBrush");
+                    }
+                    mainDictionary["ApplicationBackgroundBrush"] = mainBrush;
 
-                    // すべてのウィンドウのリソースを更新
+                    if (mainDictionary.Contains("TabAndNavigationBackgroundBrush"))
+                    {
+                        mainDictionary.Remove("TabAndNavigationBackgroundBrush");
+                    }
+                    mainDictionary["TabAndNavigationBackgroundBrush"] = secondaryBrush;
+
+                    // アクセントカラー（タブとステータスバー用）を更新
+                    if (mainDictionary.Contains("AccentFillColorDefaultBrush"))
+                    {
+                        mainDictionary.Remove("AccentFillColorDefaultBrush");
+                    }
+                    mainDictionary["AccentFillColorDefaultBrush"] = mainBrush;
+
+                    // アクセントカラー（セカンダリ、ホバー時など）を更新
+                    // メインカラーを少し濃くした色を使用
+                    var accentSecondaryColor = Color.FromRgb(
+                        (byte)Math.Max(0, mainColor.R - 20),
+                        (byte)Math.Max(0, mainColor.G - 20),
+                        (byte)Math.Max(0, mainColor.B - 20));
+                    var accentSecondaryBrush = new SolidColorBrush(accentSecondaryColor);
+                    if (mainDictionary.Contains("AccentFillColorSecondaryBrush"))
+                    {
+                        mainDictionary.Remove("AccentFillColorSecondaryBrush");
+                    }
+                    mainDictionary["AccentFillColorSecondaryBrush"] = accentSecondaryBrush;
+
+                    // ステータスバーの文字色を背景色に応じて設定
+                    // 背景が明るい場合は黒、暗い場合は白
+                    var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
+                    var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;
+                    var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
+                    if (mainDictionary.Contains("StatusBarTextBrush"))
+                    {
+                        mainDictionary.Remove("StatusBarTextBrush");
+                    }
+                    mainDictionary["StatusBarTextBrush"] = statusBarTextBrush;
+
+                    // テーマカラーを保存
+                    var settings = _windowSettingsService.GetSettings();
+                    settings.ThemeColorName = themeColor.Name;
+                    settings.ThemeColorCode = themeColor.ColorCode;
+                    settings.ThemeSecondaryColorCode = themeColor.SecondaryColorCode;
+                    _windowSettingsService.SaveSettings(settings);
+
+                    System.Diagnostics.Debug.WriteLine($"Theme color applied: {themeColor.Name} - Main: {themeColor.ColorCode}, Secondary: {themeColor.SecondaryColorCode}");
+
+                    // すべてのウィンドウの背景色を直接更新
                     Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                     {
+                        // すべてのウィンドウの背景色を更新
                         foreach (Window window in Application.Current.Windows)
                         {
                             if (window != null)
                             {
+                                // ウィンドウの背景色を直接設定
+                                window.Background = mainBrush;
+
+                                // FluentWindowの場合は、Backgroundプロパティも更新
+                                if (window is Wpf.Ui.Controls.FluentWindow fluentWindow)
+                                {
+                                    fluentWindow.Background = mainBrush;
+                                }
+
+                                // ウィンドウ内のNavigationViewの背景色も更新
+                                var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(window);
+                                if (navigationView != null)
+                                {
+                                    navigationView.Background = secondaryBrush;
+                                }
+
+                                // ウィンドウのリソースを無効化
+                                if (window is System.Windows.FrameworkElement fe)
+                                {
+                                    fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                                    fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
+                                }
+
+                                // ウィンドウのレイアウトを更新してDynamicResourceを再評価
                                 window.UpdateLayout();
+                                // ビジュアルを無効化してDynamicResourceの再評価を強制
                                 window.InvalidateVisual();
+                                
+                                // ウィンドウ内のすべての要素のDynamicResourceを再評価
+                                InvalidateResourcesRecursive(window);
                             }
                         }
-                    }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    }), System.Windows.Threading.DispatcherPriority.Render);
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SelectThemeColor failed: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+            }
+        }
+
+        /// <summary>
+        /// ビジュアルツリー内の指定された型の子要素を検索します
+        /// </summary>
+        /// <typeparam name="T">検索する型</typeparam>
+        /// <param name="parent">親要素</param>
+        /// <returns>見つかった要素、見つからない場合はnull</returns>
+        private static T? FindVisualChild<T>(System.Windows.DependencyObject parent) where T : System.Windows.DependencyObject
+        {
+            if (parent == null)
+                return null;
+
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t)
+                {
+                    return t;
+                }
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                {
+                    return childOfChild;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 再帰的に要素内のすべてのDependencyObjectのリソースを無効化します
+        /// </summary>
+        /// <param name="element">開始要素</param>
+        private static void InvalidateResourcesRecursive(System.Windows.DependencyObject element)
+        {
+            if (element == null)
+                return;
+
+            // FrameworkElementの場合、Styleプロパティを無効化
+            if (element is System.Windows.FrameworkElement frameworkElement)
+            {
+                frameworkElement.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+            }
+
+            // 子要素を再帰的に処理
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(element); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
+                InvalidateResourcesRecursive(child);
             }
         }
     }

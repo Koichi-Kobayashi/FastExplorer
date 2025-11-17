@@ -187,6 +187,13 @@ namespace FastExplorer.Views.Windows
             // テーマを確認して適用（表示前に確実に適用）
             App.UpdateThemeResourcesInternal();
             
+            // 保存されたテーマカラーを適用
+            var settings = _windowSettingsService.GetSettings();
+            if (!string.IsNullOrEmpty(settings.ThemeColorCode))
+            {
+                App.ApplyThemeColorFromSettings(settings);
+            }
+            
             // ウィンドウ位置を中央に設定（非表示の場合は位置が設定されていない可能性があるため）
             if (WindowStartupLocation != WindowStartupLocation.Manual)
             {
@@ -209,10 +216,18 @@ namespace FastExplorer.Views.Windows
                 WindowState = WindowState.Normal;
                 
                 // 保存されたウィンドウ状態を復元（最大化の場合）
-                var settings = _windowSettingsService.GetSettings();
                 if (settings.State == WindowState.Maximized)
                 {
                     WindowState = WindowState.Maximized;
+                }
+
+                // ウィンドウが表示された後にテーマカラーを再適用（確実に反映させるため）
+                if (!string.IsNullOrEmpty(settings.ThemeColorCode))
+                {
+                    Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        App.ApplyThemeColorFromSettings(settings);
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
                 }
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
