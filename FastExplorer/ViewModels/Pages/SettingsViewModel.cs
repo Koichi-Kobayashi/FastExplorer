@@ -218,5 +218,52 @@ namespace FastExplorer.ViewModels.Pages
             settings.Theme = theme == ApplicationTheme.Light ? "Light" : "Dark";
             _windowSettingsService.SaveSettings(settings);
         }
+
+        /// <summary>
+        /// テーマカラーを選択します
+        /// </summary>
+        /// <param name="themeColor">選択されたテーマカラー</param>
+        [RelayCommand]
+        private void SelectThemeColor(ThemeColor? themeColor)
+        {
+            if (themeColor == null)
+                return;
+
+            try
+            {
+                // テーマカラーをリソースに適用
+                if (Application.Current.Resources is ResourceDictionary mainDictionary)
+                {
+                    // メインカラーを適用
+                    var mainColor = (Color)ColorConverter.ConvertFromString(themeColor.ColorCode);
+                    var mainBrush = new SolidColorBrush(mainColor);
+                    
+                    // セカンダリカラーを適用
+                    var secondaryColor = (Color)ColorConverter.ConvertFromString(themeColor.SecondaryColorCode);
+                    var secondaryBrush = new SolidColorBrush(secondaryColor);
+
+                    // リソースを更新
+                    mainDictionary["ThemeColorBrush"] = mainBrush;
+                    mainDictionary["ThemeSecondaryColorBrush"] = secondaryBrush;
+
+                    // すべてのウィンドウのリソースを更新
+                    Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        foreach (Window window in Application.Current.Windows)
+                        {
+                            if (window != null)
+                            {
+                                window.UpdateLayout();
+                                window.InvalidateVisual();
+                            }
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SelectThemeColor failed: {ex.Message}");
+            }
+        }
     }
 }

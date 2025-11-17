@@ -42,6 +42,51 @@
             IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
 
         <TextBlock
+            Margin="0,24,0,12"
+            Text="Theme Color" />
+        <ItemsControl ItemsSource="{Binding ViewModel.ThemeColors, Mode=OneWay}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="10" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button
+                        Width="40"
+                        Height="40"
+                        Margin="4"
+                        Command="{Binding DataContext.ViewModel.SelectThemeColorCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                        CommandParameter="{Binding}"
+                        Cursor="Hand"
+                        Padding="0"
+                        ToolTip="{Binding Name}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border
+                                    Background="{Binding Color}"
+                                    BorderBrush="{DynamicResource TextFillColorSecondaryBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="BorderThickness" Value="2" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock
             Margin="0,24,0,0"
             FontSize="20"
             FontWeight="Medium"
