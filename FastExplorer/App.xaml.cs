@@ -25,7 +25,6 @@ namespace FastExplorer
     public partial class App
     {
         private ResourceDictionary? _darkThemeResources;
-        private Views.Windows.SplashWindow? _splashWindow;
 
         // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
         // https://docs.microsoft.com/dotnet/core/extensions/generic-host
@@ -104,38 +103,6 @@ namespace FastExplorer
             // テーマを適用してからウィンドウを表示
             LoadAndApplyThemeOnStartup();
             UpdateThemeResources();
-
-            // スプラッシュウィンドウを作成（非表示状態）
-            _splashWindow = new Views.Windows.SplashWindow();
-            
-            // スプラッシュウィンドウを即座に表示（起動時の高速化のため、ネストしたBeginInvokeを削減）
-            _ = Dispatcher.BeginInvoke(new System.Action(() =>
-            {
-                if (_splashWindow != null && !_splashWindow.IsClosed())
-                {
-                    try
-                    {
-                        // スプラッシュウィンドウの色を適用
-                        _splashWindow.ApplyThemeColors();
-                        
-                        // スプラッシュウィンドウを表示
-                        if (_splashWindow.Visibility != Visibility.Visible)
-                        {
-                            _splashWindow.Visibility = Visibility.Visible;
-                        }
-                        
-                        // ウィンドウがまだ表示されていない場合のみShow()を呼ぶ
-                        if (!_splashWindow.IsLoaded)
-                        {
-                            _splashWindow.Show();
-                        }
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // ウィンドウが既に閉じられている場合は無視
-                    }
-                }
-            }), DispatcherPriority.Loaded);
 
             await _host.StartAsync();
 
@@ -489,7 +456,7 @@ namespace FastExplorer
                         // リソースディクショナリーを更新した後、すべてのウィンドウのリソースを更新
                         // DynamicResourceの再評価を強制するため、ウィンドウを更新
                         // 起動時の高速化のため、InvalidateResourcesRecursiveは遅延実行（起動時には呼ばない）
-                        var isStartup = Current.Windows.Count <= 1; // スプラッシュウィンドウのみの場合は起動時
+                        var isStartup = Current.Windows.Count == 0; // ウィンドウが存在しない場合は起動時
                         Current.Dispatcher.BeginInvoke(new System.Action(() =>
                         {
                             // すべてのウィンドウのリソースを更新
@@ -516,7 +483,7 @@ namespace FastExplorer
 
             // すべてのThemedSvgIconインスタンスにブラシを再適用（遅延実行でちらつきを防ぐ）
             // 起動時の高速化のため、Background優先度で実行（起動時以外は即座に実行）
-            var isStartupForIcons = Current.Windows.Count <= 1; // スプラッシュウィンドウのみの場合は起動時
+            var isStartupForIcons = Current.Windows.Count == 0; // ウィンドウが存在しない場合は起動時
             var priority = isStartupForIcons ? System.Windows.Threading.DispatcherPriority.Background : System.Windows.Threading.DispatcherPriority.Loaded;
             Current.Dispatcher.BeginInvoke(new System.Action(() =>
             {

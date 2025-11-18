@@ -116,22 +116,6 @@ namespace FastExplorer.Services
                 _navigationWindow!.ShowWindow();
 
                 _navigationWindow.Navigate(ExplorerPageType);
-                
-                // メインウィンドウが表示されたらスプラッシュウィンドウを閉じる
-                // Render優先度で実行することで、レンダリング後に確実に閉じる
-                // LINQを避けて高速化（直接ループで検索）
-                _ = Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
-                {
-                    var windows = Application.Current.Windows;
-                    for (int i = 0; i < windows.Count; i++)
-                    {
-                        if (windows[i] is Views.Windows.SplashWindow splashWindow)
-                        {
-                            splashWindow.Close();
-                            break;
-                        }
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Render);
             }
 
             await Task.CompletedTask;

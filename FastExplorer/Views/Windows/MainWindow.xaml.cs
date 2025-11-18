@@ -71,10 +71,11 @@ namespace FastExplorer.Views.Windows
             void InitializeNavigationHandler(object? s, RoutedEventArgs e)
             {
                 Loaded -= InitializeNavigationHandler; // 一度だけ実行されるように解除
-                if (RootNavigation != null)
+                var nav = RootNavigation;
+                if (nav != null)
                 {
                     SetPageService(navigationViewPageProvider);
-                    navigationService.SetNavigationControl(RootNavigation);
+                    navigationService.SetNavigationControl(nav);
                 }
             }
             Loaded += InitializeNavigationHandler;
@@ -109,11 +110,12 @@ namespace FastExplorer.Views.Windows
             void NavigateHandler(object? s, RoutedEventArgs e)
             {
                 Loaded -= NavigateHandler; // 一度だけ実行されるように解除
-                if (RootNavigation != null && IsLoaded)
+                var nav = RootNavigation;
+                if (nav != null && IsLoaded)
                 {
                     try
                     {
-                        RootNavigation.Navigate(pageType);
+                        nav.Navigate(pageType);
                     }
                     catch
                     {
@@ -123,7 +125,8 @@ namespace FastExplorer.Views.Windows
             }
             
             var rootNav = RootNavigation;
-            if (rootNav == null || !IsLoaded)
+            var isLoaded = IsLoaded;
+            if (rootNav == null || !isLoaded)
             {
                 // RootNavigationが初期化されていない、またはウィンドウが読み込まれていない場合は、Loadedイベントでナビゲート
                 Loaded += NavigateHandler;
@@ -188,7 +191,8 @@ namespace FastExplorer.Views.Windows
             }
             
             // ウィンドウ位置を中央に設定（非表示の場合は位置が設定されていない可能性があるため）
-            if (WindowStartupLocation != WindowStartupLocation.Manual)
+            var startupLocation = WindowStartupLocation;
+            if (startupLocation != WindowStartupLocation.Manual)
             {
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
@@ -196,7 +200,8 @@ namespace FastExplorer.Views.Windows
             // UIスレッドでウィンドウを表示（テーマ適用後に表示）
             // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
             // メモリ割り当てを削減するため、クロージャで変数をキャプチャ
-            _ = Dispatcher.BeginInvoke(new System.Action(() =>
+            var dispatcher = Dispatcher;
+            _ = dispatcher.BeginInvoke(new System.Action(() =>
             {
                 Visibility = Visibility.Visible;
                 Show();
@@ -218,7 +223,7 @@ namespace FastExplorer.Views.Windows
                 // ただし、起動時の高速化のため、テーマカラーが設定されている場合のみ実行
                 if (hasThemeColor)
                 {
-                    Dispatcher.BeginInvoke(new System.Action(() =>
+                    dispatcher.BeginInvoke(new System.Action(() =>
                     {
                         App.ApplyThemeColorFromSettings(settings);
                     }), System.Windows.Threading.DispatcherPriority.Render);
@@ -279,7 +284,12 @@ namespace FastExplorer.Views.Windows
             base.OnClosed(e);
 
             // Make sure that closing this window will begin the process of closing the application.
-            Application.Current.Shutdown();
+            // Application.Currentをキャッシュして高速化
+            var app = Application.Current;
+            if (app != null)
+            {
+                app.Shutdown();
+            }
         }
 
         /// <summary>
@@ -303,7 +313,8 @@ namespace FastExplorer.Views.Windows
             }
 
             // ウィンドウ位置を復元（有効な値の場合のみ、かつウィンドウが表示されている場合のみ）
-            var isVisible = Visibility == Visibility.Visible;
+            var visibility = Visibility;
+            var isVisible = visibility == Visibility.Visible;
             var left = settings.Left;
             var top = settings.Top;
             
@@ -393,28 +404,35 @@ namespace FastExplorer.Views.Windows
             var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
             
             // エクスプローラーページにナビゲート（共通処理）
-            _navigationService?.Navigate(ExplorerPageType);
+            var navService = _navigationService;
+            if (navService != null)
+            {
+                navService.Navigate(ExplorerPageType);
+            }
             
             // ページが読み込まれるのを待ってから処理を実行
             // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
             if (selectedTab == null)
                 return;
             
+            var dispatcher = Dispatcher;
+            var viewModel = selectedTab.ViewModel;
+            
             // ホームアイテムの場合（文字列比較を最適化）
             if (string.Equals(tag, HomeTag, StringComparison.Ordinal))
             {
-                _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                _ = dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    selectedTab.ViewModel.NavigateToHome();
+                    viewModel.NavigateToHome();
                 }), DispatcherPriority.Loaded);
             }
             // お気に入りアイテムの場合（Tagにパスが設定されている）
             else
             {
                 var path = tag; // クロージャで使用するため変数に保存
-                _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                _ = dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    selectedTab.ViewModel.NavigateToPathCommand.Execute(path);
+                    viewModel.NavigateToPathCommand.Execute(path);
                 }), DispatcherPriority.Loaded);
             }
             // TargetPageTypeが設定されている場合（Settingsなど）は自動的にナビゲートされる
