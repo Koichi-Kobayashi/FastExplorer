@@ -59,8 +59,6 @@ namespace FastExplorer.Views.Windows
             _windowSettingsService = windowSettingsService;
             _navigationService = navigationService;
 
-            SystemThemeWatcher.Watch(this);
-
             // 最初は非表示で作成（テーマ適用後に表示するため）
             Visibility = Visibility.Hidden;
             ShowInTaskbar = false; // 初期状態ではタスクバーに表示しない
@@ -93,7 +91,13 @@ namespace FastExplorer.Views.Windows
             viewModel.SetNavigationService(navigationService);
 
             // 保存されたウィンドウ設定を復元（位置とサイズのみ、状態は復元しない）
-            RestoreWindowSettings();
+            // 起動時の高速化のため、Loadedイベントで遅延読み込み
+            Loaded += (s, e) =>
+            {
+                RestoreWindowSettings();
+                // SystemThemeWatcherも遅延読み込み（起動時の高速化）
+                SystemThemeWatcher.Watch(this);
+            };
             
             // Loadedイベントでテーマを確認してから表示
             Loaded += MainWindow_Loaded;

@@ -108,53 +108,41 @@ namespace FastExplorer
             // スプラッシュウィンドウを作成（非表示状態）
             _splashWindow = new Views.Windows.SplashWindow();
             
-            // リソースが完全に解決されるのを待ってから表示
+            // スプラッシュウィンドウを即座に表示（起動時の高速化のため、ネストしたBeginInvokeを削減）
             _ = Dispatcher.BeginInvoke(new System.Action(() =>
             {
-                // 再度テーマを確認
-                UpdateThemeResources();
-                
-                // スプラッシュウィンドウの色を適用
                 if (_splashWindow != null && !_splashWindow.IsClosed())
                 {
-                    _splashWindow.ApplyThemeColors();
-                }
-                
-                // UIスレッドでスプラッシュウィンドウを表示
-                _ = Dispatcher.BeginInvoke(new System.Action(() =>
-                {
-                    if (_splashWindow != null && !_splashWindow.IsClosed())
+                    try
                     {
-                        try
+                        // スプラッシュウィンドウの色を適用
+                        _splashWindow.ApplyThemeColors();
+                        
+                        // スプラッシュウィンドウを表示
+                        if (_splashWindow.Visibility != Visibility.Visible)
                         {
-                            // スプラッシュウィンドウを表示
-                            if (_splashWindow.Visibility != Visibility.Visible)
-                            {
-                                _splashWindow.Visibility = Visibility.Visible;
-                            }
-                            
-                            // ウィンドウがまだ表示されていない場合のみShow()を呼ぶ
-                            if (!_splashWindow.IsLoaded)
-                            {
-                                _splashWindow.Show();
-                            }
-                            
-                            _splashWindow.UpdateLayout();
+                            _splashWindow.Visibility = Visibility.Visible;
                         }
-                        catch (InvalidOperationException)
+                        
+                        // ウィンドウがまだ表示されていない場合のみShow()を呼ぶ
+                        if (!_splashWindow.IsLoaded)
                         {
-                            // ウィンドウが既に閉じられている場合は無視
+                            _splashWindow.Show();
                         }
                     }
-                }), DispatcherPriority.Loaded);
+                    catch (InvalidOperationException)
+                    {
+                        // ウィンドウが既に閉じられている場合は無視
+                    }
+                }
             }), DispatcherPriority.Loaded);
 
             await _host.StartAsync();
 
             // ホスト起動後にもう一度テーマを確認して適用（確実に適用するため）
+            // ただし、起動時の高速化のため、リソース更新のみ実行（重い処理は避ける）
             _ = Dispatcher.BeginInvoke(new System.Action(() =>
             {
-                LoadAndApplyThemeOnStartup();
                 UpdateThemeResources();
             }), DispatcherPriority.Loaded);
         }
@@ -486,6 +474,8 @@ namespace FastExplorer
                     {
                         // リソースディクショナリーを更新した後、すべてのウィンドウのリソースを更新
                         // DynamicResourceの再評価を強制するため、ウィンドウを更新
+                        // 起動時の高速化のため、InvalidateResourcesRecursiveは遅延実行（起動時には呼ばない）
+                        var isStartup = Current.Windows.Count <= 1; // スプラッシュウィンドウのみの場合は起動時
                         Current.Dispatcher.BeginInvoke(new System.Action(() =>
                         {
                             // すべてのウィンドウのリソースを更新
@@ -498,8 +488,11 @@ namespace FastExplorer
                                     // ビジュアルを無効化してDynamicResourceの再評価を強制
                                     window.InvalidateVisual();
                                     
-                                    // ウィンドウ内のすべての要素のDynamicResourceを再評価
-                                    InvalidateResourcesRecursive(window);
+                                    // 起動時以外の場合のみ、再帰的にリソースを無効化（起動時の高速化）
+                                    if (!isStartup)
+                                    {
+                                        InvalidateResourcesRecursive(window);
+                                    }
                                 }
                             }
                         }), System.Windows.Threading.DispatcherPriority.Loaded);

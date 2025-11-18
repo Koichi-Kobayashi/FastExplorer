@@ -31,9 +31,7 @@ namespace FastExplorer.Services
         /// <param name="cancellationToken">開始プロセスが中止されたことを示すトークン</param>
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            // テーマを確実に適用するため、ここでも適用を試みる
-            ApplyThemeFromSettings();
-            
+            // テーマは既にApp.xaml.csで適用されているため、ここでは適用しない（重複を避けて起動を高速化）
             await HandleActivationAsync();
         }
 
@@ -91,12 +89,8 @@ namespace FastExplorer.Services
         {
             if (!Application.Current.Windows.OfType<MainWindow>().Any())
             {
-                // テーマを確実に適用してからメインウィンドウを表示
-                ApplyThemeFromSettings();
-                
-                // 少し待ってからテーマが完全に適用されるのを待つ
-                await Task.Delay(50);
-                
+                // テーマは既にApp.xaml.csで適用されているため、ここでは適用しない（重複を避ける）
+                // メインウィンドウを取得
                 _navigationWindow = (
                     _serviceProvider.GetService(typeof(INavigationWindow)) as INavigationWindow
                 )!;
@@ -107,6 +101,7 @@ namespace FastExplorer.Services
                 _navigationWindow.Navigate(typeof(Views.Pages.ExplorerPage));
                 
                 // メインウィンドウが表示されたらスプラッシュウィンドウを閉じる
+                // Render優先度で実行することで、レンダリング後に確実に閉じる
                 _ = Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     var splashWindow = Application.Current.Windows.OfType<Views.Windows.SplashWindow>().FirstOrDefault();
@@ -114,7 +109,7 @@ namespace FastExplorer.Services
                     {
                         splashWindow.Close();
                     }
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
+                }), System.Windows.Threading.DispatcherPriority.Render);
             }
 
             await Task.CompletedTask;
