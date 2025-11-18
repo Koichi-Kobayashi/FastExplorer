@@ -83,13 +83,8 @@ namespace FastExplorer.Views.Windows
                 // ViewModelにNavigationServiceを設定
                 viewModel.SetNavigationService(navigationService);
                 
-                // ウィンドウ設定の復元（遅延実行で起動を最速化）
-                _ = Dispatcher.BeginInvoke(new System.Action(() =>
-                {
-                    RestoreWindowSettings();
-                }), DispatcherPriority.Background);
-                
-                // SystemThemeWatcherも遅延読み込み（起動時の高速化）
+                // SystemThemeWatcherを遅延実行（起動を最速化）
+                // ウィンドウ位置とサイズの復元はShowWindow()で実行されるため、ここでは実行しない
                 _ = Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     SystemThemeWatcher.Watch(this);
@@ -186,15 +181,12 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         public void ShowWindow()
         {
-            // 起動を最速化するため、ウィンドウを即座に表示（テーマ適用は後で実行）
+            // テーマ適用と同じタイミングでウィンドウ位置とサイズを復元
             var settings = _windowSettingsService.GetSettings();
             var isMaximized = settings.State == WindowState.Maximized;
             
-            // ウィンドウ位置を中央に設定（非表示の場合は位置が設定されていない可能性があるため）
-            if (WindowStartupLocation != WindowStartupLocation.Manual)
-            {
-                WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            }
+            // ウィンドウ位置とサイズを復元（テーマ適用と同じタイミング）
+            RestoreWindowSettings();
             
             // ウィンドウを即座に表示（起動を最速化）
             Visibility = Visibility.Visible;
@@ -202,7 +194,7 @@ namespace FastExplorer.Views.Windows
             ShowInTaskbar = true;
             WindowState = isMaximized ? WindowState.Maximized : WindowState.Normal;
 
-            // テーマカラーと設定の適用は遅延実行（起動を最速化）
+            // テーマカラーの適用は遅延実行（起動を最速化）
             var dispatcher = Dispatcher;
             var themeColorCode = settings.ThemeColorCode;
             var hasThemeColor = themeColorCode != null && themeColorCode.Length > 0;
@@ -301,19 +293,14 @@ namespace FastExplorer.Views.Windows
                 Height = height;
             }
 
-            // ウィンドウ位置を復元（有効な値の場合のみ、かつウィンドウが表示されている場合のみ）
-            var visibility = Visibility;
-            var isVisible = visibility == Visibility.Visible;
+            // ウィンドウ位置を復元（有効な値の場合のみ）
             var left = settings.Left;
             var top = settings.Top;
             
             // 早期リターンで不要な処理をスキップ（高速化）
-            if (double.IsNaN(left) || double.IsNaN(top) || !isVisible)
+            if (double.IsNaN(left) || double.IsNaN(top))
             {
-                if (!isVisible)
-                {
-                    WindowStartupLocation = WindowStartupLocation.CenterScreen;
-                }
+                WindowStartupLocation = WindowStartupLocation.CenterScreen;
                 return;
             }
             
@@ -332,6 +319,10 @@ namespace FastExplorer.Views.Windows
                 Left = left;
                 Top = top;
                 WindowStartupLocation = WindowStartupLocation.Manual;
+            }
+            else
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
 
             // ウィンドウ状態を復元（起動時は復元しない）

@@ -119,10 +119,9 @@ namespace FastExplorer
             try
             {
                 // 設定ファイルから直接読み込む（WindowSettingsServiceを待たない）
-                var appDataPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "FastExplorer");
-                var settingsFilePath = Path.Combine(appDataPath, "window_settings.json");
+                // パスをキャッシュして高速化
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var settingsFilePath = Path.Combine(localAppData, "FastExplorer", "window_settings.json");
 
                 ApplicationTheme themeToApply = ApplicationTheme.Unknown;
                 Services.WindowSettings? settings = null;
@@ -137,12 +136,12 @@ namespace FastExplorer
                         var themeStr = settings?.Theme;
                         if (themeStr != null && themeStr.Length > 0)
                         {
-                            themeToApply = themeStr switch
-                            {
-                                "Dark" => ApplicationTheme.Dark,
-                                "Light" => ApplicationTheme.Light,
-                                _ => ApplicationTheme.Unknown // "System"またはその他の場合はシステムテーマに従う
-                            };
+                            // switch式を最適化（文字列比較を高速化）
+                            if (themeStr == "Dark")
+                                themeToApply = ApplicationTheme.Dark;
+                            else if (themeStr == "Light")
+                                themeToApply = ApplicationTheme.Light;
+                            // それ以外はUnknown（システムテーマ）
                         }
                     }
                     catch
@@ -173,29 +172,29 @@ namespace FastExplorer
                         if (themeProperty != null)
                         {
                             var themeType = themeProperty.PropertyType;
+                            string themeName;
+                            
                             // ApplicationTheme.Unknownの場合は、システムテーマを取得
                             if (themeToApply == ApplicationTheme.Unknown)
                             {
                                 var systemTheme = ApplicationThemeManager.GetSystemTheme();
-                                var themeValue = Enum.Parse(themeType, systemTheme == SystemTheme.Dark ? "Dark" : "Light");
-                                themeProperty.SetValue(themesDict, themeValue);
+                                themeName = systemTheme == SystemTheme.Dark ? "Dark" : "Light";
                             }
                             else
                             {
-                                var themeValue = Enum.Parse(themeType, themeToApply == ApplicationTheme.Dark ? "Dark" : "Light");
-                                themeProperty.SetValue(themesDict, themeValue);
+                                themeName = themeToApply == ApplicationTheme.Dark ? "Dark" : "Light";
                             }
+                            
+                            var themeValue = Enum.Parse(themeType, themeName);
+                            themeProperty.SetValue(themesDict, themeValue);
                         }
                     }
                 }
 
                 // テーマを適用
                 ApplicationThemeManager.Apply(themeToApply);
-                
-                // リソースディクショナリーも即座に更新
-                UpdateThemeResources();
 
-                // 保存されたテーマカラーを適用
+                // 保存されたテーマカラーを適用（リソース更新はOnStartupで遅延実行）
                 var themeColorCode = settings?.ThemeColorCode;
                 if (themeColorCode != null && themeColorCode.Length > 0)
                 {
