@@ -17,6 +17,10 @@ namespace FastExplorer.ViewModels.Windows
     {
         private readonly FavoriteService _favoriteService;
         private INavigationService? _navigationService;
+        
+        // 型をキャッシュ（パフォーマンス向上）
+        private static readonly Type ExplorerPageType = typeof(Views.Pages.ExplorerPage);
+        private static readonly Type ExplorerPageViewModelType = typeof(ViewModels.Pages.ExplorerPageViewModel);
 
         /// <summary>
         /// アプリケーションのタイトル
@@ -118,21 +122,19 @@ namespace FastExplorer.ViewModels.Windows
             // エクスプローラーページにナビゲート
             if (_navigationService != null)
             {
-                _navigationService.Navigate(typeof(Views.Pages.ExplorerPage));
+                _navigationService.Navigate(ExplorerPageType);
                 
-                // 少し遅延してからホームページを表示（ページが読み込まれるのを待つ）
-                Task.Delay(100).ContinueWith(_ =>
+                // ページが読み込まれるのを待ってからホームページを表示
+                // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+                Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
+                    var explorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                    if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
                     {
-                        var explorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
-                        if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
-                        {
-                            // ホームページにナビゲート
-                            explorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
-                        }
-                    });
-                });
+                        // ホームページにナビゲート
+                        explorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
         }
 
@@ -145,20 +147,19 @@ namespace FastExplorer.ViewModels.Windows
             // エクスプローラーページにナビゲート
             if (_navigationService != null)
             {
-                _navigationService.Navigate(typeof(Views.Pages.ExplorerPage));
+                _navigationService.Navigate(ExplorerPageType);
                 
-                // 少し遅延してからパスを設定（ページが読み込まれるのを待つ）
-                Task.Delay(100).ContinueWith(_ =>
+                // ページが読み込まれるのを待ってからパスを設定
+                // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+                var pathCopy = path; // クロージャで使用するため変数に保存
+                Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
+                    var explorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                    if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
                     {
-                        var explorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
-                        if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
-                        {
-                            explorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(path);
-                        }
-                    });
-                });
+                        explorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(pathCopy);
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
         }
 

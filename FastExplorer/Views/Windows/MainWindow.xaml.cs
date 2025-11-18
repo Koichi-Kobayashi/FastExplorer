@@ -32,6 +32,10 @@ namespace FastExplorer.Views.Windows
         // 画面サイズをキャッシュ（パフォーマンス向上）
         private static double? _cachedScreenWidth;
         private static double? _cachedScreenHeight;
+        
+        // 型をキャッシュ（パフォーマンス向上）
+        private static readonly Type ExplorerPageType = typeof(Views.Pages.ExplorerPage);
+        private static readonly Type ExplorerPageViewModelType = typeof(ViewModels.Pages.ExplorerPageViewModel);
 
         /// <summary>
         /// メインウィンドウのViewModelを取得します
@@ -388,14 +392,14 @@ namespace FastExplorer.Views.Windows
                     // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
                     if (_cachedExplorerPageViewModel == null)
                     {
-                        _cachedExplorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
+                        _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
                     }
                     
                     // ホームアイテムの場合（文字列比較を最適化）
                     if (string.Equals(tag, HomeTag, StringComparison.Ordinal))
                     {
                         // エクスプローラーページにナビゲート
-                        _navigationService?.Navigate(typeof(Views.Pages.ExplorerPage));
+                        _navigationService?.Navigate(ExplorerPageType);
                         
                         // ページが読み込まれるのを待ってからホームページを表示
                         // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
@@ -412,7 +416,7 @@ namespace FastExplorer.Views.Windows
                     else if (_cachedExplorerPageViewModel?.SelectedTab != null)
                     {
                         // エクスプローラーページにナビゲート
-                        _navigationService?.Navigate(typeof(Views.Pages.ExplorerPage));
+                        _navigationService?.Navigate(ExplorerPageType);
                         
                         // ページが読み込まれるのを待ってからパスを設定
                         // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される

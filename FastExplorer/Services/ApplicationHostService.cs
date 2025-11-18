@@ -15,6 +15,9 @@ namespace FastExplorer.Services
         private readonly IServiceProvider _serviceProvider;
 
         private INavigationWindow? _navigationWindow;
+        
+        // 型をキャッシュ（パフォーマンス向上）
+        private static readonly Type ExplorerPageType = typeof(Views.Pages.ExplorerPage);
 
         /// <summary>
         /// <see cref="ApplicationHostService"/>クラスの新しいインスタンスを初期化します
@@ -98,7 +101,7 @@ namespace FastExplorer.Services
                 // メインウィンドウを表示（MainWindow_LoadedでVisibilityがVisibleに設定される）
                 _navigationWindow!.ShowWindow();
 
-                _navigationWindow.Navigate(typeof(Views.Pages.ExplorerPage));
+                _navigationWindow.Navigate(ExplorerPageType);
                 
                 // メインウィンドウが表示されたらスプラッシュウィンドウを閉じる
                 // Render優先度で実行することで、レンダリング後に確実に閉じる
