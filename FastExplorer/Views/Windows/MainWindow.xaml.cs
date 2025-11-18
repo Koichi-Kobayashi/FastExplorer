@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using FastExplorer.Services;
@@ -65,53 +63,28 @@ namespace FastExplorer.Views.Windows
 
             InitializeComponent();
             
-            // RootNavigationが初期化されるのを待つ
-            if (RootNavigation != null)
+            // RootNavigationが初期化されるのを待つ（起動時の高速化のため、Loadedイベントで遅延）
+            void InitializeNavigationHandler(object? s, RoutedEventArgs e)
             {
-                SetPageService(navigationViewPageProvider);
-                navigationService.SetNavigationControl(RootNavigation);
-            }
-            else
-            {
-                // RootNavigationが初期化されていない場合は、Loadedイベントで設定
-                // 一度だけ実行されるように、既に登録されているかチェック（簡易的な実装）
-                void InitializeNavigationHandler(object? s, RoutedEventArgs e)
+                Loaded -= InitializeNavigationHandler; // 一度だけ実行されるように解除
+                if (RootNavigation != null)
                 {
-                    Loaded -= InitializeNavigationHandler; // 一度だけ実行されるように解除
-                    if (RootNavigation != null)
-                    {
-                        SetPageService(navigationViewPageProvider);
-                        navigationService.SetNavigationControl(RootNavigation);
-                    }
+                    SetPageService(navigationViewPageProvider);
+                    navigationService.SetNavigationControl(RootNavigation);
                 }
-                Loaded += InitializeNavigationHandler;
             }
+            Loaded += InitializeNavigationHandler;
             
-            // ViewModelにNavigationServiceを設定
-            viewModel.SetNavigationService(navigationService);
-
-            // 保存されたウィンドウ設定を復元（位置とサイズのみ、状態は復元しない）
-            // 起動時の高速化のため、Loadedイベントで遅延読み込み
+            // ViewModelにNavigationServiceを設定（起動時の高速化のため、Loadedイベントで遅延）
             Loaded += (s, e) =>
             {
+                viewModel.SetNavigationService(navigationService);
                 RestoreWindowSettings();
                 // SystemThemeWatcherも遅延読み込み（起動時の高速化）
                 SystemThemeWatcher.Watch(this);
             };
-            
-            // Loadedイベントでテーマを確認してから表示
-            Loaded += MainWindow_Loaded;
         }
 
-        /// <summary>
-        /// ウィンドウが読み込まれたときに呼び出されます
-        /// </summary>
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
-        {
-            // テーマは既に起動時に適用されているため、ここでは適用しない（起動時の高速化）
-            // 表示されていることを確認（ShowWindowで既にVisibleに設定されているはず）
-            // 最適化：不要なチェックを削減（Visibilityは既に設定されている）
-        }
 
         #region INavigationWindow methods
 
