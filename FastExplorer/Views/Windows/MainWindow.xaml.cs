@@ -122,7 +122,8 @@ namespace FastExplorer.Views.Windows
                 }
             }
             
-            if (RootNavigation == null || !IsLoaded)
+            var rootNav = RootNavigation;
+            if (rootNav == null || !IsLoaded)
             {
                 // RootNavigationが初期化されていない、またはウィンドウが読み込まれていない場合は、Loadedイベントでナビゲート
                 Loaded += NavigateHandler;
@@ -131,7 +132,7 @@ namespace FastExplorer.Views.Windows
             
             try
             {
-                return RootNavigation.Navigate(pageType);
+                return rootNav.Navigate(pageType);
             }
             catch
             {
@@ -147,9 +148,10 @@ namespace FastExplorer.Views.Windows
         /// <param name="navigationViewPageProvider">ナビゲーションビューページプロバイダー</param>
         public void SetPageService(INavigationViewPageProvider navigationViewPageProvider)
         {
-            if (RootNavigation != null)
+            var rootNav = RootNavigation;
+            if (rootNav != null)
             {
-                RootNavigation.SetPageProviderService(navigationViewPageProvider);
+                rootNav.SetPageProviderService(navigationViewPageProvider);
             }
             else
             {
@@ -158,9 +160,10 @@ namespace FastExplorer.Views.Windows
                 void SetPageServiceHandler(object? s, RoutedEventArgs e)
                 {
                     Loaded -= SetPageServiceHandler; // 一度だけ実行されるように解除
-                    if (RootNavigation != null)
+                    var nav = RootNavigation;
+                    if (nav != null)
                     {
-                        RootNavigation.SetPageProviderService(navigationViewPageProvider);
+                        nav.SetPageProviderService(navigationViewPageProvider);
                     }
                 }
                 Loaded += SetPageServiceHandler;
@@ -236,33 +239,35 @@ namespace FastExplorer.Views.Windows
         /// <param name="e">キャンセルイベント引数</param>
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
-            // ウィンドウサイズと位置を保存
-            SaveWindowSettings();
-            
-            // 現在のテーマを保存
-            SaveCurrentTheme();
-            
-            base.OnClosing(e);
-        }
-
-        /// <summary>
-        /// 現在のテーマを保存します
-        /// </summary>
-        private void SaveCurrentTheme()
-        {
+            // ウィンドウサイズと位置、テーマを一度のGetSettings呼び出しで保存（最適化）
             try
             {
-                var currentTheme = ApplicationThemeManager.GetAppTheme();
                 var settings = _windowSettingsService.GetSettings();
-                // switch式を最適化（文字列リテラルを直接使用）
-                settings.Theme = currentTheme == ApplicationTheme.Light ? "Light" :
-                                currentTheme == ApplicationTheme.Dark ? "Dark" : "System";
+                
+                // ウィンドウサイズと位置を保存
+                settings.Width = Width;
+                settings.Height = Height;
+                settings.Left = Left;
+                settings.Top = Top;
+                settings.State = WindowState;
+                
+                // 現在のテーマを保存
+                var currentTheme = ApplicationThemeManager.GetAppTheme();
+                if (currentTheme == ApplicationTheme.Light)
+                    settings.Theme = "Light";
+                else if (currentTheme == ApplicationTheme.Dark)
+                    settings.Theme = "Dark";
+                else
+                    settings.Theme = "System";
+                
                 _windowSettingsService.SaveSettings(settings);
             }
             catch
             {
                 // エラーハンドリング：保存に失敗してもウィンドウの閉じる処理は続行
             }
+            
+            base.OnClosing(e);
         }
 
         /// <summary>
@@ -333,21 +338,6 @@ namespace FastExplorer.Views.Windows
             // ShowWindow()でNormalに設定されるため、ここでは復元しない
         }
 
-        /// <summary>
-        /// ウィンドウ設定を保存します
-        /// </summary>
-        private void SaveWindowSettings()
-        {
-            // 既存の設定を取得して、ウィンドウのサイズと位置のみを更新
-            var settings = _windowSettingsService.GetSettings();
-            settings.Width = Width;
-            settings.Height = Height;
-            settings.Left = Left;
-            settings.Top = Top;
-            settings.State = WindowState;
-
-            _windowSettingsService.SaveSettings(settings);
-        }
 
         /// <summary>
         /// ナビゲーションコントロールを取得します（明示的なインターフェース実装）
@@ -402,30 +392,25 @@ namespace FastExplorer.Views.Windows
             
             var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
             
+            // エクスプローラーページにナビゲート（共通処理）
+            _navigationService?.Navigate(ExplorerPageType);
+            
+            // ページが読み込まれるのを待ってから処理を実行
+            // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+            if (selectedTab == null)
+                return;
+            
             // ホームアイテムの場合（文字列比較を最適化）
             if (string.Equals(tag, HomeTag, StringComparison.Ordinal))
             {
-                // エクスプローラーページにナビゲート
-                _navigationService?.Navigate(ExplorerPageType);
-                
-                // ページが読み込まれるのを待ってからホームページを表示
-                // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
-                if (selectedTab != null)
+                _ = Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    _ = Dispatcher.BeginInvoke(new System.Action(() =>
-                    {
-                        selectedTab.ViewModel.NavigateToHome();
-                    }), DispatcherPriority.Loaded);
-                }
+                    selectedTab.ViewModel.NavigateToHome();
+                }), DispatcherPriority.Loaded);
             }
             // お気に入りアイテムの場合（Tagにパスが設定されている）
-            else if (selectedTab != null)
+            else
             {
-                // エクスプローラーページにナビゲート
-                _navigationService?.Navigate(ExplorerPageType);
-                
-                // ページが読み込まれるのを待ってからパスを設定
-                // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
                 var path = tag; // クロージャで使用するため変数に保存
                 _ = Dispatcher.BeginInvoke(new System.Action(() =>
                 {
