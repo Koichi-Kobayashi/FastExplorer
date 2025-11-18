@@ -101,25 +101,26 @@ namespace FastExplorer.Views.Windows
         /// <returns>ナビゲートに成功した場合はtrue、それ以外の場合はfalse</returns>
         public bool Navigate(Type pageType)
         {
+            // ナビゲーションハンドラーを定義（重複を避けるため）
+            void NavigateHandler(object? s, RoutedEventArgs e)
+            {
+                Loaded -= NavigateHandler; // 一度だけ実行されるように解除
+                if (RootNavigation != null && IsLoaded)
+                {
+                    try
+                    {
+                        RootNavigation.Navigate(pageType);
+                    }
+                    catch
+                    {
+                        // ナビゲーションに失敗した場合は無視
+                    }
+                }
+            }
+            
             if (RootNavigation == null || !IsLoaded)
             {
                 // RootNavigationが初期化されていない、またはウィンドウが読み込まれていない場合は、Loadedイベントでナビゲート
-                // 一度だけ実行されるように、既に登録されているかチェック（簡易的な実装）
-                void NavigateHandler(object? s, RoutedEventArgs e)
-                {
-                    Loaded -= NavigateHandler; // 一度だけ実行されるように解除
-                    if (RootNavigation != null && IsLoaded)
-                    {
-                        try
-                        {
-                            RootNavigation.Navigate(pageType);
-                        }
-                        catch
-                        {
-                            // ナビゲーションに失敗した場合は無視
-                        }
-                    }
-                }
                 Loaded += NavigateHandler;
                 return false;
             }
@@ -131,22 +132,6 @@ namespace FastExplorer.Views.Windows
             catch
             {
                 // ナビゲーションに失敗した場合は、Loadedイベントで再試行
-                // 一度だけ実行されるように、既に登録されているかチェック（簡易的な実装）
-                void NavigateHandler(object? s, RoutedEventArgs e)
-                {
-                    Loaded -= NavigateHandler; // 一度だけ実行されるように解除
-                    if (RootNavigation != null && IsLoaded)
-                    {
-                        try
-                        {
-                            RootNavigation.Navigate(pageType);
-                        }
-                        catch
-                        {
-                            // ナビゲーションに失敗した場合は無視
-                        }
-                    }
-                }
                 Loaded += NavigateHandler;
                 return false;
             }
@@ -187,6 +172,8 @@ namespace FastExplorer.Views.Windows
             // 保存されたテーマカラーを適用
             var settings = _windowSettingsService.GetSettings();
             var hasThemeColor = !string.IsNullOrEmpty(settings.ThemeColorCode);
+            var isMaximized = settings.State == WindowState.Maximized;
+            
             if (hasThemeColor)
             {
                 App.ApplyThemeColorFromSettings(settings);
@@ -200,7 +187,6 @@ namespace FastExplorer.Views.Windows
             
             // UIスレッドでウィンドウを表示（テーマ適用後に表示）
             // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
-            var isMaximized = settings.State == WindowState.Maximized;
             _ = Dispatcher.BeginInvoke(new System.Action(() =>
             {
                 Visibility = Visibility.Visible;
@@ -387,8 +373,8 @@ namespace FastExplorer.Views.Windows
             // リフレクションを使用してInvokedItemContainerプロパティにアクセス（キャッシュを使用）
             var argsType = args.GetType();
             
-            // キャッシュされた型と一致しない場合は、プロパティを再取得
-            if (_cachedArgsType != argsType)
+            // キャッシュされた型と一致しない場合は、プロパティを再取得（ReferenceEqualsで高速化）
+            if (!ReferenceEquals(_cachedArgsType, argsType))
             {
                 _cachedArgsType = argsType;
                 _cachedInvokedItemContainerProperty = argsType.GetProperty("InvokedItemContainer");
