@@ -67,27 +67,29 @@ namespace FastExplorer.Views.Windows
 
             InitializeComponent();
             
-            // RootNavigationが初期化されるのを待つ（起動時の高速化のため、Loadedイベントで遅延）
-            void InitializeNavigationHandler(object? s, RoutedEventArgs e)
+            // すべての初期化処理を1つのLoadedイベントハンドラーに統合（起動時の高速化）
+            void InitializeHandler(object? s, RoutedEventArgs e)
             {
-                Loaded -= InitializeNavigationHandler; // 一度だけ実行されるように解除
+                Loaded -= InitializeHandler; // 一度だけ実行されるように解除
+                
+                // RootNavigationの初期化
                 var nav = RootNavigation;
                 if (nav != null)
                 {
                     SetPageService(navigationViewPageProvider);
                     navigationService.SetNavigationControl(nav);
                 }
-            }
-            Loaded += InitializeNavigationHandler;
-            
-            // ViewModelにNavigationServiceを設定（起動時の高速化のため、Loadedイベントで遅延）
-            Loaded += (s, e) =>
-            {
+                
+                // ViewModelにNavigationServiceを設定
                 viewModel.SetNavigationService(navigationService);
+                
+                // ウィンドウ設定の復元
                 RestoreWindowSettings();
+                
                 // SystemThemeWatcherも遅延読み込み（起動時の高速化）
                 SystemThemeWatcher.Watch(this);
-            };
+            }
+            Loaded += InitializeHandler;
         }
 
 
@@ -209,14 +211,8 @@ namespace FastExplorer.Views.Windows
                 // タスクバーに表示するように戻す
                 ShowInTaskbar = true;
                 
-                // 通常表示に設定（最大化が保存されていた場合は後で復元）
-                WindowState = WindowState.Normal;
-                
-                // 保存されたウィンドウ状態を復元（最大化の場合）
-                if (isMaximized)
-                {
-                    WindowState = WindowState.Maximized;
-                }
+                // ウィンドウ状態を設定（最大化が保存されていた場合は最大化、それ以外は通常表示）
+                WindowState = isMaximized ? WindowState.Maximized : WindowState.Normal;
 
                 // ウィンドウが表示された後にテーマカラーを再適用（確実に反映させるため）
                 // Render優先度で実行することで、レンダリング後に確実に適用される
@@ -306,10 +302,12 @@ namespace FastExplorer.Views.Windows
             MinHeight = minHeight;
 
             // ウィンドウサイズを復元
-            if (settings.Width >= minWidth && settings.Height >= minHeight)
+            var width = settings.Width;
+            var height = settings.Height;
+            if (width >= minWidth && height >= minHeight)
             {
-                Width = settings.Width;
-                Height = settings.Height;
+                Width = width;
+                Height = height;
             }
 
             // ウィンドウ位置を復元（有効な値の場合のみ、かつウィンドウが表示されている場合のみ）
@@ -417,16 +415,16 @@ namespace FastExplorer.Views.Windows
             
             var dispatcher = Dispatcher;
             var viewModel = selectedTab.ViewModel;
+            var isHome = string.Equals(tag, HomeTag, StringComparison.Ordinal);
             
-            // ホームアイテムの場合（文字列比較を最適化）
-            if (string.Equals(tag, HomeTag, StringComparison.Ordinal))
+            // ホームアイテムとお気に入りアイテムの処理を統合（メモリ割り当て削減）
+            if (isHome)
             {
                 _ = dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     viewModel.NavigateToHome();
                 }), DispatcherPriority.Loaded);
             }
-            // お気に入りアイテムの場合（Tagにパスが設定されている）
             else
             {
                 var path = tag; // クロージャで使用するため変数に保存

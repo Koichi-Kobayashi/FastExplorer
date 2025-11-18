@@ -105,13 +105,6 @@ namespace FastExplorer
             UpdateThemeResources();
 
             await _host.StartAsync();
-
-            // ホスト起動後にもう一度テーマを確認して適用（確実に適用するため）
-            // ただし、起動時の高速化のため、リソース更新のみ実行（重い処理は避ける）
-            _ = Dispatcher.BeginInvoke(new System.Action(() =>
-            {
-                UpdateThemeResources();
-            }), DispatcherPriority.Loaded);
         }
 
         /// <summary>
