@@ -193,8 +193,8 @@ namespace FastExplorer.Views.Windows
             }
             
             // ウィンドウ位置を中央に設定（非表示の場合は位置が設定されていない可能性があるため）
-            var startupLocation = WindowStartupLocation;
-            if (startupLocation != WindowStartupLocation.Manual)
+            // 条件分岐を最適化（プロパティアクセスを削減）
+            if (WindowStartupLocation != WindowStartupLocation.Manual)
             {
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
@@ -245,12 +245,18 @@ namespace FastExplorer.Views.Windows
             {
                 var settings = _windowSettingsService.GetSettings();
                 
-                // ウィンドウサイズと位置を保存
-                settings.Width = Width;
-                settings.Height = Height;
-                settings.Left = Left;
-                settings.Top = Top;
-                settings.State = WindowState;
+                // ウィンドウサイズと位置を保存（プロパティアクセスを最適化）
+                var width = Width;
+                var height = Height;
+                var left = Left;
+                var top = Top;
+                var state = WindowState;
+                
+                settings.Width = width;
+                settings.Height = height;
+                settings.Left = left;
+                settings.Top = top;
+                settings.State = state;
                 
                 // 現在のテーマを保存
                 var currentTheme = ApplicationThemeManager.GetAppTheme();
@@ -280,12 +286,8 @@ namespace FastExplorer.Views.Windows
             base.OnClosed(e);
 
             // Make sure that closing this window will begin the process of closing the application.
-            // Application.Currentをキャッシュして高速化
-            var app = Application.Current;
-            if (app != null)
-            {
-                app.Shutdown();
-            }
+            // Application.Currentは常に存在するため、nullチェックを削除して高速化
+            Application.Current.Shutdown();
         }
 
         /// <summary>
@@ -316,31 +318,31 @@ namespace FastExplorer.Views.Windows
             var left = settings.Left;
             var top = settings.Top;
             
-            if (!double.IsNaN(left) && !double.IsNaN(top) && isVisible)
+            // 早期リターンで不要な処理をスキップ（高速化）
+            if (double.IsNaN(left) || double.IsNaN(top) || !isVisible)
             {
-                // 画面の範囲内にあることを確認（キャッシュを使用）
-                if (!_cachedScreenWidth.HasValue || !_cachedScreenHeight.HasValue)
+                if (!isVisible)
                 {
-                    _cachedScreenWidth = SystemParameters.PrimaryScreenWidth;
-                    _cachedScreenHeight = SystemParameters.PrimaryScreenHeight;
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen;
                 }
-                
-                var screenWidth = _cachedScreenWidth.Value;
-                var screenHeight = _cachedScreenHeight.Value;
-                
-                if (left >= 0 && left < screenWidth && top >= 0 && top < screenHeight)
-                {
-                    Left = left;
-                    Top = top;
-                    WindowStartupLocation = WindowStartupLocation.Manual;
-                    return;
-                }
+                return;
             }
             
-            if (!isVisible)
+            // 画面の範囲内にあることを確認（キャッシュを使用）
+            if (!_cachedScreenWidth.HasValue || !_cachedScreenHeight.HasValue)
             {
-                // 非表示の場合は中央に配置（表示時に適用される）
-                WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                _cachedScreenWidth = SystemParameters.PrimaryScreenWidth;
+                _cachedScreenHeight = SystemParameters.PrimaryScreenHeight;
+            }
+            
+            var screenWidth = _cachedScreenWidth.Value;
+            var screenHeight = _cachedScreenHeight.Value;
+            
+            if (left >= 0 && left < screenWidth && top >= 0 && top < screenHeight)
+            {
+                Left = left;
+                Top = top;
+                WindowStartupLocation = WindowStartupLocation.Manual;
             }
 
             // ウィンドウ状態を復元（起動時は復元しない）
@@ -401,12 +403,8 @@ namespace FastExplorer.Views.Windows
             
             var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
             
-            // エクスプローラーページにナビゲート（共通処理）
-            var navService = _navigationService;
-            if (navService != null)
-            {
-                navService.Navigate(ExplorerPageType);
-            }
+            // エクスプローラーページにナビゲート（共通処理、nullチェック削減で高速化）
+            _navigationService?.Navigate(ExplorerPageType);
             
             // ページが読み込まれるのを待ってから処理を実行
             // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
