@@ -24,6 +24,16 @@ namespace FastExplorer.Views.Windows
         // リフレクション結果をキャッシュ（パフォーマンス向上）
         private static PropertyInfo? _cachedInvokedItemContainerProperty;
         private static Type? _cachedArgsType;
+        
+        // ViewModelをキャッシュ（パフォーマンス向上）
+        private ViewModels.Pages.ExplorerPageViewModel? _cachedExplorerPageViewModel;
+        
+        // 文字列定数（パフォーマンス向上）
+        private const string HomeTag = "HOME";
+        
+        // 画面サイズをキャッシュ（パフォーマンス向上）
+        private static double? _cachedScreenWidth;
+        private static double? _cachedScreenHeight;
 
         /// <summary>
         /// メインウィンドウのViewModelを取得します
@@ -98,10 +108,7 @@ namespace FastExplorer.Views.Windows
             App.UpdateThemeResourcesInternal();
             
             // 表示されていることを確認（ShowWindowで既にVisibleに設定されているはず）
-            if (Visibility != Visibility.Visible)
-            {
-                Visibility = Visibility.Visible;
-            }
+            // 最適化：不要なチェックを削減（Visibilityは既に設定されている）
         }
 
         #region INavigationWindow methods
@@ -206,7 +213,8 @@ namespace FastExplorer.Views.Windows
             
             // 保存されたテーマカラーを適用
             var settings = _windowSettingsService.GetSettings();
-            if (!string.IsNullOrEmpty(settings.ThemeColorCode))
+            var hasThemeColor = !string.IsNullOrEmpty(settings.ThemeColorCode);
+            if (hasThemeColor)
             {
                 App.ApplyThemeColorFromSettings(settings);
             }
@@ -219,6 +227,7 @@ namespace FastExplorer.Views.Windows
             
             // UIスレッドでウィンドウを表示（テーマ適用後に表示）
             // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+            var isMaximized = settings.State == WindowState.Maximized;
             _ = Dispatcher.BeginInvoke(new System.Action(() =>
             {
                 Visibility = Visibility.Visible;
@@ -231,14 +240,14 @@ namespace FastExplorer.Views.Windows
                 WindowState = WindowState.Normal;
                 
                 // 保存されたウィンドウ状態を復元（最大化の場合）
-                if (settings.State == WindowState.Maximized)
+                if (isMaximized)
                 {
                     WindowState = WindowState.Maximized;
                 }
 
                 // ウィンドウが表示された後にテーマカラーを再適用（確実に反映させるため）
                 // Render優先度で実行することで、レンダリング後に確実に適用される
-                if (!string.IsNullOrEmpty(settings.ThemeColorCode))
+                if (hasThemeColor)
                 {
                     Dispatcher.BeginInvoke(new System.Action(() =>
                     {
@@ -313,22 +322,31 @@ namespace FastExplorer.Views.Windows
             var settings = _windowSettingsService.GetSettings();
             
             // 最小サイズを設定（保存された値が小さすぎる場合に備えて）
-            MinWidth = 800;
-            MinHeight = 600;
+            const double minWidth = 800;
+            const double minHeight = 600;
+            MinWidth = minWidth;
+            MinHeight = minHeight;
 
             // ウィンドウサイズを復元
-            if (settings.Width >= MinWidth && settings.Height >= MinHeight)
+            if (settings.Width >= minWidth && settings.Height >= minHeight)
             {
                 Width = settings.Width;
                 Height = settings.Height;
             }
 
             // ウィンドウ位置を復元（有効な値の場合のみ、かつウィンドウが表示されている場合のみ）
-            if (!double.IsNaN(settings.Left) && !double.IsNaN(settings.Top) && Visibility == Visibility.Visible)
+            var isVisible = Visibility == Visibility.Visible;
+            if (!double.IsNaN(settings.Left) && !double.IsNaN(settings.Top) && isVisible)
             {
-                // 画面の範囲内にあることを確認
-                var screenWidth = SystemParameters.PrimaryScreenWidth;
-                var screenHeight = SystemParameters.PrimaryScreenHeight;
+                // 画面の範囲内にあることを確認（キャッシュを使用）
+                if (!_cachedScreenWidth.HasValue || !_cachedScreenHeight.HasValue)
+                {
+                    _cachedScreenWidth = SystemParameters.PrimaryScreenWidth;
+                    _cachedScreenHeight = SystemParameters.PrimaryScreenHeight;
+                }
+                
+                var screenWidth = _cachedScreenWidth.Value;
+                var screenHeight = _cachedScreenHeight.Value;
                 
                 if (settings.Left >= 0 && settings.Left < screenWidth &&
                     settings.Top >= 0 && settings.Top < screenHeight)
@@ -338,7 +356,7 @@ namespace FastExplorer.Views.Windows
                     WindowStartupLocation = WindowStartupLocation.Manual;
                 }
             }
-            else if (Visibility == Visibility.Hidden)
+            else if (!isVisible)
             {
                 // 非表示の場合は中央に配置（表示時に適用される）
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -405,10 +423,10 @@ namespace FastExplorer.Views.Windows
             if (_cachedInvokedItemContainerProperty != null)
             {
                 var invokedItem = _cachedInvokedItemContainerProperty.GetValue(args) as NavigationViewItem;
-                if (invokedItem != null)
+                if (invokedItem?.Tag is string tag)
                 {
-                    // ホームアイテムの場合
-                    if (invokedItem.Tag is string tag && tag == "HOME")
+                    // ホームアイテムの場合（文字列比較を最適化）
+                    if (string.Equals(tag, HomeTag, StringComparison.Ordinal))
                     {
                         // エクスプローラーページにナビゲート
                         _navigationService?.Navigate(typeof(Views.Pages.ExplorerPage));
@@ -417,30 +435,41 @@ namespace FastExplorer.Views.Windows
                         // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
                         _ = Dispatcher.BeginInvoke(new System.Action(() =>
                         {
-                            var explorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
-                            if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
+                            // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+                            if (_cachedExplorerPageViewModel == null)
+                            {
+                                _cachedExplorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
+                            }
+                            
+                            if (_cachedExplorerPageViewModel?.SelectedTab != null)
                             {
                                 // ホームページにナビゲート
-                                explorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
+                                _cachedExplorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
                             }
                         }), DispatcherPriority.Loaded);
                     }
                     // お気に入りアイテムの場合（Tagにパスが設定されている）
-                    else if (invokedItem.Tag is string path && path != "HOME")
+                    else
                     {
-                        var explorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
-                        if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
+                        // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+                        if (_cachedExplorerPageViewModel == null)
+                        {
+                            _cachedExplorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
+                        }
+                        
+                        if (_cachedExplorerPageViewModel?.SelectedTab != null)
                         {
                             // エクスプローラーページにナビゲート
                             _navigationService?.Navigate(typeof(Views.Pages.ExplorerPage));
                             
                             // ページが読み込まれるのを待ってからパスを設定
                             // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+                            var path = tag; // クロージャで使用するため変数に保存
                             _ = Dispatcher.BeginInvoke(new System.Action(() =>
                             {
-                                if (explorerPageViewModel.SelectedTab != null)
+                                if (_cachedExplorerPageViewModel?.SelectedTab != null)
                                 {
-                                    explorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(path);
+                                    _cachedExplorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(path);
                                 }
                             }), DispatcherPriority.Loaded);
                         }
