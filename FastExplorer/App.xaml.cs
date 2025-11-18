@@ -37,7 +37,7 @@ namespace FastExplorer
             .ConfigureAppConfiguration(c => 
             { 
                 var basePath = Path.GetDirectoryName(AppContext.BaseDirectory);
-                if (!string.IsNullOrEmpty(basePath))
+                if (basePath != null && basePath.Length > 0)
                 {
                     c.SetBasePath(basePath);
                 }
@@ -170,9 +170,10 @@ namespace FastExplorer
                         var json = File.ReadAllText(settingsFilePath);
                         settings = System.Text.Json.JsonSerializer.Deserialize<Services.WindowSettings>(json);
                         
-                        if (settings != null && !string.IsNullOrEmpty(settings.Theme))
+                        var themeStr = settings?.Theme;
+                        if (themeStr != null && themeStr.Length > 0)
                         {
-                            themeToApply = settings.Theme switch
+                            themeToApply = themeStr switch
                             {
                                 "Dark" => ApplicationTheme.Dark,
                                 "Light" => ApplicationTheme.Light,
@@ -190,9 +191,17 @@ namespace FastExplorer
                 if (Current.Resources is ResourceDictionary mainDictionary)
                 {
                     var mergedDictionaries = mainDictionary.MergedDictionaries;
-                    var themesDict = mergedDictionaries
-                        .OfType<ResourceDictionary>()
-                        .FirstOrDefault(rd => rd.GetType().Name == "ThemesDictionary");
+                    // LINQを避けて高速化（直接ループで検索）
+                    ResourceDictionary? themesDict = null;
+                    for (int i = 0; i < mergedDictionaries.Count; i++)
+                    {
+                        var dict = mergedDictionaries[i];
+                        if (dict != null && dict.GetType().Name == "ThemesDictionary")
+                        {
+                            themesDict = dict;
+                            break;
+                        }
+                    }
                     
                     if (themesDict != null)
                     {
@@ -223,9 +232,10 @@ namespace FastExplorer
                 UpdateThemeResources();
 
                 // 保存されたテーマカラーを適用
-                if (settings != null && !string.IsNullOrEmpty(settings.ThemeColorCode))
+                var themeColorCode = settings?.ThemeColorCode;
+                if (themeColorCode != null && themeColorCode.Length > 0)
                 {
-                    ApplyThemeColorOnStartup(settings);
+                    ApplyThemeColorOnStartup(settings!);
                 }
             }
             catch
@@ -398,16 +408,20 @@ namespace FastExplorer
                     var mergedDictionaries = mainDictionary.MergedDictionaries;
 
                     // 既存のダークテーマリソースを検索（参照比較とSource比較の両方を使用）
+                    // LINQを避けて高速化（直接ループで検索）
                     ResourceDictionary? existingDarkTheme = null;
-                    foreach (ResourceDictionary dict in mergedDictionaries)
+                    var darkThemeResources = app._darkThemeResources;
+                    for (int i = 0; i < mergedDictionaries.Count; i++)
                     {
-                        if (dict == app._darkThemeResources)
+                        var dict = mergedDictionaries[i];
+                        if (dict == darkThemeResources)
                         {
                             // 参照が一致する場合
                             existingDarkTheme = dict;
                             break;
                         }
-                        else if (dict.Source?.OriginalString?.Contains("DarkThemeResources.xaml") == true)
+                        var source = dict.Source?.OriginalString;
+                        if (source != null && source.Contains("DarkThemeResources.xaml"))
                         {
                             // Sourceが一致する場合
                             existingDarkTheme = dict;

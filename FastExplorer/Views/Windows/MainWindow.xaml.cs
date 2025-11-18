@@ -175,7 +175,8 @@ namespace FastExplorer.Views.Windows
             // テーマは既に起動時に適用されているため、ここでは適用しない（起動時の高速化）
             // 保存されたテーマカラーを適用
             var settings = _windowSettingsService.GetSettings();
-            var hasThemeColor = !string.IsNullOrEmpty(settings.ThemeColorCode);
+            var themeColorCode = settings.ThemeColorCode;
+            var hasThemeColor = themeColorCode != null && themeColorCode.Length > 0;
             var isMaximized = settings.State == WindowState.Maximized;
             
             if (hasThemeColor)
@@ -191,6 +192,7 @@ namespace FastExplorer.Views.Windows
             
             // UIスレッドでウィンドウを表示（テーマ適用後に表示）
             // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+            // メモリ割り当てを削減するため、クロージャで変数をキャプチャ
             _ = Dispatcher.BeginInvoke(new System.Action(() =>
             {
                 Visibility = Visibility.Visible;
@@ -252,12 +254,9 @@ namespace FastExplorer.Views.Windows
             {
                 var currentTheme = ApplicationThemeManager.GetAppTheme();
                 var settings = _windowSettingsService.GetSettings();
-                settings.Theme = currentTheme switch
-                {
-                    ApplicationTheme.Light => "Light",
-                    ApplicationTheme.Dark => "Dark",
-                    _ => "System" // ApplicationTheme.Unknownの場合は"System"として保存
-                };
+                // switch式を最適化（文字列リテラルを直接使用）
+                settings.Theme = currentTheme == ApplicationTheme.Light ? "Light" :
+                                currentTheme == ApplicationTheme.Dark ? "Dark" : "System";
                 _windowSettingsService.SaveSettings(settings);
             }
             catch
@@ -300,7 +299,10 @@ namespace FastExplorer.Views.Windows
 
             // ウィンドウ位置を復元（有効な値の場合のみ、かつウィンドウが表示されている場合のみ）
             var isVisible = Visibility == Visibility.Visible;
-            if (!double.IsNaN(settings.Left) && !double.IsNaN(settings.Top) && isVisible)
+            var left = settings.Left;
+            var top = settings.Top;
+            
+            if (!double.IsNaN(left) && !double.IsNaN(top) && isVisible)
             {
                 // 画面の範囲内にあることを確認（キャッシュを使用）
                 if (!_cachedScreenWidth.HasValue || !_cachedScreenHeight.HasValue)
@@ -312,15 +314,16 @@ namespace FastExplorer.Views.Windows
                 var screenWidth = _cachedScreenWidth.Value;
                 var screenHeight = _cachedScreenHeight.Value;
                 
-                if (settings.Left >= 0 && settings.Left < screenWidth &&
-                    settings.Top >= 0 && settings.Top < screenHeight)
+                if (left >= 0 && left < screenWidth && top >= 0 && top < screenHeight)
                 {
-                    Left = settings.Left;
-                    Top = settings.Top;
+                    Left = left;
+                    Top = top;
                     WindowStartupLocation = WindowStartupLocation.Manual;
+                    return;
                 }
             }
-            else if (!isVisible)
+            
+            if (!isVisible)
             {
                 // 非表示の場合は中央に配置（表示時に適用される）
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -384,54 +387,52 @@ namespace FastExplorer.Views.Windows
                 _cachedInvokedItemContainerProperty = argsType.GetProperty("InvokedItemContainer");
             }
             
-            if (_cachedInvokedItemContainerProperty != null)
+            if (_cachedInvokedItemContainerProperty == null)
+                return;
+            
+            var invokedItem = _cachedInvokedItemContainerProperty.GetValue(args) as NavigationViewItem;
+            if (invokedItem?.Tag is not string tag)
+                return;
+            
+            // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+            if (_cachedExplorerPageViewModel == null)
             {
-                var invokedItem = _cachedInvokedItemContainerProperty.GetValue(args) as NavigationViewItem;
-                if (invokedItem?.Tag is string tag)
+                _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+            }
+            
+            var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
+            
+            // ホームアイテムの場合（文字列比較を最適化）
+            if (string.Equals(tag, HomeTag, StringComparison.Ordinal))
+            {
+                // エクスプローラーページにナビゲート
+                _navigationService?.Navigate(ExplorerPageType);
+                
+                // ページが読み込まれるのを待ってからホームページを表示
+                // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+                if (selectedTab != null)
                 {
-                    // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
-                    if (_cachedExplorerPageViewModel == null)
+                    _ = Dispatcher.BeginInvoke(new System.Action(() =>
                     {
-                        _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
-                    }
-                    
-                    // ホームアイテムの場合（文字列比較を最適化）
-                    if (string.Equals(tag, HomeTag, StringComparison.Ordinal))
-                    {
-                        // エクスプローラーページにナビゲート
-                        _navigationService?.Navigate(ExplorerPageType);
-                        
-                        // ページが読み込まれるのを待ってからホームページを表示
-                        // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
-                        _ = Dispatcher.BeginInvoke(new System.Action(() =>
-                        {
-                            if (_cachedExplorerPageViewModel?.SelectedTab != null)
-                            {
-                                // ホームページにナビゲート
-                                _cachedExplorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
-                            }
-                        }), DispatcherPriority.Loaded);
-                    }
-                    // お気に入りアイテムの場合（Tagにパスが設定されている）
-                    else if (_cachedExplorerPageViewModel?.SelectedTab != null)
-                    {
-                        // エクスプローラーページにナビゲート
-                        _navigationService?.Navigate(ExplorerPageType);
-                        
-                        // ページが読み込まれるのを待ってからパスを設定
-                        // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
-                        var path = tag; // クロージャで使用するため変数に保存
-                        _ = Dispatcher.BeginInvoke(new System.Action(() =>
-                        {
-                            if (_cachedExplorerPageViewModel?.SelectedTab != null)
-                            {
-                                _cachedExplorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(path);
-                            }
-                        }), DispatcherPriority.Loaded);
-                    }
-                    // TargetPageTypeが設定されている場合（Settingsなど）は自動的にナビゲートされる
+                        selectedTab.ViewModel.NavigateToHome();
+                    }), DispatcherPriority.Loaded);
                 }
             }
+            // お気に入りアイテムの場合（Tagにパスが設定されている）
+            else if (selectedTab != null)
+            {
+                // エクスプローラーページにナビゲート
+                _navigationService?.Navigate(ExplorerPageType);
+                
+                // ページが読み込まれるのを待ってからパスを設定
+                // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+                var path = tag; // クロージャで使用するため変数に保存
+                _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    selectedTab.ViewModel.NavigateToPathCommand.Execute(path);
+                }), DispatcherPriority.Loaded);
+            }
+            // TargetPageTypeが設定されている場合（Settingsなど）は自動的にナビゲートされる
         }
     }
 }
