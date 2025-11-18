@@ -108,9 +108,7 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // テーマが適用されていることを確認
-            App.UpdateThemeResourcesInternal();
-            
+            // テーマは既に起動時に適用されているため、ここでは適用しない（起動時の高速化）
             // 表示されていることを確認（ShowWindowで既にVisibleに設定されているはず）
             // 最適化：不要なチェックを削減（Visibilityは既に設定されている）
         }
@@ -212,9 +210,7 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         public void ShowWindow()
         {
-            // テーマを確認して適用（表示前に確実に適用）
-            App.UpdateThemeResourcesInternal();
-            
+            // テーマは既に起動時に適用されているため、ここでは適用しない（起動時の高速化）
             // 保存されたテーマカラーを適用
             var settings = _windowSettingsService.GetSettings();
             var hasThemeColor = !string.IsNullOrEmpty(settings.ThemeColorCode);
@@ -251,6 +247,7 @@ namespace FastExplorer.Views.Windows
 
                 // ウィンドウが表示された後にテーマカラーを再適用（確実に反映させるため）
                 // Render優先度で実行することで、レンダリング後に確実に適用される
+                // ただし、起動時の高速化のため、テーマカラーが設定されている場合のみ実行
                 if (hasThemeColor)
                 {
                     Dispatcher.BeginInvoke(new System.Action(() =>
@@ -429,6 +426,12 @@ namespace FastExplorer.Views.Windows
                 var invokedItem = _cachedInvokedItemContainerProperty.GetValue(args) as NavigationViewItem;
                 if (invokedItem?.Tag is string tag)
                 {
+                    // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+                    if (_cachedExplorerPageViewModel == null)
+                    {
+                        _cachedExplorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
+                    }
+                    
                     // ホームアイテムの場合（文字列比較を最適化）
                     if (string.Equals(tag, HomeTag, StringComparison.Ordinal))
                     {
@@ -439,12 +442,6 @@ namespace FastExplorer.Views.Windows
                         // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
                         _ = Dispatcher.BeginInvoke(new System.Action(() =>
                         {
-                            // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
-                            if (_cachedExplorerPageViewModel == null)
-                            {
-                                _cachedExplorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
-                            }
-                            
                             if (_cachedExplorerPageViewModel?.SelectedTab != null)
                             {
                                 // ホームページにナビゲート
@@ -453,30 +450,21 @@ namespace FastExplorer.Views.Windows
                         }), DispatcherPriority.Loaded);
                     }
                     // お気に入りアイテムの場合（Tagにパスが設定されている）
-                    else
+                    else if (_cachedExplorerPageViewModel?.SelectedTab != null)
                     {
-                        // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
-                        if (_cachedExplorerPageViewModel == null)
-                        {
-                            _cachedExplorerPageViewModel = App.Services.GetService(typeof(ViewModels.Pages.ExplorerPageViewModel)) as ViewModels.Pages.ExplorerPageViewModel;
-                        }
+                        // エクスプローラーページにナビゲート
+                        _navigationService?.Navigate(typeof(Views.Pages.ExplorerPage));
                         
-                        if (_cachedExplorerPageViewModel?.SelectedTab != null)
+                        // ページが読み込まれるのを待ってからパスを設定
+                        // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+                        var path = tag; // クロージャで使用するため変数に保存
+                        _ = Dispatcher.BeginInvoke(new System.Action(() =>
                         {
-                            // エクスプローラーページにナビゲート
-                            _navigationService?.Navigate(typeof(Views.Pages.ExplorerPage));
-                            
-                            // ページが読み込まれるのを待ってからパスを設定
-                            // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
-                            var path = tag; // クロージャで使用するため変数に保存
-                            _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                            if (_cachedExplorerPageViewModel?.SelectedTab != null)
                             {
-                                if (_cachedExplorerPageViewModel?.SelectedTab != null)
-                                {
-                                    _cachedExplorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(path);
-                                }
-                            }), DispatcherPriority.Loaded);
-                        }
+                                _cachedExplorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(path);
+                            }
+                        }), DispatcherPriority.Loaded);
                     }
                     // TargetPageTypeが設定されている場合（Settingsなど）は自動的にナビゲートされる
                 }

@@ -501,10 +501,13 @@ namespace FastExplorer
             }
 
             // すべてのThemedSvgIconインスタンスにブラシを再適用（遅延実行でちらつきを防ぐ）
+            // 起動時の高速化のため、Background優先度で実行（起動時以外は即座に実行）
+            var isStartupForIcons = Current.Windows.Count <= 1; // スプラッシュウィンドウのみの場合は起動時
+            var priority = isStartupForIcons ? System.Windows.Threading.DispatcherPriority.Background : System.Windows.Threading.DispatcherPriority.Loaded;
             Current.Dispatcher.BeginInvoke(new System.Action(() =>
             {
                 FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
-            }), System.Windows.Threading.DispatcherPriority.Background);
+            }), priority);
         }
 
 
