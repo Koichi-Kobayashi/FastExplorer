@@ -94,16 +94,20 @@ namespace FastExplorer
         /// <param name="e">スタートアップイベント引数</param>
         private async void OnStartup(object sender, StartupEventArgs e)
         {
-            // ダークモード用のリソースディクショナリーを読み込む
+            // テーマを先に適用（起動時の高速化のため、同期的に実行）
             _darkThemeResources = new ResourceDictionary
             {
                 Source = new Uri("pack://application:,,,/Resources/DarkThemeResources.xaml", UriKind.Absolute)
             };
-
-            // テーマを適用してからウィンドウを表示
             LoadAndApplyThemeOnStartup();
-            UpdateThemeResources();
+            
+            // リソース更新は遅延実行（起動を最速化）
+            _ = Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                UpdateThemeResources();
+            }), DispatcherPriority.Background);
 
+            // ウィンドウを表示
             await _host.StartAsync();
         }
 
@@ -448,7 +452,7 @@ namespace FastExplorer
                     {
                         // リソースディクショナリーを更新した後、すべてのウィンドウのリソースを更新
                         // DynamicResourceの再評価を強制するため、ウィンドウを更新
-                        // 起動時の高速化のため、InvalidateResourcesRecursiveは遅延実行（起動時には呼ばない）
+                        // 起動時の高速化のため、Background優先度で遅延実行
                         var isStartup = Current.Windows.Count == 0; // ウィンドウが存在しない場合は起動時
                         Current.Dispatcher.BeginInvoke(new System.Action(() =>
                         {
@@ -457,31 +461,28 @@ namespace FastExplorer
                             {
                                 if (window != null)
                                 {
-                                    // ウィンドウのレイアウトを更新してDynamicResourceを再評価
-                                    window.UpdateLayout();
-                                    // ビジュアルを無効化してDynamicResourceの再評価を強制
+                                    // ウィンドウのビジュアルを無効化してDynamicResourceの再評価を強制
                                     window.InvalidateVisual();
                                     
-                                    // 起動時以外の場合のみ、再帰的にリソースを無効化（起動時の高速化）
+                                    // 起動時以外の場合のみ、レイアウト更新と再帰的なリソース無効化（起動時の高速化）
                                     if (!isStartup)
                                     {
+                                        window.UpdateLayout();
                                         InvalidateResourcesRecursive(window);
                                     }
                                 }
                             }
-                        }), System.Windows.Threading.DispatcherPriority.Loaded);
+                        }), System.Windows.Threading.DispatcherPriority.Background);
                     }
                 }
             }
 
             // すべてのThemedSvgIconインスタンスにブラシを再適用（遅延実行でちらつきを防ぐ）
-            // 起動時の高速化のため、Background優先度で実行（起動時以外は即座に実行）
-            var isStartupForIcons = Current.Windows.Count == 0; // ウィンドウが存在しない場合は起動時
-            var priority = isStartupForIcons ? System.Windows.Threading.DispatcherPriority.Background : System.Windows.Threading.DispatcherPriority.Loaded;
+            // 起動時の高速化のため、常にBackground優先度で実行（起動を最速化）
             Current.Dispatcher.BeginInvoke(new System.Action(() =>
             {
                 FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
-            }), priority);
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
 

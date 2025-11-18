@@ -83,11 +83,17 @@ namespace FastExplorer.Views.Windows
                 // ViewModelにNavigationServiceを設定
                 viewModel.SetNavigationService(navigationService);
                 
-                // ウィンドウ設定の復元
-                RestoreWindowSettings();
+                // ウィンドウ設定の復元（遅延実行で起動を最速化）
+                _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    RestoreWindowSettings();
+                }), DispatcherPriority.Background);
                 
                 // SystemThemeWatcherも遅延読み込み（起動時の高速化）
-                SystemThemeWatcher.Watch(this);
+                _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    SystemThemeWatcher.Watch(this);
+                }), DispatcherPriority.Background);
             }
             Loaded += InitializeHandler;
         }
@@ -180,51 +186,34 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         public void ShowWindow()
         {
-            // テーマは既に起動時に適用されているため、ここでは適用しない（起動時の高速化）
-            // 保存されたテーマカラーを適用
+            // 起動を最速化するため、ウィンドウを即座に表示（テーマ適用は後で実行）
             var settings = _windowSettingsService.GetSettings();
-            var themeColorCode = settings.ThemeColorCode;
-            var hasThemeColor = themeColorCode != null && themeColorCode.Length > 0;
             var isMaximized = settings.State == WindowState.Maximized;
             
-            if (hasThemeColor)
-            {
-                App.ApplyThemeColorFromSettings(settings);
-            }
-            
             // ウィンドウ位置を中央に設定（非表示の場合は位置が設定されていない可能性があるため）
-            // 条件分岐を最適化（プロパティアクセスを削減）
             if (WindowStartupLocation != WindowStartupLocation.Manual)
             {
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
             
-            // UIスレッドでウィンドウを表示（テーマ適用後に表示）
-            // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
-            // メモリ割り当てを削減するため、クロージャで変数をキャプチャ
+            // ウィンドウを即座に表示（起動を最速化）
+            Visibility = Visibility.Visible;
+            Show();
+            ShowInTaskbar = true;
+            WindowState = isMaximized ? WindowState.Maximized : WindowState.Normal;
+
+            // テーマカラーと設定の適用は遅延実行（起動を最速化）
             var dispatcher = Dispatcher;
+            var themeColorCode = settings.ThemeColorCode;
+            var hasThemeColor = themeColorCode != null && themeColorCode.Length > 0;
+            
             _ = dispatcher.BeginInvoke(new System.Action(() =>
             {
-                Visibility = Visibility.Visible;
-                Show();
-                
-                // タスクバーに表示するように戻す
-                ShowInTaskbar = true;
-                
-                // ウィンドウ状態を設定（最大化が保存されていた場合は最大化、それ以外は通常表示）
-                WindowState = isMaximized ? WindowState.Maximized : WindowState.Normal;
-
-                // ウィンドウが表示された後にテーマカラーを再適用（確実に反映させるため）
-                // Render優先度で実行することで、レンダリング後に確実に適用される
-                // ただし、起動時の高速化のため、テーマカラーが設定されている場合のみ実行
                 if (hasThemeColor)
                 {
-                    dispatcher.BeginInvoke(new System.Action(() =>
-                    {
-                        App.ApplyThemeColorFromSettings(settings);
-                    }), System.Windows.Threading.DispatcherPriority.Render);
+                    App.ApplyThemeColorFromSettings(settings);
                 }
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         /// <summary>
