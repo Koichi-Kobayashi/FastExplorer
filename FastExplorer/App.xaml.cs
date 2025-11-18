@@ -172,7 +172,7 @@ namespace FastExplorer
                     "FastExplorer");
                 var settingsFilePath = Path.Combine(appDataPath, "window_settings.json");
 
-                ApplicationTheme themeToApply = ApplicationTheme.Light;
+                ApplicationTheme themeToApply = ApplicationTheme.Unknown;
                 Services.WindowSettings? settings = null;
                 
                 if (File.Exists(settingsFilePath))
@@ -184,7 +184,12 @@ namespace FastExplorer
                         
                         if (settings != null && !string.IsNullOrEmpty(settings.Theme))
                         {
-                            themeToApply = settings.Theme == "Dark" ? ApplicationTheme.Dark : ApplicationTheme.Light;
+                            themeToApply = settings.Theme switch
+                            {
+                                "Dark" => ApplicationTheme.Dark,
+                                "Light" => ApplicationTheme.Light,
+                                _ => ApplicationTheme.Unknown // "System"またはその他の場合はシステムテーマに従う
+                            };
                         }
                     }
                     catch
@@ -207,8 +212,18 @@ namespace FastExplorer
                         if (themeProperty != null)
                         {
                             var themeType = themeProperty.PropertyType;
-                            var themeValue = Enum.Parse(themeType, themeToApply == ApplicationTheme.Dark ? "Dark" : "Light");
-                            themeProperty.SetValue(themesDict, themeValue);
+                            // ApplicationTheme.Unknownの場合は、システムテーマを取得
+                            if (themeToApply == ApplicationTheme.Unknown)
+                            {
+                                var systemTheme = ApplicationThemeManager.GetSystemTheme();
+                                var themeValue = Enum.Parse(themeType, systemTheme == SystemTheme.Dark ? "Dark" : "Light");
+                                themeProperty.SetValue(themesDict, themeValue);
+                            }
+                            else
+                            {
+                                var themeValue = Enum.Parse(themeType, themeToApply == ApplicationTheme.Dark ? "Dark" : "Light");
+                                themeProperty.SetValue(themesDict, themeValue);
+                            }
                         }
                     }
                 }
@@ -227,8 +242,8 @@ namespace FastExplorer
             }
             catch
             {
-                // エラーハンドリング：デフォルトのテーマを使用
-                ApplicationThemeManager.Apply(ApplicationTheme.Light);
+                // エラーハンドリング：デフォルトのテーマ（システムテーマ）を使用
+                ApplicationThemeManager.Apply(ApplicationTheme.Unknown);
             }
         }
 
@@ -562,7 +577,12 @@ namespace FastExplorer
                 {
                     var currentTheme = ApplicationThemeManager.GetAppTheme();
                     var settings = windowSettingsService.GetSettings();
-                    settings.Theme = currentTheme == ApplicationTheme.Light ? "Light" : "Dark";
+                    settings.Theme = currentTheme switch
+                    {
+                        ApplicationTheme.Light => "Light",
+                        ApplicationTheme.Dark => "Dark",
+                        _ => "System" // ApplicationTheme.Unknownの場合は"System"として保存
+                    };
                     windowSettingsService.SaveSettings(settings);
                 }
             }

@@ -115,9 +115,9 @@ namespace FastExplorer.Services
         public WindowState State { get; set; } = WindowState.Normal;
 
         /// <summary>
-        /// アプリケーションのテーマを取得または設定します（"Light"または"Dark"）
+        /// アプリケーションのテーマを取得または設定します（"System"（規定）、"Light"、または"Dark"）
         /// </summary>
-        public string Theme { get; set; } = "Light";
+        public string Theme { get; set; } = "System";
 
         /// <summary>
         /// 選択されたテーマカラーの名前を取得または設定します

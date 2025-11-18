@@ -50,7 +50,12 @@ namespace FastExplorer.Services
                     var settings = windowSettingsService.GetSettings();
                     if (!string.IsNullOrEmpty(settings.Theme))
                     {
-                        var theme = settings.Theme == "Dark" ? Wpf.Ui.Appearance.ApplicationTheme.Dark : Wpf.Ui.Appearance.ApplicationTheme.Light;
+                        var theme = settings.Theme switch
+                        {
+                            "Dark" => Wpf.Ui.Appearance.ApplicationTheme.Dark,
+                            "Light" => Wpf.Ui.Appearance.ApplicationTheme.Light,
+                            _ => Wpf.Ui.Appearance.ApplicationTheme.Unknown // "System"またはその他の場合はシステムテーマに従う
+                        };
                         Wpf.Ui.Appearance.ApplicationThemeManager.Apply(theme);
                         
                         // リソースディクショナリーも更新
@@ -66,7 +71,7 @@ namespace FastExplorer.Services
             }
             catch
             {
-                // エラーハンドリング：デフォルトのテーマを使用
+                // エラーハンドリング：デフォルトのテーマ（システムテーマ）を使用
             }
         }
 

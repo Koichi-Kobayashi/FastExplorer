@@ -182,8 +182,18 @@ namespace FastExplorer.ViewModels.Pages
                         if (themeProperty != null)
                         {
                             var themeType = themeProperty.PropertyType;
-                            var themeValue = Enum.Parse(themeType, theme == ApplicationTheme.Dark ? "Dark" : "Light");
-                            themeProperty.SetValue(themesDict, themeValue);
+                            // ApplicationTheme.Unknownの場合は、システムテーマを取得
+                            if (theme == ApplicationTheme.Unknown)
+                            {
+                                var systemTheme = ApplicationThemeManager.GetSystemTheme();
+                                var themeValue = Enum.Parse(themeType, systemTheme == SystemTheme.Dark ? "Dark" : "Light");
+                                themeProperty.SetValue(themesDict, themeValue);
+                            }
+                            else
+                            {
+                                var themeValue = Enum.Parse(themeType, theme == ApplicationTheme.Dark ? "Dark" : "Light");
+                                themeProperty.SetValue(themesDict, themeValue);
+                            }
                         }
                     }
                 }
@@ -206,8 +216,8 @@ namespace FastExplorer.ViewModels.Pages
             }
             catch
             {
-                // エラーハンドリング：デフォルトのテーマを使用
-                ApplicationThemeManager.Apply(ApplicationTheme.Light);
+                // エラーハンドリング：デフォルトのテーマ（システムテーマ）を使用
+                ApplicationThemeManager.Apply(ApplicationTheme.Unknown);
             }
         }
 
@@ -218,7 +228,12 @@ namespace FastExplorer.ViewModels.Pages
         private void SaveTheme(ApplicationTheme theme)
         {
             var settings = _windowSettingsService.GetSettings();
-            settings.Theme = theme == ApplicationTheme.Light ? "Light" : "Dark";
+            settings.Theme = theme switch
+            {
+                ApplicationTheme.Light => "Light",
+                ApplicationTheme.Dark => "Dark",
+                _ => "System" // ApplicationTheme.Unknownの場合は"System"として保存
+            };
             _windowSettingsService.SaveSettings(settings);
         }
 

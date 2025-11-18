@@ -263,7 +263,12 @@ namespace FastExplorer.Views.Windows
             {
                 var currentTheme = ApplicationThemeManager.GetAppTheme();
                 var settings = _windowSettingsService.GetSettings();
-                settings.Theme = currentTheme == ApplicationTheme.Light ? "Light" : "Dark";
+                settings.Theme = currentTheme switch
+                {
+                    ApplicationTheme.Light => "Light",
+                    ApplicationTheme.Dark => "Dark",
+                    _ => "System" // ApplicationTheme.Unknownの場合は"System"として保存
+                };
                 _windowSettingsService.SaveSettings(settings);
             }
             catch
@@ -332,14 +337,13 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         private void SaveWindowSettings()
         {
-            var settings = new WindowSettings
-            {
-                Width = Width,
-                Height = Height,
-                Left = Left,
-                Top = Top,
-                State = WindowState
-            };
+            // 既存の設定を取得して、ウィンドウのサイズと位置のみを更新
+            var settings = _windowSettingsService.GetSettings();
+            settings.Width = Width;
+            settings.Height = Height;
+            settings.Left = Left;
+            settings.Top = Top;
+            settings.State = WindowState;
 
             _windowSettingsService.SaveSettings(settings);
         }
