@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Windows.Data;
@@ -16,21 +17,40 @@ namespace FastExplorer.Helpers
         /// <param name="targetType">変換先の型</param>
         /// <param name="parameter">変換パラメータ</param>
         /// <param name="culture">カルチャ情報</param>
-        /// <returns>パスの最後のディレクトリ名、または空文字列</returns>
+        /// <returns>パンくずリスト形式の文字列（例: "C:\ > Users > kobayashi > Documents"）、または空文字列</returns>
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is string path && !string.IsNullOrEmpty(path))
             {
                 try
                 {
-                    var dirInfo = new DirectoryInfo(path);
-                    return dirInfo.Name;
+                    // パスを正規化
+                    var normalizedPath = Path.GetFullPath(path);
+                    
+                    // ルートディレクトリを取得
+                    var root = Path.GetPathRoot(normalizedPath);
+                    if (string.IsNullOrEmpty(root))
+                    {
+                        // ルートがない場合は、パスを分割して処理
+                        var parts = normalizedPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+                        return string.Join(" > ", parts);
+                    }
+                    
+                    // ルートを除いた部分を取得
+                    var relativePath = normalizedPath.Substring(root.Length);
+                    var parts2 = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+                    
+                    // ルートと各セグメントを結合
+                    var breadcrumbParts = new List<string> { root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) };
+                    breadcrumbParts.AddRange(parts2);
+                    
+                    return string.Join(" > ", breadcrumbParts);
                 }
                 catch
                 {
-                    // パスが無効な場合は、パスの最後の部分を返す
-                    var parts = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                    return parts.Length > 0 ? parts[parts.Length - 1] : string.Empty;
+                    // パスが無効な場合は、パスを分割して処理
+                    var parts = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+                    return parts.Length > 0 ? string.Join(" > ", parts) : string.Empty;
                 }
             }
             return string.Empty;
