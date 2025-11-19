@@ -67,6 +67,23 @@ namespace FastExplorer.Views.Windows
 
             InitializeComponent();
             
+            // テーマカラーを先に適用（ちらつきを防ぐため、ウィンドウ表示前に背景色を設定）
+            var settings = _windowSettingsService.GetSettings();
+            var themeColorCode = settings.ThemeColorCode;
+            if (themeColorCode != null && themeColorCode.Length > 0)
+            {
+                // ウィンドウ表示前に背景色を直接設定（ちらつきを防ぐ）
+                try
+                {
+                    var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
+                    Background = new System.Windows.Media.SolidColorBrush(mainColor);
+                }
+                catch
+                {
+                    // エラーが発生した場合はデフォルトの背景色を使用
+                }
+            }
+            
             // すべての初期化処理を1つのLoadedイベントハンドラーに統合（起動時の高速化）
             void InitializeHandler(object? s, RoutedEventArgs e)
             {
@@ -188,24 +205,20 @@ namespace FastExplorer.Views.Windows
             // ウィンドウ位置とサイズを復元（テーマ適用と同じタイミング）
             RestoreWindowSettings();
             
+            // テーマカラーを先に適用（ちらつきを防ぐため、ウィンドウ表示前に実行）
+            var themeColorCode = settings.ThemeColorCode;
+            var hasThemeColor = themeColorCode != null && themeColorCode.Length > 0;
+            if (hasThemeColor)
+            {
+                // ウィンドウ表示前に背景色を設定（ちらつきを防ぐ）
+                App.ApplyThemeColorFromSettings(settings);
+            }
+            
             // ウィンドウを即座に表示（起動を最速化）
             Visibility = Visibility.Visible;
             Show();
             ShowInTaskbar = true;
             WindowState = isMaximized ? WindowState.Maximized : WindowState.Normal;
-
-            // テーマカラーの適用は遅延実行（起動を最速化）
-            var dispatcher = Dispatcher;
-            var themeColorCode = settings.ThemeColorCode;
-            var hasThemeColor = themeColorCode != null && themeColorCode.Length > 0;
-            
-            _ = dispatcher.BeginInvoke(new System.Action(() =>
-            {
-                if (hasThemeColor)
-                {
-                    App.ApplyThemeColorFromSettings(settings);
-                }
-            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         /// <summary>

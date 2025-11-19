@@ -277,43 +277,31 @@ namespace FastExplorer
                     }
                     mainDictionary["StatusBarTextBrush"] = statusBarTextBrush;
 
-                    // ウィンドウが表示された後に背景色を更新
-                    Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                    // ウィンドウの背景色を即座に更新（ちらつきを防ぐため、遅延実行しない）
+                    // 既に存在するウィンドウの背景色を更新
+                    var windows = Application.Current.Windows;
+                    for (int i = 0; i < windows.Count; i++)
                     {
-                        // すべてのウィンドウの背景色を更新
-                        foreach (Window window in Application.Current.Windows)
+                        var window = windows[i];
+                        if (window != null)
                         {
-                            if (window != null)
+                            // ウィンドウの背景色を直接設定
+                            window.Background = mainBrush;
+
+                            // FluentWindowの場合は、Backgroundプロパティも更新
+                            if (window is Wpf.Ui.Controls.FluentWindow fluentWindow)
                             {
-                                // ウィンドウの背景色を直接設定
-                                window.Background = mainBrush;
+                                fluentWindow.Background = mainBrush;
+                            }
 
-                                // FluentWindowの場合は、Backgroundプロパティも更新
-                                if (window is Wpf.Ui.Controls.FluentWindow fluentWindow)
-                                {
-                                    fluentWindow.Background = mainBrush;
-                                }
-
-                                // ウィンドウ内のNavigationViewの背景色も更新
-                                var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(window);
-                                if (navigationView != null)
-                                {
-                                    navigationView.Background = secondaryBrush;
-                                }
-
-                                // ウィンドウのリソースを無効化
-                                if (window is System.Windows.FrameworkElement fe)
-                                {
-                                    fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                                    fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
-                                }
-
-                                // ウィンドウのレイアウトを更新してDynamicResourceを再評価
-                                window.UpdateLayout();
-                                window.InvalidateVisual();
+                            // ウィンドウ内のNavigationViewの背景色も更新（存在する場合のみ）
+                            var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(window);
+                            if (navigationView != null)
+                            {
+                                navigationView.Background = secondaryBrush;
                             }
                         }
-                    }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    }
                 }
             }
             catch
