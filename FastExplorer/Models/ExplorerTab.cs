@@ -3,7 +3,7 @@ namespace FastExplorer.Models
     /// <summary>
     /// エクスプローラーのタブを表すクラス
     /// </summary>
-    public class ExplorerTab
+    public partial class ExplorerTab : ObservableObject
     {
         /// <summary>
         /// タブの一意のIDを取得または設定します
@@ -13,7 +13,8 @@ namespace FastExplorer.Models
         /// <summary>
         /// タブのタイトルを取得または設定します
         /// </summary>
-        public string Title { get; set; } = string.Empty;
+        [ObservableProperty]
+        private string _title = string.Empty;
 
         /// <summary>
         /// 現在表示しているパスを取得または設定します

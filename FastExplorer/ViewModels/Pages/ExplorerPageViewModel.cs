@@ -73,7 +73,7 @@ namespace FastExplorer.ViewModels.Pages
             // CurrentPathが変更されたときにTitleとCurrentPathを更新
             viewModel.PropertyChanged += (s, e) =>
             {
-                if (e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
+                if (e.PropertyName == "CurrentPath" || e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
                 {
                     tab.CurrentPath = viewModel.CurrentPath;
                     UpdateTabTitle(tab);
@@ -129,15 +129,7 @@ namespace FastExplorer.ViewModels.Pages
             }
             else
             {
-                try
-                {
-                    var dirInfo = new DirectoryInfo(tab.ViewModel.CurrentPath);
-                    tab.Title = dirInfo.Name;
-                }
-                catch
-                {
-                    tab.Title = Path.GetFileName(tab.ViewModel.CurrentPath) ?? "不明";
-                }
+                tab.Title = tab.ViewModel.CurrentPath;
             }
         }
 
@@ -165,6 +157,10 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         partial void OnSelectedTabChanged(ExplorerTab? value)
         {
+            if (value != null)
+            {
+                UpdateTabTitle(value);
+            }
             UpdateStatusBar();
         }
 
@@ -176,6 +172,12 @@ namespace FastExplorer.ViewModels.Pages
             var mainWindowViewModel = App.Services.GetService(typeof(ViewModels.Windows.MainWindowViewModel)) as ViewModels.Windows.MainWindowViewModel;
             if (mainWindowViewModel == null)
                 return;
+
+            if (SelectedTab != null)
+            {
+                // タブのタイトルも更新
+                UpdateTabTitle(SelectedTab);
+            }
 
             if (SelectedTab?.ViewModel != null)
             {
