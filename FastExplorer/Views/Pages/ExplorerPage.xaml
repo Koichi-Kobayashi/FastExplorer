@@ -42,26 +42,27 @@
                         <Grid Grid.Row="0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TabPanel
-                                x:Name="HeaderPanel"
+                            <StackPanel
                                 Grid.Column="0"
-                                Grid.IsSharedSizeScope="True"
-                                IsItemsHost="True"
-                                KeyboardNavigation.TabIndex="1" />
-                            <ui:Button
-                                Grid.Column="1"
-                                Width="32"
-                                Height="32"
-                                Margin="4,2,0,0"
-                                VerticalAlignment="Top"
-                                Command="{Binding ViewModel.CreateNewTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                ToolTip="新しいタブ">
-                                <ui:Button.Icon>
-                                    <ui:SymbolIcon Symbol="Add24" />
-                                </ui:Button.Icon>
-                            </ui:Button>
+                                Orientation="Horizontal">
+                                <TabPanel
+                                    x:Name="HeaderPanel"
+                                    Grid.IsSharedSizeScope="True"
+                                    IsItemsHost="True"
+                                    KeyboardNavigation.TabIndex="1" />
+                                <ui:Button
+                                    Width="32"
+                                    Height="32"
+                                    Margin="4,2,0,0"
+                                    VerticalAlignment="Top"
+                                    Command="{Binding ViewModel.CreateNewTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    ToolTip="新しいタブ">
+                                    <ui:Button.Icon>
+                                        <ui:SymbolIcon Symbol="Add24" />
+                                    </ui:Button.Icon>
+                                </ui:Button>
+                            </StackPanel>
                         </Grid>
                         <Border
                             x:Name="ContentPanel"
