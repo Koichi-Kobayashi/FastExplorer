@@ -397,26 +397,33 @@ namespace FastExplorer.ViewModels.Pages
             Items.Clear();
             IsHomePage = true;
 
-            try
-            {
-                // ピン留めフォルダーを読み込み
-                LoadPinnedFolders();
+            // ピン留めフォルダーを読み込み（同期的、軽量）
+            LoadPinnedFolders();
 
-                // ドライブ情報を読み込み
-                LoadDrives();
+            // 最近使用したファイルを読み込み（同期的、軽量）
+            LoadRecentFiles();
 
-                // 最近使用したファイルを読み込み
-                LoadRecentFiles();
-            }
-            catch (Exception)
+            // ドライブ情報を非同期で読み込み（UIスレッドをブロックしない）
+            _ = Task.Run(async () =>
             {
-                // エラーハンドリング
-            }
-            finally
-            {
-                IsLoading = false;
-                _isNavigating = false;
-            }
+                try
+                {
+                    await LoadDrivesAsync();
+                }
+                catch (Exception)
+                {
+                    // エラーハンドリング
+                }
+                finally
+                {
+                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    dispatcher?.Invoke(() =>
+                    {
+                        IsLoading = false;
+                        _isNavigating = false;
+                    });
+                }
+            });
         }
 
         /// <summary>
@@ -442,33 +449,61 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
-        /// ドライブ情報を読み込みます
+        /// ドライブ情報を非同期で読み込みます（UIスレッドをブロックしない）
         /// </summary>
-        private void LoadDrives()
+        private async Task LoadDrivesAsync()
         {
-            Drives.Clear();
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher == null)
+                return;
+
+            // UIスレッドでクリア
+            await dispatcher.InvokeAsync(() => Drives.Clear());
+
             try
             {
                 var drives = _fileSystemService.GetDrives();
+                var driveModels = new List<DriveInfoModel>();
+
+                // バックグラウンドスレッドでドライブ情報を取得
                 foreach (var drive in drives)
                 {
                     try
                     {
-                        var driveInfo = new DriveInfo(drive);
-                        if (driveInfo.IsReady)
+                        // ドライブ情報を非同期で取得（ネットワークドライブの応答待ちでUIスレッドをブロックしない）
+                        var driveModel = await Task.Run(() =>
                         {
-                            var driveName = string.IsNullOrEmpty(driveInfo.VolumeLabel)
-                                ? $"ローカルディスク ({drive.TrimEnd('\\')})"
-                                : $"{driveInfo.VolumeLabel} ({drive.TrimEnd('\\')})";
-                            
-                            Drives.Add(new DriveInfoModel
+                            try
                             {
-                                Name = driveName,
-                                Path = driveInfo.RootDirectory.FullName,
-                                VolumeLabel = driveInfo.VolumeLabel,
-                                TotalSize = driveInfo.TotalSize,
-                                FreeSpace = driveInfo.AvailableFreeSpace
-                            });
+                                var driveInfo = new DriveInfo(drive);
+                                // IsReadyプロパティの取得は同期的だが、ネットワークドライブの場合は時間がかかる可能性がある
+                                // そのため、Task.Run内で実行してUIスレッドをブロックしない
+                                if (driveInfo.IsReady)
+                                {
+                                    var driveName = string.IsNullOrEmpty(driveInfo.VolumeLabel)
+                                        ? $"ローカルディスク ({drive.TrimEnd('\\')})"
+                                        : $"{driveInfo.VolumeLabel} ({drive.TrimEnd('\\')})";
+                                    
+                                    return new DriveInfoModel
+                                    {
+                                        Name = driveName,
+                                        Path = driveInfo.RootDirectory.FullName,
+                                        VolumeLabel = driveInfo.VolumeLabel,
+                                        TotalSize = driveInfo.TotalSize,
+                                        FreeSpace = driveInfo.AvailableFreeSpace
+                                    };
+                                }
+                                return null;
+                            }
+                            catch
+                            {
+                                return null;
+                            }
+                        });
+
+                        if (driveModel != null)
+                        {
+                            driveModels.Add(driveModel);
                         }
                     }
                     catch
@@ -477,6 +512,15 @@ namespace FastExplorer.ViewModels.Pages
                         continue;
                     }
                 }
+
+                // UIスレッドで一括追加
+                await dispatcher.InvokeAsync(() =>
+                {
+                    foreach (var model in driveModels)
+                    {
+                        Drives.Add(model);
+                    }
+                });
             }
             catch (Exception)
             {

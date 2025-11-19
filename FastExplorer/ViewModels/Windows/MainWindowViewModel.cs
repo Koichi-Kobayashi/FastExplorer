@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,6 +23,12 @@ namespace FastExplorer.ViewModels.Windows
         // 型をキャッシュ（パフォーマンス向上）
         private static readonly Type ExplorerPageType = typeof(Views.Pages.ExplorerPage);
         private static readonly Type ExplorerPageViewModelType = typeof(ViewModels.Pages.ExplorerPageViewModel);
+        
+        // ViewModelをキャッシュ（パフォーマンス向上）
+        private ViewModels.Pages.ExplorerPageViewModel? _cachedExplorerPageViewModel;
+        
+        // ホームアイテムをキャッシュ（パフォーマンス向上）
+        private NavigationViewItem? _homeMenuItem;
 
         /// <summary>
         /// アプリケーションのタイトル
@@ -65,30 +72,82 @@ namespace FastExplorer.ViewModels.Windows
         /// </summary>
         public void LoadFavorites()
         {
-            MenuItems.Clear();
-            
-            // エクスプローラーページへのリンクを追加
-            // TargetPageTypeを設定しないことで、Contentがクリアされないようにする
-            var explorerItem = new NavigationViewItem()
+            // ホームアイテムが存在しない場合は作成
+            if (_homeMenuItem == null)
             {
-                Content = "ホーム",
-                Icon = new SymbolIcon { Symbol = SymbolRegular.Folder24 },
-                Tag = "HOME" // ホームアイテムを識別するためのTag
-            };
+                _homeMenuItem = new NavigationViewItem()
+                {
+                    Content = "ホーム",
+                    Icon = new SymbolIcon { Symbol = SymbolRegular.Folder24 },
+                    Tag = "HOME" // ホームアイテムを識別するためのTag
+                };
+                
+                // Clickイベントを設定（ItemInvokedイベントが発火しない場合のフォールバック）
+                _homeMenuItem.Click += (s, e) =>
+                {
+                    NavigateToHome();
+                };
+            }
             
-            // Clickイベントを設定（ItemInvokedイベントが発火しない場合のフォールバック）
-            explorerItem.Click += (s, e) =>
-            {
-                NavigateToHome();
-            };
+            // 現在のお気に入りを取得
+            var currentFavorites = _favoriteService.GetFavorites().ToList();
             
-            MenuItems.Add(explorerItem);
-
-            // お気に入りを追加
-            var favorites = _favoriteService.GetFavorites();
-            foreach (var favorite in favorites)
+            // 既存のメニューアイテムからお気に入りアイテムを抽出（ホームアイテムを除く）
+            var existingFavoriteItems = MenuItems
+                .OfType<NavigationViewItem>()
+                .Where(item => item.Tag is string tag && tag != "HOME")
+                .ToList();
+            
+            // 既存のお気に入りパスを取得
+            var existingPaths = existingFavoriteItems
+                .Select(item => item.Tag as string)
+                .Where(path => !string.IsNullOrEmpty(path))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            
+            // 新しいお気に入りのパスを取得
+            var newPaths = currentFavorites
+                .Select(f => f.Path)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            
+            // 削除されたお気に入りをメニューから削除
+            var itemsToRemove = existingFavoriteItems
+                .Where(item => item.Tag is string tag && !newPaths.Contains(tag))
+                .ToList();
+            
+            foreach (var item in itemsToRemove)
             {
-                MenuItems.Add(CreateFavoriteNavigationItem(favorite));
+                MenuItems.Remove(item);
+            }
+            
+            // 新しく追加されたお気に入りをメニューに追加
+            var itemsToAdd = currentFavorites
+                .Where(f => !existingPaths.Contains(f.Path))
+                .Select(CreateFavoriteNavigationItem)
+                .ToList();
+            
+            // ホームアイテムが存在しない場合は先頭に追加
+            if (!MenuItems.Contains(_homeMenuItem))
+            {
+                MenuItems.Insert(0, _homeMenuItem);
+            }
+            
+            // 新しいお気に入りアイテムを追加（ホームアイテムの後）
+            var homeIndex = MenuItems.IndexOf(_homeMenuItem);
+            for (int i = 0; i < itemsToAdd.Count; i++)
+            {
+                MenuItems.Insert(homeIndex + 1 + i, itemsToAdd[i]);
+            }
+            
+            // 既存アイテムの名前が変更された場合は更新
+            foreach (var favorite in currentFavorites)
+            {
+                var existingItem = existingFavoriteItems
+                    .FirstOrDefault(item => item.Tag is string tag && 
+                                          string.Equals(tag, favorite.Path, StringComparison.OrdinalIgnoreCase));
+                if (existingItem != null && existingItem.Content?.ToString() != favorite.Name)
+                {
+                    existingItem.Content = favorite.Name;
+                }
             }
         }
 
@@ -143,11 +202,16 @@ namespace FastExplorer.ViewModels.Windows
                 // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
                 Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    var explorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
-                    if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
+                    // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+                    if (_cachedExplorerPageViewModel == null)
+                    {
+                        _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                    }
+                    
+                    if (_cachedExplorerPageViewModel != null && _cachedExplorerPageViewModel.SelectedTab != null)
                     {
                         // ホームページにナビゲート
-                        explorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
+                        _cachedExplorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
                     }
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
@@ -169,10 +233,15 @@ namespace FastExplorer.ViewModels.Windows
                 var pathCopy = path; // クロージャで使用するため変数に保存
                 Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    var explorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
-                    if (explorerPageViewModel != null && explorerPageViewModel.SelectedTab != null)
+                    // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+                    if (_cachedExplorerPageViewModel == null)
                     {
-                        explorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(pathCopy);
+                        _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                    }
+                    
+                    if (_cachedExplorerPageViewModel != null && _cachedExplorerPageViewModel.SelectedTab != null)
+                    {
+                        _cachedExplorerPageViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(pathCopy);
                     }
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
             }

@@ -13,6 +13,9 @@ namespace FastExplorer.ViewModels.Pages
     {
         private readonly FileSystemService _fileSystemService;
         private readonly FavoriteService? _favoriteService;
+        
+        // MainWindowViewModelをキャッシュ（パフォーマンス向上）
+        private ViewModels.Windows.MainWindowViewModel? _cachedMainWindowViewModel;
 
         /// <summary>
         /// エクスプローラータブのコレクション
@@ -147,9 +150,12 @@ namespace FastExplorer.ViewModels.Pages
             
             _favoriteService?.AddFavorite(name, path);
             
-            // MainWindowViewModelを更新
-            var mainWindowViewModel = App.Services.GetService(typeof(ViewModels.Windows.MainWindowViewModel)) as ViewModels.Windows.MainWindowViewModel;
-            mainWindowViewModel?.LoadFavorites();
+            // MainWindowViewModelを更新（キャッシュを使用）
+            if (_cachedMainWindowViewModel == null)
+            {
+                _cachedMainWindowViewModel = App.Services.GetService(typeof(ViewModels.Windows.MainWindowViewModel)) as ViewModels.Windows.MainWindowViewModel;
+            }
+            _cachedMainWindowViewModel?.LoadFavorites();
         }
 
         /// <summary>
@@ -169,8 +175,13 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private void UpdateStatusBar()
         {
-            var mainWindowViewModel = App.Services.GetService(typeof(ViewModels.Windows.MainWindowViewModel)) as ViewModels.Windows.MainWindowViewModel;
-            if (mainWindowViewModel == null)
+            // MainWindowViewModelをキャッシュから取得（なければ取得してキャッシュ）
+            if (_cachedMainWindowViewModel == null)
+            {
+                _cachedMainWindowViewModel = App.Services.GetService(typeof(ViewModels.Windows.MainWindowViewModel)) as ViewModels.Windows.MainWindowViewModel;
+            }
+            
+            if (_cachedMainWindowViewModel == null)
                 return;
 
             if (SelectedTab != null)
@@ -186,16 +197,16 @@ namespace FastExplorer.ViewModels.Pages
                 
                 if (string.IsNullOrEmpty(path))
                 {
-                    mainWindowViewModel.StatusBarText = $"パス: ホーム {itemCount}個の項目";
+                    _cachedMainWindowViewModel.StatusBarText = $"パス: ホーム {itemCount}個の項目";
                 }
                 else
                 {
-                    mainWindowViewModel.StatusBarText = $"パス: {path} {itemCount}個の項目";
+                    _cachedMainWindowViewModel.StatusBarText = $"パス: {path} {itemCount}個の項目";
                 }
             }
             else
             {
-                mainWindowViewModel.StatusBarText = "準備完了";
+                _cachedMainWindowViewModel.StatusBarText = "準備完了";
             }
         }
     }
