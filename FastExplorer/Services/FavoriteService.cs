@@ -75,6 +75,20 @@ namespace FastExplorer.Services
         }
 
         /// <summary>
+        /// パスでお気に入りを削除します
+        /// </summary>
+        /// <param name="path">削除するお気に入りのパス</param>
+        public void RemoveFavoriteByPath(string path)
+        {
+            var favorite = _favorites.FirstOrDefault(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            if (favorite != null)
+            {
+                _favorites.Remove(favorite);
+                SaveFavorites();
+            }
+        }
+
+        /// <summary>
         /// お気に入りを保存します
         /// </summary>
         private void SaveFavorites()

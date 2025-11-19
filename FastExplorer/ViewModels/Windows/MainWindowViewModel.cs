@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using FastExplorer.Models;
 using FastExplorer.Services;
@@ -111,6 +112,20 @@ namespace FastExplorer.ViewModels.Windows
                 NavigateToFavorite(favorite.Path);
             };
 
+            // コンテキストメニューを追加（右クリックで削除）
+            var contextMenu = new System.Windows.Controls.ContextMenu();
+            var deleteMenuItem = new System.Windows.Controls.MenuItem
+            {
+                Header = "削除",
+                Icon = new SymbolIcon { Symbol = SymbolRegular.Delete24 }
+            };
+            deleteMenuItem.Click += (s, e) =>
+            {
+                RemoveFavoriteByPath(favorite.Path);
+            };
+            contextMenu.Items.Add(deleteMenuItem);
+            item.ContextMenu = contextMenu;
+
             return item;
         }
 
@@ -184,6 +199,16 @@ namespace FastExplorer.ViewModels.Windows
             LoadFavorites();
         }
 
+        /// <summary>
+        /// パスでお気に入りを削除します
+        /// </summary>
+        /// <param name="path">削除するお気に入りのパス</param>
+        private void RemoveFavoriteByPath(string path)
+        {
+            _favoriteService.RemoveFavoriteByPath(path);
+            LoadFavorites();
+        }
+
         [ObservableProperty]
         private ObservableCollection<object> _footerMenuItems = new()
         {
@@ -196,9 +221,9 @@ namespace FastExplorer.ViewModels.Windows
         };
 
         [ObservableProperty]
-        private ObservableCollection<MenuItem> _trayMenuItems = new()
+        private ObservableCollection<System.Windows.Controls.MenuItem> _trayMenuItems = new()
         {
-            new MenuItem { Header = "Home", Tag = "tray_home" }
+            new System.Windows.Controls.MenuItem { Header = "Home", Tag = "tray_home" }
         };
     }
 }
