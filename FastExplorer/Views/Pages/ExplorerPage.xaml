@@ -564,6 +564,21 @@
                                         Grid.IsSharedSizeScope="True"
                                         IsItemsHost="True"
                                         KeyboardNavigation.TabIndex="1" />
+                                    <!-- スクロールボタンを非表示にする（エラー回避のため） -->
+                                    <RepeatButton
+                                        x:Name="PART_ButtonScrollLeft"
+                                        Width="0"
+                                        Height="0"
+                                        Visibility="Collapsed">
+                                        <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                    </RepeatButton>
+                                    <RepeatButton
+                                        x:Name="PART_ButtonScrollRight"
+                                        Width="0"
+                                        Height="0"
+                                        Visibility="Collapsed">
+                                        <ui:SymbolIcon Symbol="ChevronRight24" />
+                                    </RepeatButton>
                                     <ui:Button
                                         Width="32"
                                         Height="32"
@@ -757,6 +772,21 @@
                                         Grid.IsSharedSizeScope="True"
                                         IsItemsHost="True"
                                         KeyboardNavigation.TabIndex="1" />
+                                    <!-- スクロールボタンを非表示にする（エラー回避のため） -->
+                                    <RepeatButton
+                                        x:Name="PART_ButtonScrollLeft"
+                                        Width="0"
+                                        Height="0"
+                                        Visibility="Collapsed">
+                                        <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                    </RepeatButton>
+                                    <RepeatButton
+                                        x:Name="PART_ButtonScrollRight"
+                                        Width="0"
+                                        Height="0"
+                                        Visibility="Collapsed">
+                                        <ui:SymbolIcon Symbol="ChevronRight24" />
+                                    </RepeatButton>
                                     <ui:Button
                                         Width="32"
                                         Height="32"
@@ -942,6 +972,21 @@
                                     Grid.IsSharedSizeScope="True"
                                     IsItemsHost="True"
                                     KeyboardNavigation.TabIndex="1" />
+                                <!-- スクロールボタンを非表示にする（エラー回避のため） -->
+                                <RepeatButton
+                                    x:Name="PART_ButtonScrollLeft"
+                                    Width="0"
+                                    Height="0"
+                                    Visibility="Collapsed">
+                                    <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                </RepeatButton>
+                                <RepeatButton
+                                    x:Name="PART_ButtonScrollRight"
+                                    Width="0"
+                                    Height="0"
+                                    Visibility="Collapsed">
+                                    <ui:SymbolIcon Symbol="ChevronRight24" />
+                                </RepeatButton>
                                 <ui:Button
                                     Width="32"
                                     Height="32"
