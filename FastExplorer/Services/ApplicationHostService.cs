@@ -39,46 +39,6 @@ namespace FastExplorer.Services
         }
 
         /// <summary>
-        /// 設定からテーマを読み込んで適用します
-        /// </summary>
-        private void ApplyThemeFromSettings()
-        {
-            try
-            {
-                var windowSettingsService = _serviceProvider.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
-                if (windowSettingsService != null)
-                {
-                    var settings = windowSettingsService.GetSettings();
-                    var themeStr = settings.Theme;
-                    if (themeStr != null && themeStr.Length > 0)
-                    {
-                        var themeValue = themeStr switch
-                        {
-                            "Dark" => Wpf.Ui.Appearance.ApplicationTheme.Dark,
-                            "Light" => Wpf.Ui.Appearance.ApplicationTheme.Light,
-                            _ => Wpf.Ui.Appearance.ApplicationTheme.Unknown // "System"またはその他の場合はシステムテーマに従う
-                        };
-                        Wpf.Ui.Appearance.ApplicationThemeManager.Apply(themeValue);
-                        
-                        // リソースディクショナリーも更新
-                        App.UpdateThemeResourcesInternal();
-
-                        // 保存されたテーマカラーを適用
-                        var themeColorCode = settings.ThemeColorCode;
-                        if (themeColorCode != null && themeColorCode.Length > 0)
-                        {
-                            App.ApplyThemeColorFromSettings(settings);
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // エラーハンドリング：デフォルトのテーマ（システムテーマ）を使用
-            }
-        }
-
-        /// <summary>
         /// アプリケーションホストが正常なシャットダウンを実行しているときに呼び出されます
         /// </summary>
         /// <param name="cancellationToken">シャットダウンプロセスがもはや正常でないことを示すトークン</param>

@@ -69,10 +69,6 @@ namespace FastExplorer
                 // WindowSettingsService
                 services.AddSingleton<Services.WindowSettingsService>();
 
-                services.AddSingleton<DashboardPage>();
-                services.AddSingleton<DashboardViewModel>();
-                services.AddSingleton<DataPage>();
-                services.AddSingleton<DataViewModel>();
                 services.AddSingleton<Views.Pages.ExplorerPage>();
                 services.AddSingleton<ViewModels.Pages.ExplorerPageViewModel>();
                 services.AddSingleton<SettingsPage>();
@@ -95,11 +91,11 @@ namespace FastExplorer
         private async void OnStartup(object sender, StartupEventArgs e)
         {
             // テーマを先に適用（起動時の高速化のため、同期的に実行）
-            _darkThemeResources = new ResourceDictionary
-            {
-                Source = new Uri("pack://application:,,,/Resources/DarkThemeResources.xaml", UriKind.Absolute)
-            };
-            LoadAndApplyThemeOnStartup();
+            //_darkThemeResources = new ResourceDictionary
+            //{
+            //    Source = new Uri("pack://application:,,,/Resources/DarkThemeResources.xaml", UriKind.Absolute)
+            //};
+            //LoadAndApplyThemeOnStartup();
             // リソース更新は既にLoadAndApplyThemeOnStartup内で実行されているため、ここでは実行しない
 
             // ウィンドウを表示
@@ -214,7 +210,7 @@ namespace FastExplorer
         /// <param name="settings">ウィンドウ設定</param>
         private void ApplyThemeColorOnStartup(Services.WindowSettings settings)
         {
-            ApplyThemeColorFromSettings(settings);
+            //ApplyThemeColorFromSettings(settings);
         }
 
         /// <summary>
@@ -315,14 +311,6 @@ namespace FastExplorer
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// テーマに応じてリソースディクショナリーを更新します
-        /// </summary>
-        private void UpdateThemeResources()
-        {
-            UpdateThemeResourcesInternal();
         }
 
         /// <summary>

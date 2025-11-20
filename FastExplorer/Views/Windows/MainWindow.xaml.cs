@@ -67,55 +67,6 @@ namespace FastExplorer.Views.Windows
 
             InitializeComponent();
             
-            // テーマカラーをウィンドウ表示前に適用（ちらつきを防ぐため）
-            // テーマカラー選択時と同じ処理を行う
-            var settings = _windowSettingsService.GetSettings();
-            var themeColorCode = settings.ThemeColorCode;
-            if (themeColorCode != null && themeColorCode.Length > 0)
-            {
-                // ウィンドウ表示前に背景色を直接設定（ちらつきを防ぐ）
-                try
-                {
-                    var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
-                    var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
-                    var secondaryColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
-                    var secondaryBrush = new System.Windows.Media.SolidColorBrush(secondaryColor);
-                    
-                    // ウィンドウの背景色を直接設定
-                    Background = mainBrush;
-
-                    // FluentWindowの場合は、Backgroundプロパティも更新
-                    if (this is Wpf.Ui.Controls.FluentWindow fluentWindow)
-                    {
-                        fluentWindow.Background = mainBrush;
-                    }
-
-                    // NavigationViewの背景色も設定（InitializeComponent後に利用可能）
-                    var nav = RootNavigation;
-                    if (nav != null)
-                    {
-                        nav.Background = secondaryBrush;
-                    }
-                    
-                    // ステータスバーの背景色とテキスト色も設定（InitializeComponent後に利用可能）
-                    if (StatusBar != null)
-                    {
-                        StatusBar.Background = mainBrush;
-                    }
-                    
-                    if (StatusBarText != null)
-                    {
-                        var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
-                        var statusBarTextColor = luminance > 0.5 ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
-                        StatusBarText.Foreground = new System.Windows.Media.SolidColorBrush(statusBarTextColor);
-                    }
-                }
-                catch
-                {
-                    // エラーが発生した場合はデフォルトの背景色を使用
-                }
-            }
-            
             // すべての初期化処理を1つのLoadedイベントハンドラーに統合（起動時の高速化）
             void InitializeHandler(object? s, RoutedEventArgs e)
             {
@@ -181,17 +132,14 @@ namespace FastExplorer.Views.Windows
                         fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
                     }
 
-                    // ウィンドウのレイアウトを更新してDynamicResourceを再評価
-                    UpdateLayout();
-                    // ビジュアルを無効化してDynamicResourceの再評価を強制
-                    InvalidateVisual();
+                    //// ウィンドウのレイアウトを更新してDynamicResourceを再評価
+                    //UpdateLayout();
+                    //// ビジュアルを無効化してDynamicResourceの再評価を強制
+                    //InvalidateVisual();
                     
-                    // ウィンドウ内のすべての要素のDynamicResourceを再評価
-                    App.InvalidateResourcesRecursive(this);
+                    //// ウィンドウ内のすべての要素のDynamicResourceを再評価
+                    //App.InvalidateResourcesRecursive(this);
                 }
-                
-                // テーマのリソースを再評価
-                App.UpdateThemeResourcesInternal();
                 
                 // SystemThemeWatcherを遅延実行（起動を最速化）
                 // ウィンドウ位置とサイズの復元はShowWindow()で実行されるため、ここでは実行しない
