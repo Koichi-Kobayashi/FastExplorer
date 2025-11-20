@@ -139,6 +139,21 @@ namespace FastExplorer.Services
         /// 保存されたタブのパスのリストを取得または設定します
         /// </summary>
         public List<string> TabPaths { get; set; } = new();
+
+        /// <summary>
+        /// 分割ペインが有効かどうかを取得または設定します
+        /// </summary>
+        public bool IsSplitPaneEnabled { get; set; } = false;
+
+        /// <summary>
+        /// 左ペインのタブのパスのリストを取得または設定します
+        /// </summary>
+        public List<string> LeftPaneTabPaths { get; set; } = new();
+
+        /// <summary>
+        /// 右ペインのタブのパスのリストを取得または設定します
+        /// </summary>
+        public List<string> RightPaneTabPaths { get; set; } = new();
     }
 }
 

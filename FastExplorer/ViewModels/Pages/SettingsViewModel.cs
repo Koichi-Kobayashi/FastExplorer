@@ -49,6 +49,12 @@ namespace FastExplorer.ViewModels.Pages
         private ObservableCollection<ThemeColor> _themeColors = new();
 
         /// <summary>
+        /// 分割ペインが有効かどうかを取得または設定します
+        /// </summary>
+        [ObservableProperty]
+        private bool _isSplitPaneEnabled;
+
+        /// <summary>
         /// ページにナビゲートされたときに呼び出されます
         /// </summary>
         /// <returns>完了を表すタスク</returns>
@@ -71,7 +77,32 @@ namespace FastExplorer.ViewModels.Pages
         /// ページから離れるときに呼び出されます
         /// </summary>
         /// <returns>完了を表すタスク</returns>
-        public Task OnNavigatedFromAsync() => Task.CompletedTask;
+        public Task OnNavigatedFromAsync()
+        {
+            // 分割ペインの設定を保存
+            var settings = _windowSettingsService.GetSettings();
+            settings.IsSplitPaneEnabled = IsSplitPaneEnabled;
+            _windowSettingsService.SaveSettings(settings);
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// IsSplitPaneEnabledが変更されたときに呼び出されます
+        /// </summary>
+        partial void OnIsSplitPaneEnabledChanged(bool value)
+        {
+            // 設定を即座に保存
+            var settings = _windowSettingsService.GetSettings();
+            settings.IsSplitPaneEnabled = value;
+            _windowSettingsService.SaveSettings(settings);
+            
+            // ExplorerPageViewModelを更新（無限ループを防ぐため、値が異なる場合のみ更新）
+            var explorerPageViewModel = App.Services.GetService(typeof(ExplorerPageViewModel)) as ExplorerPageViewModel;
+            if (explorerPageViewModel != null && explorerPageViewModel.IsSplitPaneEnabled != value)
+            {
+                explorerPageViewModel.IsSplitPaneEnabled = value;
+            }
+        }
 
         /// <summary>
         /// ViewModelを初期化します
@@ -83,6 +114,10 @@ namespace FastExplorer.ViewModels.Pages
 
             // テーマカラーリストを初期化
             InitializeThemeColors();
+
+            // 分割ペインの設定を読み込む
+            var settings = _windowSettingsService.GetSettings();
+            IsSplitPaneEnabled = settings.IsSplitPaneEnabled;
 
             _isInitialized = true;
         }

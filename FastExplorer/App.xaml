@@ -18,6 +18,7 @@
             <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
             <helpers:FolderIconConverter x:Key="FolderIconConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
             <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
+            <helpers:BooleanToSplitPaneMenuTextConverter x:Key="BooleanToSplitPaneMenuTextConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             
             <!-- SVGアイコンの色（ライトモード） -->

@@ -19,6 +19,497 @@
     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
     ScrollViewer.VerticalScrollBarVisibility="Disabled"
     mc:Ignorable="d">
+    <UserControl.Resources>
+        <DataTemplate x:Key="ExplorerTabContentTemplate" DataType="{x:Type models:ExplorerTab}">
+            <Grid Margin="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!--  パスインジケーター（ブレッドクラム）  -->
+                <Border
+                    Grid.Row="0"
+                    Margin="0,0,0,1"
+                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,0,1">
+                    <Grid Margin="12,8">
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                            <ui:Button
+                                Margin="0,0,4,0"
+                                Padding="8,4"
+                                Appearance="Secondary"
+                                Command="{Binding ViewModel.NavigateToPathCommand, Mode=OneWay}"
+                                CommandParameter=""
+                                ToolTip="ホーム">
+                                <ui:Button.Style>
+                                    <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ui:Button.Style>
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="Home24" />
+                                </ui:Button.Icon>
+                            </ui:Button>
+                            <TextBlock
+                                Margin="4,0"
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                Text="&gt;" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Text="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbConverter}}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!--  ツールバー  -->
+                <Border
+                    Grid.Row="1"
+                    Margin="0,0,0,1"
+                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,0,1">
+                    <Grid Margin="8,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <ui:Button
+                            Grid.Column="0"
+                            Margin="0,0,4,0"
+                            Appearance="Secondary"
+                            Command="{Binding ViewModel.NavigateToParentCommand, Mode=OneWay}"
+                            ToolTip="戻る">
+                            <ui:Button.Style>
+                                <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ui:Button.Style>
+                            <ui:Button.Icon>
+                                <ui:SymbolIcon Symbol="ArrowLeft24" />
+                            </ui:Button.Icon>
+                        </ui:Button>
+
+                        <ui:Button
+                            Grid.Column="1"
+                            Margin="0,0,4,0"
+                            Appearance="Secondary"
+                            Command="{Binding ViewModel.RefreshCommand, Mode=OneWay}"
+                            ToolTip="更新">
+                            <ui:Button.Style>
+                                <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ui:Button.Style>
+                            <ui:Button.Icon>
+                                <ui:SymbolIcon Symbol="ArrowClockwise24" />
+                            </ui:Button.Icon>
+                        </ui:Button>
+
+                        <ui:Button
+                            Grid.Column="2"
+                            Appearance="Secondary"
+                            Command="{Binding DataContext.ViewModel.AddCurrentPathToFavoritesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            ToolTip="お気に入りに追加">
+                            <ui:Button.Style>
+                                <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ui:Button.Style>
+                            <ui:Button.Icon>
+                                <ui:SymbolIcon Symbol="Star24" />
+                            </ui:Button.Icon>
+                        </ui:Button>
+                    </Grid>
+                </Border>
+
+                <!--  ホームページ  -->
+                <ScrollViewer
+                    Grid.Row="2"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Auto"
+                    Visibility="{Binding ViewModel.IsHomePage, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel Margin="16">
+                        <!--  クイックアクセス  -->
+                        <StackPanel Margin="0,0,0,24">
+                            <TextBlock
+                                Margin="0,0,0,12"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                Text="クイック アクセス" />
+                            <ItemsControl ItemsSource="{Binding ViewModel.PinnedFolders, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="6" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type models:FavoriteItem}">
+                                        <Border
+                                            x:Name="PinnedFolderBorder"
+                                            Margin="4"
+                                            Padding="12"
+                                            Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Cursor="Hand"
+                                            MouseLeftButtonDown="PinnedFolder_MouseLeftButtonDown">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                            <Setter Property="BorderThickness" Value="2" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel>
+                                                <ui:SymbolIcon
+                                                    Width="48"
+                                                    Height="48"
+                                                    Margin="0,0,0,8"
+                                                    HorizontalAlignment="Center"
+                                                    Symbol="{Binding Name, Mode=OneWay, Converter={StaticResource FolderIconConverter}}" />
+                                                <TextBlock
+                                                    HorizontalAlignment="Center"
+                                                    FontSize="12"
+                                                    Text="{Binding Name, Mode=OneWay}"
+                                                    TextAlignment="Center"
+                                                    TextTrimming="CharacterEllipsis"
+                                                    TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!--  ドライブ  -->
+                        <StackPanel Margin="0,0,0,24">
+                            <TextBlock
+                                Margin="0,0,0,12"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                Text="ドライブ" />
+                            <ItemsControl ItemsSource="{Binding ViewModel.Drives, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Vertical" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type models:DriveInfoModel}">
+                                        <Border
+                                            Margin="0,0,0,8"
+                                            Padding="12"
+                                            Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Cursor="Hand"
+                                            MouseLeftButtonDown="Drive_MouseLeftButtonDown">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                            <Setter Property="BorderThickness" Value="2" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock
+                                                    FontFamily="Segoe Fluent Icons"
+                                                    FontSize="32"
+                                                    Width="32"
+                                                    Height="32"
+                                                    Margin="0,0,10,0"
+                                                    VerticalAlignment="Center"
+                                                    HorizontalAlignment="Center"
+                                                    Foreground="{DynamicResource IconBrush}"
+                                                    Text="&#xEDA2;" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock FontWeight="SemiBold" Text="{Binding Name, Mode=OneWay}" />
+                                                    <TextBlock
+                                                        FontSize="12"
+                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                        Text="{Binding Path, Mode=OneWay}" />
+                                                    <ProgressBar
+                                                        Height="4"
+                                                        Margin="0,4,0,0"
+                                                        Maximum="1"
+                                                        Value="{Binding UsagePercentage, Mode=OneWay}" />
+                                                    <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                                        <Run Text="空き領域 " />
+                                                        <Run Text="{Binding FormattedFreeSpace, Mode=OneWay}" />
+                                                        <Run Text="/" />
+                                                        <Run Text="{Binding FormattedTotalSize, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!--  ネットワークの場所  -->
+                        <StackPanel Margin="0,0,0,24">
+                            <TextBlock
+                                Margin="0,0,0,12"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                Text="ネットワークの場所" />
+                            <Border
+                                Padding="12"
+                                Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                                <TextBlock
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                    Text="ネットワークの場所がありません。ネットワークの場所を使用しない場合は、ウィジェットを無効にすることができます。"
+                                    TextWrapping="Wrap" />
+                            </Border>
+                        </StackPanel>
+
+                        <!--  最近使用したファイル  -->
+                        <StackPanel>
+                            <TextBlock
+                                Margin="0,0,0,12"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                Text="最近使用したファイル" />
+                            <ItemsControl ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Vertical" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
+                                        <Border
+                                            Margin="0,0,0,4"
+                                            Padding="8,6"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            CornerRadius="4"
+                                            Cursor="Hand"
+                                            MouseLeftButtonDown="RecentFile_MouseLeftButtonDown">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                            <Setter Property="BorderThickness" Value="1" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <ui:SymbolIcon
+                                                    Grid.Column="0"
+                                                    Width="20"
+                                                    Height="20"
+                                                    Margin="0,0,12,0"
+                                                    VerticalAlignment="Center"
+                                                    Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name, Mode=OneWay}" />
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                        Text="{Binding FullPath, Mode=OneWay}"
+                                                        TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!--  ファイルリスト  -->
+                <ListView
+                    x:Name="FileListView"
+                    Grid.Row="2"
+                    Background="Transparent"
+                    Focusable="True"
+                    ItemsSource="{Binding ViewModel.Items, Mode=OneWay}"
+                    KeyDown="ListView_KeyDown"
+                    MouseDoubleClick="ListView_MouseDoubleClick"
+                    MouseDown="ListView_MouseButtonDown"
+                    ScrollViewer.CanContentScroll="False"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    SelectedItem="{Binding ViewModel.SelectedItem, Mode=TwoWay}"
+                    SelectionMode="Single"
+                    Visibility="{Binding ViewModel.IsHomePage, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                    <ListView.Resources>
+                        <Style TargetType="GridViewColumnHeader">
+                            <Setter Property="Padding" Value="8,6" />
+                            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                            <Setter Property="BorderThickness" Value="0,0,1,1" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="HorizontalContentAlignment" Value="Left" />
+                        </Style>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="MinHeight" Value="32" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListViewItem">
+                                        <Border
+                                            x:Name="Border"
+                                            Background="Transparent"
+                                            BorderThickness="0">
+                                            <GridViewRowPresenter Margin="8,4" Content="{TemplateBinding Content}" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListView.Resources>
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Width="350" Header="名前">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
+                                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                            <ui:SymbolIcon
+                                                Width="20"
+                                                Height="20"
+                                                Margin="0,0,12,0"
+                                                VerticalAlignment="Center"
+                                                Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay}" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                Text="{Binding Name, Mode=OneWay}"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Width="120" Header="サイズ">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
+                                        <TextBlock
+                                            Padding="8,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            Text="{Binding FormattedSize, Mode=OneWay}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Width="180" Header="種類">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
+                                        <TextBlock
+                                            Padding="8,0"
+                                            VerticalAlignment="Center"
+                                            Text="{Binding Extension, Mode=OneWay}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Width="200" Header="更新日時">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
+                                        <TextBlock
+                                            Padding="8,0"
+                                            VerticalAlignment="Center"
+                                            Text="{Binding FormattedDate, Mode=OneWay}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+
+                <!--  ローディング表示  -->
+                <Grid
+                    Grid.Row="2"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <ui:ProgressRing
+                            Width="50"
+                            Height="50"
+                            IsIndeterminate="{Binding ViewModel.IsLoading, Mode=OneWay}" />
+                        <TextBlock
+                            Margin="0,8,0,0"
+                            HorizontalAlignment="Center"
+                            Text="読み込み中..." />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
 
     <Grid Margin="0">
         <Grid.RowDefinitions>
@@ -26,12 +517,401 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!--  TabControl  -->
+        <!--  分割ペインモード  -->
+        <Grid
+            Grid.Row="1"
+            Margin="0,0,0,4"
+            Visibility="{Binding ViewModel.IsSplitPaneEnabled, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!--  左ペイン  -->
+            <TabControl
+                Grid.Column="0"
+                Margin="0,0,0,0"
+                ItemsSource="{Binding ViewModel.LeftPaneTabs, Mode=OneWay}"
+                SelectedItem="{Binding ViewModel.SelectedLeftPaneTab, Mode=TwoWay}">
+                <TabControl.Template>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel
+                                    Grid.Column="0"
+                                    Orientation="Horizontal">
+                                    <StackPanel.ContextMenu>
+                                        <ContextMenu Opened="ContextMenu_Opened">
+                                            <MenuItem
+                                                Header="分割ペインを有効にする"
+                                                Click="SplitPaneMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </StackPanel.ContextMenu>
+                                    <TabPanel
+                                        x:Name="HeaderPanel"
+                                        Grid.IsSharedSizeScope="True"
+                                        IsItemsHost="True"
+                                        KeyboardNavigation.TabIndex="1" />
+                                    <ui:Button
+                                        Width="32"
+                                        Height="32"
+                                        Margin="4,2,0,0"
+                                        VerticalAlignment="Top"
+                                        Command="{Binding ViewModel.CreateNewLeftPaneTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        ToolTip="新しいタブ（左ペイン）">
+                                        <ui:Button.Icon>
+                                            <ui:SymbolIcon Symbol="Add24" />
+                                        </ui:Button.Icon>
+                                    </ui:Button>
+                                </StackPanel>
+                            </Grid>
+                            <Border
+                                x:Name="ContentPanel"
+                                Grid.Row="1"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                KeyboardNavigation.DirectionalNavigation="Contained"
+                                KeyboardNavigation.TabIndex="2"
+                                KeyboardNavigation.TabNavigation="Local">
+                                <Border.ContextMenu>
+                                    <ContextMenu Opened="ContextMenu_Opened">
+                                        <MenuItem
+                                            Header="分割ペインを有効にする"
+                                            Click="SplitPaneMenuItem_Click">
+                                            <MenuItem.Icon>
+                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+                                <ContentPresenter
+                                    x:Name="PART_SelectedContentHost"
+                                    Margin="{TemplateBinding Padding}"
+                                    ContentSource="SelectedContent" />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </TabControl.Template>
+                <TabControl.Resources>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Padding" Value="12,8" />
+                        <Setter Property="Margin" Value="2,0,0,0" />
+                        <Setter Property="MinHeight" Value="36" />
+                        <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                        <Setter Property="BorderThickness" Value="1,1,1,0" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TabItem">
+                                    <Border
+                                        x:Name="Border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="4,4,0,0">
+                                        <ContentPresenter
+                                            Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            ContentSource="Header" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,2" />
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                        </Trigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsSelected" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorSecondaryBrush}" />
+                                        </MultiTrigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TabControl.Resources>
+                <TabControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type models:ExplorerTab}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                Grid.Column="0"
+                                Margin="0,0,8,0"
+                                VerticalAlignment="Center"
+                                Text="{Binding Title, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis" />
+                            <Button
+                                Grid.Column="1"
+                                Width="18"
+                                Height="18"
+                                Margin="4,0,0,0"
+                                Padding="2"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Command="{Binding DataContext.ViewModel.CloseTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Cursor="Hand"
+                                Opacity="0.7"
+                                ToolTip="タブを閉じる">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Opacity" Value="1.0" />
+                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                                <ui:SymbolIcon Symbol="Dismiss24" />
+                            </Button>
+                            <Grid.ContextMenu>
+                                <ContextMenu Opened="ContextMenu_Opened">
+                                        <MenuItem
+                                            Header="分割ペインを有効にする"
+                                            Click="SplitPaneMenuItem_Click">
+                                            <MenuItem.Icon>
+                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                </ContextMenu>
+                            </Grid.ContextMenu>
+                        </Grid>
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+                <TabControl.ContentTemplate>
+                    <DataTemplate DataType="{x:Type models:ExplorerTab}">
+                        <ContentControl ContentTemplate="{StaticResource ExplorerTabContentTemplate}" Content="{Binding}" />
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
+
+            <!--  分割バー  -->
+            <GridSplitter
+                Grid.Column="1"
+                Width="4"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Background="{DynamicResource ControlStrokeColorDefaultBrush}"
+                ResizeBehavior="PreviousAndNext"
+                ShowsPreview="False" />
+
+            <!--  右ペイン  -->
+            <TabControl
+                Grid.Column="2"
+                Margin="0,0,0,0"
+                ItemsSource="{Binding ViewModel.RightPaneTabs, Mode=OneWay}"
+                SelectedItem="{Binding ViewModel.SelectedRightPaneTab, Mode=TwoWay}">
+                <TabControl.Template>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel
+                                    Grid.Column="0"
+                                    Orientation="Horizontal">
+                                    <StackPanel.ContextMenu>
+                                        <ContextMenu Opened="ContextMenu_Opened">
+                                            <MenuItem
+                                                Header="分割ペインを有効にする"
+                                                Click="SplitPaneMenuItem_Click">
+                                                <MenuItem.Icon>
+                                                    <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </StackPanel.ContextMenu>
+                                    <TabPanel
+                                        x:Name="HeaderPanel"
+                                        Grid.IsSharedSizeScope="True"
+                                        IsItemsHost="True"
+                                        KeyboardNavigation.TabIndex="1" />
+                                    <ui:Button
+                                        Width="32"
+                                        Height="32"
+                                        Margin="4,2,0,0"
+                                        VerticalAlignment="Top"
+                                        Command="{Binding ViewModel.CreateNewRightPaneTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        ToolTip="新しいタブ（右ペイン）">
+                                        <ui:Button.Icon>
+                                            <ui:SymbolIcon Symbol="Add24" />
+                                        </ui:Button.Icon>
+                                    </ui:Button>
+                                </StackPanel>
+                            </Grid>
+                            <Border
+                                x:Name="ContentPanel"
+                                Grid.Row="1"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                KeyboardNavigation.DirectionalNavigation="Contained"
+                                KeyboardNavigation.TabIndex="2"
+                                KeyboardNavigation.TabNavigation="Local">
+                                <Border.ContextMenu>
+                                    <ContextMenu Opened="ContextMenu_Opened">
+                                        <MenuItem
+                                            Header="分割ペインを有効にする"
+                                            Click="SplitPaneMenuItem_Click">
+                                            <MenuItem.Icon>
+                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+                                <ContentPresenter
+                                    x:Name="PART_SelectedContentHost"
+                                    Margin="{TemplateBinding Padding}"
+                                    ContentSource="SelectedContent" />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </TabControl.Template>
+                <TabControl.Resources>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Padding" Value="12,8" />
+                        <Setter Property="Margin" Value="2,0,0,0" />
+                        <Setter Property="MinHeight" Value="36" />
+                        <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                        <Setter Property="BorderThickness" Value="1,1,1,0" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TabItem">
+                                    <Border
+                                        x:Name="Border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="4,4,0,0">
+                                        <ContentPresenter
+                                            Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            ContentSource="Header" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,2" />
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                        </Trigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsSelected" Value="True" />
+                                                <Condition Property="IsMouseOver" Value="True" />
+                                            </MultiTrigger.Conditions>
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorSecondaryBrush}" />
+                                        </MultiTrigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TabControl.Resources>
+                <TabControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type models:ExplorerTab}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                Grid.Column="0"
+                                Margin="0,0,8,0"
+                                VerticalAlignment="Center"
+                                Text="{Binding Title, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis" />
+                            <Button
+                                Grid.Column="1"
+                                Width="18"
+                                Height="18"
+                                Margin="4,0,0,0"
+                                Padding="2"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Command="{Binding DataContext.ViewModel.CloseTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Cursor="Hand"
+                                Opacity="0.7"
+                                ToolTip="タブを閉じる">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Opacity" Value="1.0" />
+                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                                <ui:SymbolIcon Symbol="Dismiss24" />
+                            </Button>
+                            <Grid.ContextMenu>
+                                <ContextMenu Opened="ContextMenu_Opened">
+                                        <MenuItem
+                                            Header="分割ペインを有効にする"
+                                            Click="SplitPaneMenuItem_Click">
+                                            <MenuItem.Icon>
+                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                </ContextMenu>
+                            </Grid.ContextMenu>
+                        </Grid>
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+                <TabControl.ContentTemplate>
+                    <DataTemplate DataType="{x:Type models:ExplorerTab}">
+                        <ContentControl ContentTemplate="{StaticResource ExplorerTabContentTemplate}" Content="{Binding}" />
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
+        </Grid>
+
+        <!--  通常モード（分割ペイン無効時）  -->
         <TabControl
             Grid.Row="1"
             Margin="0,0,0,4"
             ItemsSource="{Binding ViewModel.Tabs, Mode=OneWay}"
-            SelectedItem="{Binding ViewModel.SelectedTab, Mode=TwoWay}">
+            SelectedItem="{Binding ViewModel.SelectedTab, Mode=TwoWay}"
+            Visibility="{Binding ViewModel.IsSplitPaneEnabled, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
             <TabControl.Template>
                 <ControlTemplate TargetType="TabControl">
                     <Grid>
@@ -46,6 +926,17 @@
                             <StackPanel
                                 Grid.Column="0"
                                 Orientation="Horizontal">
+                                <StackPanel.ContextMenu>
+                                    <ContextMenu Opened="ContextMenu_Opened">
+                                        <MenuItem
+                                            Header="分割ペインを有効にする"
+                                            Click="SplitPaneMenuItem_Click">
+                                            <MenuItem.Icon>
+                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </StackPanel.ContextMenu>
                                 <TabPanel
                                     x:Name="HeaderPanel"
                                     Grid.IsSharedSizeScope="True"
@@ -73,6 +964,17 @@
                             KeyboardNavigation.DirectionalNavigation="Contained"
                             KeyboardNavigation.TabIndex="2"
                             KeyboardNavigation.TabNavigation="Local">
+                            <Border.ContextMenu>
+                                <ContextMenu Opened="ContextMenu_Opened">
+                                    <MenuItem
+                                        Header="分割ペインを有効にする"
+                                        Click="SplitPaneMenuItem_Click">
+                                        <MenuItem.Icon>
+                                            <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                </ContextMenu>
+                            </Border.ContextMenu>
                             <ContentPresenter
                                 x:Name="PART_SelectedContentHost"
                                 Margin="{TemplateBinding Padding}"
@@ -166,6 +1068,17 @@
                             </Button.Style>
                             <ui:SymbolIcon Symbol="Dismiss24" />
                         </Button>
+                        <Grid.ContextMenu>
+                            <ContextMenu Opened="ContextMenu_Opened">
+                                <MenuItem
+                                    Header="分割ペインを有効にする"
+                                    Click="SplitPaneMenuItem_Click">
+                                    <MenuItem.Icon>
+                                        <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </Grid.ContextMenu>
                     </Grid>
                 </DataTemplate>
             </TabControl.ItemTemplate>

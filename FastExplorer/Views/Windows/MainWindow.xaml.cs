@@ -302,13 +302,34 @@ namespace FastExplorer.Views.Windows
                     
                     if (_cachedExplorerPageViewModel != null)
                     {
-                        var tabPaths = new System.Collections.Generic.List<string>();
-                        foreach (var tab in _cachedExplorerPageViewModel.Tabs)
+                        if (_cachedExplorerPageViewModel.IsSplitPaneEnabled)
                         {
-                            // CurrentPathが空の場合はホームなので、空文字列として保存
-                            tabPaths.Add(tab.CurrentPath ?? string.Empty);
+                            // 分割ペインモードの場合、左右のペインのタブ情報をそれぞれ保存
+                            var leftPaneTabPaths = new System.Collections.Generic.List<string>();
+                            foreach (var tab in _cachedExplorerPageViewModel.LeftPaneTabs)
+                            {
+                                leftPaneTabPaths.Add(tab.CurrentPath ?? string.Empty);
+                            }
+                            settings.LeftPaneTabPaths = leftPaneTabPaths;
+
+                            var rightPaneTabPaths = new System.Collections.Generic.List<string>();
+                            foreach (var tab in _cachedExplorerPageViewModel.RightPaneTabs)
+                            {
+                                rightPaneTabPaths.Add(tab.CurrentPath ?? string.Empty);
+                            }
+                            settings.RightPaneTabPaths = rightPaneTabPaths;
                         }
-                        settings.TabPaths = tabPaths;
+                        else
+                        {
+                            // 通常モードの場合、従来通り
+                            var tabPaths = new System.Collections.Generic.List<string>();
+                            foreach (var tab in _cachedExplorerPageViewModel.Tabs)
+                            {
+                                // CurrentPathが空の場合はホームなので、空文字列として保存
+                                tabPaths.Add(tab.CurrentPath ?? string.Empty);
+                            }
+                            settings.TabPaths = tabPaths;
+                        }
                     }
                 }
                 catch

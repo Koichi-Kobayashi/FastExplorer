@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using FastExplorer.ViewModels.Pages;
 using Wpf.Ui.Abstractions.Controls;
 
@@ -52,15 +53,16 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void ListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (ViewModel.SelectedTab != null)
+            var activeTab = GetActiveTab();
+            if (activeTab != null)
             {
                 var listView = sender as System.Windows.Controls.ListView;
-                var selectedItem = ViewModel.SelectedTab.ViewModel.SelectedItem;
+                var selectedItem = activeTab.ViewModel.SelectedItem;
                 
                 // ディレクトリの場合は、新しいディレクトリに移動した後にスクロール位置を0に戻す
                 if (selectedItem != null && selectedItem.IsDirectory)
                 {
-                    ViewModel.SelectedTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
+                    activeTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
                     
                     // 少し遅延してからスクロール位置を0に戻す（ItemsSourceが更新されるのを待つ）
                     Dispatcher.BeginInvoke(new System.Action(() =>
@@ -77,7 +79,7 @@ namespace FastExplorer.Views.Pages
                 }
                 else
                 {
-                    ViewModel.SelectedTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
+                    activeTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
                 }
             }
         }
@@ -113,9 +115,10 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">キーイベント引数</param>
         private void ListView_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Back && ViewModel.SelectedTab != null)
+            var activeTab = GetActiveTab();
+            if (e.Key == Key.Back && activeTab != null)
             {
-                ViewModel.SelectedTab.ViewModel.NavigateToParentCommand.Execute(null);
+                activeTab.ViewModel.NavigateToParentCommand.Execute(null);
                 e.Handled = true;
             }
         }
@@ -127,20 +130,38 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void ListView_MouseButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (ViewModel.SelectedTab == null)
+            var activeTab = GetActiveTab();
+            if (activeTab == null)
                 return;
 
             // マウスのバックボタン（XButton1）が押された場合
             if (e.ChangedButton == MouseButton.XButton1)
             {
-                ViewModel.SelectedTab.ViewModel.NavigateToParentCommand.Execute(null);
+                activeTab.ViewModel.NavigateToParentCommand.Execute(null);
                 e.Handled = true;
             }
             // マウスの進むボタン（XButton2）が押された場合
             else if (e.ChangedButton == MouseButton.XButton2)
             {
-                ViewModel.SelectedTab.ViewModel.NavigateForwardCommand.Execute(null);
+                activeTab.ViewModel.NavigateForwardCommand.Execute(null);
                 e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// 現在アクティブなタブを取得します（分割ペインモードも考慮）
+        /// </summary>
+        /// <returns>現在アクティブなタブ、見つからない場合はnull</returns>
+        private Models.ExplorerTab? GetActiveTab()
+        {
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                // 分割ペインモードの場合、右ペインを優先（フォーカスがある方）
+                return ViewModel.SelectedRightPaneTab ?? ViewModel.SelectedLeftPaneTab;
+            }
+            else
+            {
+                return ViewModel.SelectedTab;
             }
         }
 
@@ -151,14 +172,43 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void PinnedFolder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (ViewModel.SelectedTab == null)
-                return;
-
             var border = sender as System.Windows.Controls.Border;
             if (border?.DataContext is Models.FavoriteItem favorite)
             {
-                ViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(favorite.Path);
-                e.Handled = true;
+                Models.ExplorerTab? targetTab = null;
+                
+                if (ViewModel.IsSplitPaneEnabled)
+                {
+                    // 分割ペインモードの場合、クリックされた要素がどのペインに属しているかを判定
+                    var element = border as FrameworkElement;
+                    var pane = GetPaneForElement(element);
+                    if (pane == 0)
+                    {
+                        // 左ペイン
+                        targetTab = ViewModel.SelectedLeftPaneTab;
+                    }
+                    else if (pane == 2)
+                    {
+                        // 右ペイン
+                        targetTab = ViewModel.SelectedRightPaneTab;
+                    }
+                    else
+                    {
+                        // 判定できない場合は、GetActiveTab()を使用
+                        targetTab = GetActiveTab();
+                    }
+                }
+                else
+                {
+                    // 通常モード
+                    targetTab = ViewModel.SelectedTab;
+                }
+                
+                if (targetTab != null)
+                {
+                    targetTab.ViewModel.NavigateToPathCommand.Execute(favorite.Path);
+                    e.Handled = true;
+                }
             }
         }
 
@@ -169,15 +219,75 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void Drive_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (ViewModel.SelectedTab == null)
-                return;
-
             var border = sender as System.Windows.Controls.Border;
             if (border?.DataContext is Models.DriveInfoModel drive)
             {
-                ViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(drive.Path);
-                e.Handled = true;
+                Models.ExplorerTab? targetTab = null;
+                
+                if (ViewModel.IsSplitPaneEnabled)
+                {
+                    // 分割ペインモードの場合、クリックされた要素がどのペインに属しているかを判定
+                    var element = border as FrameworkElement;
+                    var pane = GetPaneForElement(element);
+                    if (pane == 0)
+                    {
+                        // 左ペイン
+                        targetTab = ViewModel.SelectedLeftPaneTab;
+                    }
+                    else if (pane == 2)
+                    {
+                        // 右ペイン
+                        targetTab = ViewModel.SelectedRightPaneTab;
+                    }
+                    else
+                    {
+                        // 判定できない場合は、GetActiveTab()を使用
+                        targetTab = GetActiveTab();
+                    }
+                }
+                else
+                {
+                    // 通常モード
+                    targetTab = ViewModel.SelectedTab;
+                }
+                
+                if (targetTab != null)
+                {
+                    targetTab.ViewModel.NavigateToPathCommand.Execute(drive.Path);
+                    e.Handled = true;
+                }
             }
+        }
+
+        /// <summary>
+        /// 要素がどのペインに属しているかを取得します（分割ペインモードの場合）
+        /// </summary>
+        /// <param name="element">要素</param>
+        /// <returns>左ペインの場合は0、右ペインの場合は2、判定できない場合は-1</returns>
+        private int GetPaneForElement(FrameworkElement? element)
+        {
+            if (element == null || !ViewModel.IsSplitPaneEnabled)
+                return -1;
+            
+            // 親要素をたどって、Grid.Column="0"（左ペイン）またはGrid.Column="2"（右ペイン）を探す
+            var current = element;
+            while (current != null)
+            {
+                // TabControlを探す
+                if (current is System.Windows.Controls.TabControl tabControl)
+                {
+                    // TabControl自体のGrid.Columnを取得
+                    var column = System.Windows.Controls.Grid.GetColumn(tabControl);
+                    if (column == 0 || column == 2)
+                    {
+                        return column;
+                    }
+                }
+                
+                current = VisualTreeHelper.GetParent(current) as FrameworkElement;
+            }
+            
+            return -1;
         }
 
         /// <summary>
@@ -187,22 +297,89 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void RecentFile_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (ViewModel.SelectedTab == null)
-                return;
-
             var border = sender as System.Windows.Controls.Border;
             if (border?.DataContext is Models.FileSystemItem fileItem)
             {
-                if (fileItem.IsDirectory)
+                Models.ExplorerTab? targetTab = null;
+                
+                if (ViewModel.IsSplitPaneEnabled)
                 {
-                    ViewModel.SelectedTab.ViewModel.NavigateToPathCommand.Execute(fileItem.FullPath);
+                    // 分割ペインモードの場合、クリックされた要素がどのペインに属しているかを判定
+                    var element = border as FrameworkElement;
+                    var pane = GetPaneForElement(element);
+                    if (pane == 0)
+                    {
+                        // 左ペイン
+                        targetTab = ViewModel.SelectedLeftPaneTab;
+                    }
+                    else if (pane == 2)
+                    {
+                        // 右ペイン
+                        targetTab = ViewModel.SelectedRightPaneTab;
+                    }
+                    else
+                    {
+                        // 判定できない場合は、GetActiveTab()を使用
+                        targetTab = GetActiveTab();
+                    }
                 }
                 else
                 {
-                    ViewModel.SelectedTab.ViewModel.NavigateToItemCommand.Execute(fileItem);
+                    // 通常モード
+                    targetTab = ViewModel.SelectedTab;
                 }
-                e.Handled = true;
+                
+                if (targetTab != null)
+                {
+                    if (fileItem.IsDirectory)
+                    {
+                        targetTab.ViewModel.NavigateToPathCommand.Execute(fileItem.FullPath);
+                    }
+                    else
+                    {
+                        targetTab.ViewModel.NavigateToItemCommand.Execute(fileItem);
+                    }
+                    e.Handled = true;
+                }
             }
+        }
+
+        /// <summary>
+        /// コンテキストメニューが開かれたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ルーティングイベント引数</param>
+        private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.ContextMenu contextMenu && ViewModel != null)
+            {
+                // すべてのMenuItemを確認
+                foreach (var item in contextMenu.Items)
+                {
+                    if (item is System.Windows.Controls.MenuItem menuItem)
+                    {
+                        // アイコンで分割ペインメニューアイテムを識別
+                        if (menuItem.Icon is Wpf.Ui.Controls.SymbolIcon symbolIcon && symbolIcon.Symbol == Wpf.Ui.Controls.SymbolRegular.SplitHorizontal24)
+                        {
+                            // メニューテキストを更新
+                            var converter = new Helpers.BooleanToSplitPaneMenuTextConverter();
+                            var header = converter.Convert(ViewModel.IsSplitPaneEnabled, typeof(string), null, System.Globalization.CultureInfo.CurrentCulture) ?? "分割ペインを有効にする";
+                            menuItem.Header = header;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 分割ペインメニューアイテムがクリックされたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ルーティングイベント引数</param>
+        private void SplitPaneMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            ViewModel.ToggleSplitPaneCommand.Execute(null);
         }
     }
 }
