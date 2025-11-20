@@ -338,6 +338,21 @@ namespace FastExplorer.ViewModels.Pages
                                     navigationView.Background = secondaryBrush;
                                 }
 
+                                // ステータスバーの背景色とテキスト色を直接更新
+                                // StatusBarはBorderで、x:Name="StatusBar"が設定されている
+                                var statusBar = FindVisualChildByName<System.Windows.Controls.Border>(window, "StatusBar");
+                                if (statusBar != null)
+                                {
+                                    statusBar.Background = mainBrush;
+                                }
+                                
+                                // StatusBarTextはTextBlockで、x:Name="StatusBarText"が設定されている
+                                var statusBarText = FindVisualChildByName<System.Windows.Controls.TextBlock>(window, "StatusBarText");
+                                if (statusBarText != null)
+                                {
+                                    statusBarText.Foreground = statusBarTextBrush;
+                                }
+
                                 // ウィンドウのリソースを無効化
                                 if (window is System.Windows.FrameworkElement fe)
                                 {
@@ -384,6 +399,36 @@ namespace FastExplorer.ViewModels.Pages
                 }
 
                 var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                {
+                    return childOfChild;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// ビジュアルツリー内の指定された名前と型の子要素を検索します
+        /// </summary>
+        /// <typeparam name="T">検索する型</typeparam>
+        /// <param name="parent">親要素</param>
+        /// <param name="name">要素の名前</param>
+        /// <returns>見つかった要素、見つからない場合はnull</returns>
+        private static T? FindVisualChildByName<T>(System.Windows.DependencyObject parent, string name) where T : System.Windows.FrameworkElement
+        {
+            if (parent == null)
+                return null;
+
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t && t.Name == name)
+                {
+                    return t;
+                }
+
+                var childOfChild = FindVisualChildByName<T>(child, name);
                 if (childOfChild != null)
                 {
                     return childOfChild;
