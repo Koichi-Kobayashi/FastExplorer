@@ -210,7 +210,7 @@ namespace FastExplorer
         /// <param name="settings">ウィンドウ設定</param>
         private void ApplyThemeColorOnStartup(Services.WindowSettings settings)
         {
-            //ApplyThemeColorFromSettings(settings);
+            ApplyThemeColorFromSettings(settings);
         }
 
         /// <summary>
@@ -263,6 +263,25 @@ namespace FastExplorer
                     }
                     mainDictionary["AccentFillColorSecondaryBrush"] = accentSecondaryBrush;
 
+                    // コントロールの背景色（タブの非選択時など）を更新
+                    if (mainDictionary.Contains("ControlFillColorDefaultBrush"))
+                    {
+                        mainDictionary.Remove("ControlFillColorDefaultBrush");
+                    }
+                    mainDictionary["ControlFillColorDefaultBrush"] = secondaryBrush;
+
+                    // コントロールの背景色（セカンダリ、ホバー時など）を更新
+                    var controlSecondaryColor = Color.FromRgb(
+                        (byte)Math.Min(255, secondaryColor.R + 10),
+                        (byte)Math.Min(255, secondaryColor.G + 10),
+                        (byte)Math.Min(255, secondaryColor.B + 10));
+                    var controlSecondaryBrush = new SolidColorBrush(controlSecondaryColor);
+                    if (mainDictionary.Contains("ControlFillColorSecondaryBrush"))
+                    {
+                        mainDictionary.Remove("ControlFillColorSecondaryBrush");
+                    }
+                    mainDictionary["ControlFillColorSecondaryBrush"] = controlSecondaryBrush;
+
                     // ステータスバーの文字色を背景色に応じて設定
                     var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
                     var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;
@@ -276,6 +295,21 @@ namespace FastExplorer
                     // 起動時はウィンドウがまだ作成されていない可能性があるため、
                     // ウィンドウの背景色更新はMainWindowのコンストラクタとLoadedイベントで行う
                     // ここではリソースのみ更新（ちらつきを防ぐため、ウィンドウ更新処理は削除）
+                    
+                    // ウィンドウが存在する場合は、DynamicResourceの再評価を強制
+                    if (Current.Windows.Count > 0)
+                    {
+                        Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                        {
+                            foreach (System.Windows.Window window in Current.Windows)
+                            {
+                                if (window != null)
+                                {
+                                    InvalidateResourcesRecursive(window);
+                                }
+                            }
+                        }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    }
                 }
             }
             catch

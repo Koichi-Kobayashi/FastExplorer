@@ -1,6 +1,7 @@
 ﻿using FastExplorer.Controls;
 using FastExplorer.Models;
 using FastExplorer.Services;
+using FastExplorer.Views.Pages;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -294,6 +295,25 @@ namespace FastExplorer.ViewModels.Pages
                     }
                     mainDictionary["AccentFillColorSecondaryBrush"] = accentSecondaryBrush;
 
+                    // コントロールの背景色（タブの非選択時など）を更新
+                    if (mainDictionary.Contains("ControlFillColorDefaultBrush"))
+                    {
+                        mainDictionary.Remove("ControlFillColorDefaultBrush");
+                    }
+                    mainDictionary["ControlFillColorDefaultBrush"] = secondaryBrush;
+
+                    // コントロールの背景色（セカンダリ、ホバー時など）を更新
+                    var controlSecondaryColor = Color.FromRgb(
+                        (byte)Math.Min(255, secondaryColor.R + 10),
+                        (byte)Math.Min(255, secondaryColor.G + 10),
+                        (byte)Math.Min(255, secondaryColor.B + 10));
+                    var controlSecondaryBrush = new SolidColorBrush(controlSecondaryColor);
+                    if (mainDictionary.Contains("ControlFillColorSecondaryBrush"))
+                    {
+                        mainDictionary.Remove("ControlFillColorSecondaryBrush");
+                    }
+                    mainDictionary["ControlFillColorSecondaryBrush"] = controlSecondaryBrush;
+
                     // ステータスバーの文字色を背景色に応じて設定
                     // 背景が明るい場合は黒、暗い場合は白
                     var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
@@ -358,6 +378,63 @@ namespace FastExplorer.ViewModels.Pages
                                 {
                                     fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
                                     fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
+                                }
+
+                                // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
+                                var explorerPage = FindVisualChild<Views.Pages.ExplorerPage>(window);
+                                if (explorerPage != null)
+                                {
+                                    // TabControl内のすべてのTabItemのスタイルを無効化
+                                    var tabControl = FindVisualChild<System.Windows.Controls.TabControl>(explorerPage);
+                                    if (tabControl != null)
+                                    {
+                                        // TabControlのResources内のTabItemスタイルを無効化
+                                        tabControl.InvalidateProperty(System.Windows.Controls.Control.TemplateProperty);
+                                        
+                                        // すべてのTabItemのStyleプロパティとBackgroundプロパティを無効化
+                                        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabControl); i++)
+                                        {
+                                            var child = System.Windows.Media.VisualTreeHelper.GetChild(tabControl, i);
+                                            if (child is System.Windows.Controls.TabItem tabItem)
+                                            {
+                                                tabItem.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                                                tabItem.InvalidateProperty(System.Windows.Controls.TabItem.BackgroundProperty);
+                                            }
+                                            // TabPanel内のTabItemを探す
+                                            var tabPanel = FindVisualChild<System.Windows.Controls.Primitives.TabPanel>(child);
+                                            if (tabPanel != null)
+                                            {
+                                                for (int j = 0; j < System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabPanel); j++)
+                                                {
+                                                    var tabItemChild = System.Windows.Media.VisualTreeHelper.GetChild(tabPanel, j);
+                                                    if (tabItemChild is System.Windows.Controls.TabItem tabItem2)
+                                                    {
+                                                        tabItem2.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                                                        tabItem2.InvalidateProperty(System.Windows.Controls.TabItem.BackgroundProperty);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // ListView内のすべてのListViewItemのスタイルを無効化
+                                    var listView = FindVisualChild<System.Windows.Controls.ListView>(explorerPage);
+                                    if (listView != null)
+                                    {
+                                        // ListViewのResources内のListViewItemスタイルを無効化
+                                        listView.InvalidateProperty(System.Windows.Controls.ItemsControl.ItemContainerStyleProperty);
+                                        
+                                        // すべてのListViewItemのStyleプロパティとBackgroundプロパティを無効化
+                                        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(listView); i++)
+                                        {
+                                            var child = System.Windows.Media.VisualTreeHelper.GetChild(listView, i);
+                                            if (child is System.Windows.Controls.ListViewItem listViewItem)
+                                            {
+                                                listViewItem.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                                                listViewItem.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
+                                            }
+                                        }
+                                    }
                                 }
 
                                 // ウィンドウのレイアウトを更新してDynamicResourceを再評価

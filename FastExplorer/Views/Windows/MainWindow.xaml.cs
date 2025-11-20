@@ -86,6 +86,9 @@ namespace FastExplorer.Views.Windows
                 var themeColorCode = settings.ThemeColorCode;
                 if (themeColorCode != null && themeColorCode.Length > 0)
                 {
+                    // リソースを更新（App.ApplyThemeColorFromSettingsを呼び出す）
+                    App.ApplyThemeColorFromSettings(settings);
+                    
                     // テーマカラー選択時と同じ処理
                     var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
                     var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
@@ -162,6 +165,79 @@ namespace FastExplorer.Views.Windows
                         var statusBarTextColor = luminance > 0.5 ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
                         StatusBarText.Foreground = new System.Windows.Media.SolidColorBrush(statusBarTextColor);
                     }
+
+                    // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
+                    // Loadedイベントの時点ではまだExplorerPageが読み込まれていない可能性があるため、複数のタイミングで実行
+                    void InvalidateTabAndListViewStyles()
+                    {
+                        var explorerPage = FindVisualChild<Views.Pages.ExplorerPage>(this);
+                        if (explorerPage != null)
+                        {
+                            // TabControl内のすべてのTabItemのスタイルを無効化
+                            var tabControl = FindVisualChild<System.Windows.Controls.TabControl>(explorerPage);
+                            if (tabControl != null)
+                            {
+                                // TabControlのResources内のTabItemスタイルを無効化
+                                tabControl.InvalidateProperty(System.Windows.Controls.Control.TemplateProperty);
+                                
+                                // すべてのTabItemのStyleプロパティとBackgroundプロパティを無効化
+                                for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabControl); i++)
+                                {
+                                    var child = System.Windows.Media.VisualTreeHelper.GetChild(tabControl, i);
+                                    if (child is System.Windows.Controls.TabItem tabItem)
+                                    {
+                                        tabItem.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                                        tabItem.InvalidateProperty(System.Windows.Controls.TabItem.BackgroundProperty);
+                                    }
+                                    // TabPanel内のTabItemを探す
+                                    var tabPanel = FindVisualChild<System.Windows.Controls.Primitives.TabPanel>(child);
+                                    if (tabPanel != null)
+                                    {
+                                        for (int j = 0; j < System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabPanel); j++)
+                                        {
+                                            var tabItemChild = System.Windows.Media.VisualTreeHelper.GetChild(tabPanel, j);
+                                            if (tabItemChild is System.Windows.Controls.TabItem tabItem2)
+                                            {
+                                                tabItem2.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                                                tabItem2.InvalidateProperty(System.Windows.Controls.TabItem.BackgroundProperty);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ListView内のすべてのListViewItemのスタイルを無効化
+                            var listView = FindVisualChild<System.Windows.Controls.ListView>(explorerPage);
+                            if (listView != null)
+                            {
+                                // ListViewのResources内のListViewItemスタイルを無効化
+                                listView.InvalidateProperty(System.Windows.Controls.ItemsControl.ItemContainerStyleProperty);
+                                
+                                // すべてのListViewItemのStyleプロパティとBackgroundプロパティを無効化
+                                for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(listView); i++)
+                                {
+                                    var child = System.Windows.Media.VisualTreeHelper.GetChild(listView, i);
+                                    if (child is System.Windows.Controls.ListViewItem listViewItem)
+                                    {
+                                        listViewItem.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                                        listViewItem.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 複数のタイミングで実行（確実に反映させるため）
+                    _ = Dispatcher.BeginInvoke(new System.Action(InvalidateTabAndListViewStyles), DispatcherPriority.Loaded);
+                    _ = Dispatcher.BeginInvoke(new System.Action(InvalidateTabAndListViewStyles), DispatcherPriority.Render);
+                    
+                    // ContentRenderedイベントでも実行
+                    void ContentRenderedHandler(object? s, EventArgs e)
+                    {
+                        ContentRendered -= ContentRenderedHandler;
+                        InvalidateTabAndListViewStyles();
+                    }
+                    ContentRendered += ContentRenderedHandler;
                 }
                 
                 // テーマカラー適用後にウィンドウを表示（チラつきを防ぐ）
@@ -425,6 +501,35 @@ namespace FastExplorer.Views.Windows
         public void SetServiceProvider(IServiceProvider serviceProvider)
         {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// ビジュアルツリー内の指定された型の子要素を検索します
+        /// </summary>
+        /// <typeparam name="T">検索する型</typeparam>
+        /// <param name="parent">親要素</param>
+        /// <returns>見つかった要素、見つからない場合はnull</returns>
+        private static T? FindVisualChild<T>(System.Windows.DependencyObject parent) where T : System.Windows.DependencyObject
+        {
+            if (parent == null)
+                return null;
+
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t)
+                {
+                    return t;
+                }
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                {
+                    return childOfChild;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

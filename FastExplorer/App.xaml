@@ -27,6 +27,14 @@
             <SolidColorBrush x:Key="ApplicationBackgroundBrush" Color="#F5F5F5" />
             <SolidColorBrush x:Key="TabAndNavigationBackgroundBrush" Color="#FCFCFC" />
             
+            <!-- アクセントカラー（タブとListViewの選択中に使用、コードで動的に更新される） -->
+            <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#F5F5F5" />
+            <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#E5E5E5" />
+            
+            <!-- コントロールの背景色（タブの非選択時など、コードで動的に更新される） -->
+            <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FCFCFC" />
+            <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#F0F0F0" />
+            
             <!-- ステータスバーのテキスト色（背景色に応じて動的に更新される） -->
             <SolidColorBrush x:Key="StatusBarTextBrush" Color="#FFFFFF" />
             
