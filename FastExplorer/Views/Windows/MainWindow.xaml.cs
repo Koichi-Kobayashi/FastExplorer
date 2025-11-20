@@ -61,8 +61,6 @@ namespace FastExplorer.Views.Windows
             _windowSettingsService = windowSettingsService;
             _navigationService = navigationService;
 
-            // 最初は非表示で作成（テーマ適用後に表示するため）
-            Visibility = Visibility.Hidden;
             ShowInTaskbar = false; // 初期状態ではタスクバーに表示しない
 
             InitializeComponent();
@@ -83,7 +81,7 @@ namespace FastExplorer.Views.Windows
                 // ViewModelにNavigationServiceを設定
                 viewModel.SetNavigationService(navigationService);
                 
-                // ウィンドウ表示後にテーマカラー選択時と同じ処理を実行（確実に反映させるため）
+                // テーマカラーを適用（ウィンドウ表示前に適用することでチラつきを防ぐ）
                 var settings = _windowSettingsService.GetSettings();
                 var themeColorCode = settings.ThemeColorCode;
                 if (themeColorCode != null && themeColorCode.Length > 0)
@@ -124,21 +122,53 @@ namespace FastExplorer.Views.Windows
                     {
                         StatusBarText.Foreground = statusBarTextBrush;
                     }
+                }
+                
+                // レイアウトを更新してからウィンドウを表示（チラつきを防ぐ）
+                UpdateLayout();
+                
+                // UpdateLayout()の後に再度色を設定（色が消えないようにする）
+                if (themeColorCode != null && themeColorCode.Length > 0)
+                {
+                    var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
+                    var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
+                    var secondaryColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+                    var secondaryBrush = new System.Windows.Media.SolidColorBrush(secondaryColor);
+                    
+                    // ウィンドウの背景色を再度設定（UpdateLayout()でリセットされる可能性があるため）
+                    Background = mainBrush;
 
-                    // ウィンドウのリソースを無効化
-                    if (this is System.Windows.FrameworkElement fe)
+                    // FluentWindowの場合は、Backgroundプロパティも更新
+                    if (this is Wpf.Ui.Controls.FluentWindow fluentWindow)
                     {
-                        fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                        fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
+                        fluentWindow.Background = mainBrush;
                     }
 
-                    //// ウィンドウのレイアウトを更新してDynamicResourceを再評価
-                    //UpdateLayout();
-                    //// ビジュアルを無効化してDynamicResourceの再評価を強制
-                    //InvalidateVisual();
+                    // NavigationViewの背景色も再度設定
+                    if (nav != null)
+                    {
+                        nav.Background = secondaryBrush;
+                    }
+
+                    // ステータスバーの背景色とテキスト色も再度設定
+                    if (StatusBar != null)
+                    {
+                        StatusBar.Background = mainBrush;
+                    }
                     
-                    //// ウィンドウ内のすべての要素のDynamicResourceを再評価
-                    //App.InvalidateResourcesRecursive(this);
+                    if (StatusBarText != null)
+                    {
+                        var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
+                        var statusBarTextColor = luminance > 0.5 ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
+                        StatusBarText.Foreground = new System.Windows.Media.SolidColorBrush(statusBarTextColor);
+                    }
+                }
+                
+                // テーマカラー適用後にウィンドウを表示（チラつきを防ぐ）
+                if (Visibility == Visibility.Hidden)
+                {
+                    Visibility = Visibility.Visible;
+                    ShowInTaskbar = true;
                 }
                 
                 // SystemThemeWatcherを遅延実行（起動を最速化）
@@ -249,10 +279,9 @@ namespace FastExplorer.Views.Windows
             // テーマカラーは既にApp.xaml.csのOnStartupで適用されているため、
             // ここでは再適用しない（ちらつきを防ぐため）
             
-            // ウィンドウを即座に表示（起動を最速化）
-            Visibility = Visibility.Visible;
+            // ウィンドウを表示（LoadedイベントでVisibilityがVisibleに設定されるまで非表示のまま）
+            // これにより、テーマカラーが適用されてから表示されるためチラつきを防ぐ
             Show();
-            ShowInTaskbar = true;
             WindowState = isMaximized ? WindowState.Maximized : WindowState.Normal;
         }
 
