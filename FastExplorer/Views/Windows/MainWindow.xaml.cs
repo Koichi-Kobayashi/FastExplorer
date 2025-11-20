@@ -290,14 +290,19 @@ namespace FastExplorer.Views.Windows
                 else
                     settings.Theme = "System";
                 
-                // タブ情報を保存
+                // タブ情報を保存（キャッシュされたViewModelを使用して高速化）
                 try
                 {
-                    var explorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
-                    if (explorerPageViewModel != null)
+                    // キャッシュされたViewModelを使用（なければ取得してキャッシュ）
+                    if (_cachedExplorerPageViewModel == null)
+                    {
+                        _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                    }
+                    
+                    if (_cachedExplorerPageViewModel != null)
                     {
                         var tabPaths = new System.Collections.Generic.List<string>();
-                        foreach (var tab in explorerPageViewModel.Tabs)
+                        foreach (var tab in _cachedExplorerPageViewModel.Tabs)
                         {
                             // CurrentPathが空の場合はホームなので、空文字列として保存
                             tabPaths.Add(tab.CurrentPath ?? string.Empty);
@@ -536,29 +541,29 @@ namespace FastExplorer.Views.Windows
             _navigationService?.Navigate(ExplorerPageType);
             
             // ページが読み込まれるのを待ってから処理を実行
-            // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
+            // DispatcherPriority.Normalを使用することで、レイアウト完了を待たずに高速に実行される
             if (selectedTab == null)
                 return;
             
-            var dispatcher = Dispatcher;
             var viewModel = selectedTab.ViewModel;
             var isHome = string.Equals(tag, HomeTag, StringComparison.Ordinal);
             
             // ホームアイテムとお気に入りアイテムの処理を統合（メモリ割り当て削減）
+            // DispatcherPriority.Normalに変更して高速化（Loadedはレイアウト完了まで待つため遅い）
             if (isHome)
             {
-                _ = dispatcher.BeginInvoke(new System.Action(() =>
+                _ = Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     viewModel.NavigateToHome();
-                }), DispatcherPriority.Loaded);
+                }), DispatcherPriority.Normal);
             }
             else
             {
                 var path = tag; // クロージャで使用するため変数に保存
-                _ = dispatcher.BeginInvoke(new System.Action(() =>
+                _ = Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     viewModel.NavigateToPathCommand.Execute(path);
-                }), DispatcherPriority.Loaded);
+                }), DispatcherPriority.Normal);
             }
             // TargetPageTypeが設定されている場合（Settingsなど）は自動的にナビゲートされる
         }
