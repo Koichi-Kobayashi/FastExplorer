@@ -250,204 +250,78 @@ namespace FastExplorer.ViewModels.Pages
 
             try
             {
-                // テーマカラーをリソースに適用
-                if (Application.Current.Resources is ResourceDictionary mainDictionary)
+                // テーマカラーを保存
+                var settings = _windowSettingsService.GetSettings();
+                settings.ThemeColorName = themeColor.Name;
+                settings.ThemeColorCode = themeColor.ColorCode;
+                settings.ThemeSecondaryColorCode = themeColor.SecondaryColorCode;
+                _windowSettingsService.SaveSettings(settings);
+
+                // リソースを更新（App.ApplyThemeColorFromSettingsを使用）
+                App.ApplyThemeColorFromSettings(settings);
+
+                // メインカラーとセカンダリカラーを取得（ウィンドウ更新用）
+                var mainColor = (Color)ColorConverter.ConvertFromString(themeColor.ColorCode);
+                var mainBrush = new SolidColorBrush(mainColor);
+                var secondaryColor = (Color)ColorConverter.ConvertFromString(themeColor.SecondaryColorCode);
+                var secondaryBrush = new SolidColorBrush(secondaryColor);
+                var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
+                var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;
+                var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
+
+                System.Diagnostics.Debug.WriteLine($"Theme color applied: {themeColor.Name} - Main: {themeColor.ColorCode}, Secondary: {themeColor.SecondaryColorCode}");
+
+                // すべてのウィンドウの背景色を直接更新
+                Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    // メインカラーを適用
-                    var mainColor = (Color)ColorConverter.ConvertFromString(themeColor.ColorCode);
-                    var mainBrush = new SolidColorBrush(mainColor);
-                    
-                    // セカンダリカラーを適用
-                    var secondaryColor = (Color)ColorConverter.ConvertFromString(themeColor.SecondaryColorCode);
-                    var secondaryBrush = new SolidColorBrush(secondaryColor);
-
-                    // メインのリソースディクショナリーに直接追加（MergedDictionariesより優先される）
-                    // リソースを一度削除して再追加することで、DynamicResourceの再評価を強制
-                    if (mainDictionary.Contains("ApplicationBackgroundBrush"))
+                    // すべてのウィンドウの背景色を更新
+                    foreach (Window window in Application.Current.Windows)
                     {
-                        mainDictionary.Remove("ApplicationBackgroundBrush");
-                    }
-                    mainDictionary["ApplicationBackgroundBrush"] = mainBrush;
-
-                    if (mainDictionary.Contains("TabAndNavigationBackgroundBrush"))
-                    {
-                        mainDictionary.Remove("TabAndNavigationBackgroundBrush");
-                    }
-                    mainDictionary["TabAndNavigationBackgroundBrush"] = secondaryBrush;
-
-                    // アクセントカラー（タブとステータスバー用）を更新
-                    if (mainDictionary.Contains("AccentFillColorDefaultBrush"))
-                    {
-                        mainDictionary.Remove("AccentFillColorDefaultBrush");
-                    }
-                    mainDictionary["AccentFillColorDefaultBrush"] = mainBrush;
-
-                    // アクセントカラー（セカンダリ、ホバー時など）を更新
-                    // メインカラーを少し濃くした色を使用
-                    var accentSecondaryColor = Color.FromRgb(
-                        (byte)Math.Max(0, mainColor.R - 20),
-                        (byte)Math.Max(0, mainColor.G - 20),
-                        (byte)Math.Max(0, mainColor.B - 20));
-                    var accentSecondaryBrush = new SolidColorBrush(accentSecondaryColor);
-                    if (mainDictionary.Contains("AccentFillColorSecondaryBrush"))
-                    {
-                        mainDictionary.Remove("AccentFillColorSecondaryBrush");
-                    }
-                    mainDictionary["AccentFillColorSecondaryBrush"] = accentSecondaryBrush;
-
-                    // コントロールの背景色（タブの非選択時など）を更新
-                    if (mainDictionary.Contains("ControlFillColorDefaultBrush"))
-                    {
-                        mainDictionary.Remove("ControlFillColorDefaultBrush");
-                    }
-                    mainDictionary["ControlFillColorDefaultBrush"] = secondaryBrush;
-
-                    // コントロールの背景色（セカンダリ、ホバー時など）を更新
-                    var controlSecondaryColor = Color.FromRgb(
-                        (byte)Math.Min(255, secondaryColor.R + 10),
-                        (byte)Math.Min(255, secondaryColor.G + 10),
-                        (byte)Math.Min(255, secondaryColor.B + 10));
-                    var controlSecondaryBrush = new SolidColorBrush(controlSecondaryColor);
-                    if (mainDictionary.Contains("ControlFillColorSecondaryBrush"))
-                    {
-                        mainDictionary.Remove("ControlFillColorSecondaryBrush");
-                    }
-                    mainDictionary["ControlFillColorSecondaryBrush"] = controlSecondaryBrush;
-
-                    // ステータスバーの文字色を背景色に応じて設定
-                    // 背景が明るい場合は黒、暗い場合は白
-                    var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
-                    var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;
-                    var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
-                    if (mainDictionary.Contains("StatusBarTextBrush"))
-                    {
-                        mainDictionary.Remove("StatusBarTextBrush");
-                    }
-                    mainDictionary["StatusBarTextBrush"] = statusBarTextBrush;
-
-                    // テーマカラーを保存
-                    var settings = _windowSettingsService.GetSettings();
-                    settings.ThemeColorName = themeColor.Name;
-                    settings.ThemeColorCode = themeColor.ColorCode;
-                    settings.ThemeSecondaryColorCode = themeColor.SecondaryColorCode;
-                    _windowSettingsService.SaveSettings(settings);
-
-                    System.Diagnostics.Debug.WriteLine($"Theme color applied: {themeColor.Name} - Main: {themeColor.ColorCode}, Secondary: {themeColor.SecondaryColorCode}");
-
-                    // すべてのウィンドウの背景色を直接更新
-                    Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
-                    {
-                        // すべてのウィンドウの背景色を更新
-                        foreach (Window window in Application.Current.Windows)
+                        if (window != null)
                         {
-                            if (window != null)
+                            // ウィンドウの背景色を直接設定
+                            window.Background = mainBrush;
+
+                            // FluentWindowの場合は、Backgroundプロパティも更新
+                            if (window is Wpf.Ui.Controls.FluentWindow fluentWindow)
                             {
-                                // ウィンドウの背景色を直接設定
-                                window.Background = mainBrush;
-
-                                // FluentWindowの場合は、Backgroundプロパティも更新
-                                if (window is Wpf.Ui.Controls.FluentWindow fluentWindow)
-                                {
-                                    fluentWindow.Background = mainBrush;
-                                }
-
-                                // ウィンドウ内のNavigationViewの背景色も更新
-                                var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(window);
-                                if (navigationView != null)
-                                {
-                                    navigationView.Background = secondaryBrush;
-                                }
-
-                                // ステータスバーの背景色とテキスト色を直接更新
-                                // StatusBarはBorderで、x:Name="StatusBar"が設定されている
-                                var statusBar = FindVisualChildByName<System.Windows.Controls.Border>(window, "StatusBar");
-                                if (statusBar != null)
-                                {
-                                    statusBar.Background = mainBrush;
-                                }
-                                
-                                // StatusBarTextはTextBlockで、x:Name="StatusBarText"が設定されている
-                                var statusBarText = FindVisualChildByName<System.Windows.Controls.TextBlock>(window, "StatusBarText");
-                                if (statusBarText != null)
-                                {
-                                    statusBarText.Foreground = statusBarTextBrush;
-                                }
-
-                                // ウィンドウのリソースを無効化
-                                if (window is System.Windows.FrameworkElement fe)
-                                {
-                                    fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                                    fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
-                                }
-
-                                // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
-                                var explorerPage = FindVisualChild<Views.Pages.ExplorerPage>(window);
-                                if (explorerPage != null)
-                                {
-                                    // TabControl内のすべてのTabItemのスタイルを無効化
-                                    var tabControl = FindVisualChild<System.Windows.Controls.TabControl>(explorerPage);
-                                    if (tabControl != null)
-                                    {
-                                        // TabControlのResources内のTabItemスタイルを無効化
-                                        tabControl.InvalidateProperty(System.Windows.Controls.Control.TemplateProperty);
-                                        
-                                        // すべてのTabItemのStyleプロパティとBackgroundプロパティを無効化
-                                        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabControl); i++)
-                                        {
-                                            var child = System.Windows.Media.VisualTreeHelper.GetChild(tabControl, i);
-                                            if (child is System.Windows.Controls.TabItem tabItem)
-                                            {
-                                                tabItem.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                                                tabItem.InvalidateProperty(System.Windows.Controls.TabItem.BackgroundProperty);
-                                            }
-                                            // TabPanel内のTabItemを探す
-                                            var tabPanel = FindVisualChild<System.Windows.Controls.Primitives.TabPanel>(child);
-                                            if (tabPanel != null)
-                                            {
-                                                for (int j = 0; j < System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabPanel); j++)
-                                                {
-                                                    var tabItemChild = System.Windows.Media.VisualTreeHelper.GetChild(tabPanel, j);
-                                                    if (tabItemChild is System.Windows.Controls.TabItem tabItem2)
-                                                    {
-                                                        tabItem2.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                                                        tabItem2.InvalidateProperty(System.Windows.Controls.TabItem.BackgroundProperty);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // ListView内のすべてのListViewItemのスタイルを無効化
-                                    var listView = FindVisualChild<System.Windows.Controls.ListView>(explorerPage);
-                                    if (listView != null)
-                                    {
-                                        // ListViewのResources内のListViewItemスタイルを無効化
-                                        listView.InvalidateProperty(System.Windows.Controls.ItemsControl.ItemContainerStyleProperty);
-                                        
-                                        // すべてのListViewItemのStyleプロパティとBackgroundプロパティを無効化
-                                        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(listView); i++)
-                                        {
-                                            var child = System.Windows.Media.VisualTreeHelper.GetChild(listView, i);
-                                            if (child is System.Windows.Controls.ListViewItem listViewItem)
-                                            {
-                                                listViewItem.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                                                listViewItem.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // ウィンドウのレイアウトを更新してDynamicResourceを再評価
-                                window.UpdateLayout();
-                                // ビジュアルを無効化してDynamicResourceの再評価を強制
-                                window.InvalidateVisual();
-                                
-                                // ウィンドウ内のすべての要素のDynamicResourceを再評価
-                                InvalidateResourcesRecursive(window);
+                                fluentWindow.Background = mainBrush;
                             }
+
+                            // ウィンドウ内のNavigationViewの背景色も更新
+                            var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(window);
+                            if (navigationView != null)
+                            {
+                                navigationView.Background = secondaryBrush;
+                            }
+
+                            // ステータスバーの背景色とテキスト色を直接更新
+                            // StatusBarはBorderで、x:Name="StatusBar"が設定されている
+                            var statusBar = FindVisualChildByName<System.Windows.Controls.Border>(window, "StatusBar");
+                            if (statusBar != null)
+                            {
+                                statusBar.Background = mainBrush;
+                            }
+                            
+                            // StatusBarTextはTextBlockで、x:Name="StatusBarText"が設定されている
+                            var statusBarText = FindVisualChildByName<System.Windows.Controls.TextBlock>(window, "StatusBarText");
+                            if (statusBarText != null)
+                            {
+                                statusBarText.Foreground = statusBarTextBrush;
+                            }
+
+                            // ウィンドウのリソースを無効化
+                            if (window is System.Windows.FrameworkElement fe)
+                            {
+                                fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                                fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
+                            }
+
+                            // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
+                            Views.Windows.MainWindow.InvalidateTabAndListViewStyles(window);
                         }
-                    }), System.Windows.Threading.DispatcherPriority.Render);
-                }
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Render);
             }
             catch (Exception ex)
             {

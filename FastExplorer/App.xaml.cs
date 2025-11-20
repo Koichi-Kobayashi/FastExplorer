@@ -295,21 +295,6 @@ namespace FastExplorer
                     // 起動時はウィンドウがまだ作成されていない可能性があるため、
                     // ウィンドウの背景色更新はMainWindowのコンストラクタとLoadedイベントで行う
                     // ここではリソースのみ更新（ちらつきを防ぐため、ウィンドウ更新処理は削除）
-                    
-                    // ウィンドウが存在する場合は、DynamicResourceの再評価を強制
-                    if (Current.Windows.Count > 0)
-                    {
-                        Current.Dispatcher.BeginInvoke(new System.Action(() =>
-                        {
-                            foreach (System.Windows.Window window in Current.Windows)
-                            {
-                                if (window != null)
-                                {
-                                    InvalidateResourcesRecursive(window);
-                                }
-                            }
-                        }), System.Windows.Threading.DispatcherPriority.Loaded);
-                    }
                 }
             }
             catch
