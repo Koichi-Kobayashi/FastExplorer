@@ -386,6 +386,7 @@ namespace FastExplorer.ViewModels.Pages
             _isNavigating = true;
 
             // 履歴に追加する場合、現在のパスを戻る履歴に追加し、進む履歴をクリア
+            // ホームボタンを押したときもブラウザーバックで戻れるように、現在のパスが空でない場合のみ履歴に追加
             if (addToHistory && !string.IsNullOrEmpty(CurrentPath))
             {
                 _backHistory.Push(CurrentPath);

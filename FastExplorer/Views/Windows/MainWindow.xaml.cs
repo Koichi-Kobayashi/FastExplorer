@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using FastExplorer.Services;
 using FastExplorer.ViewModels.Windows;
@@ -554,7 +555,9 @@ namespace FastExplorer.Views.Windows
             {
                 _ = Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    viewModel.NavigateToHome();
+                    // ホームボタンを押したときも履歴に追加して、ブラウザーバックで戻れるようにする
+                    // NavigateToHome内でCurrentPathが空でない場合のみ履歴に追加される
+                    viewModel.NavigateToHome(addToHistory: true);
                 }), DispatcherPriority.Normal);
             }
             else
@@ -566,6 +569,39 @@ namespace FastExplorer.Views.Windows
                 }), DispatcherPriority.Normal);
             }
             // TargetPageTypeが設定されている場合（Settingsなど）は自動的にナビゲートされる
+        }
+
+        /// <summary>
+        /// ウィンドウでキーが押されたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">キーイベント引数</param>
+        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            // バックスペースキーが押された場合、戻るボタンと同じ動作をする
+            if (e.Key == Key.Back)
+            {
+                // テキストボックスやエディットコントロールにフォーカスがある場合は処理しない
+                if (e.OriginalSource is System.Windows.Controls.TextBox || 
+                    e.OriginalSource is System.Windows.Controls.TextBlock ||
+                    e.OriginalSource is System.Windows.Controls.RichTextBox)
+                {
+                    return;
+                }
+
+                // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+                if (_cachedExplorerPageViewModel == null)
+                {
+                    _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                }
+
+                var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
+                if (selectedTab?.ViewModel != null)
+                {
+                    selectedTab.ViewModel.NavigateToParentCommand.Execute(null);
+                    e.Handled = true;
+                }
+            }
         }
     }
 }
