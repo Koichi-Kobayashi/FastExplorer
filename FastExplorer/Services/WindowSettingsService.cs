@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
@@ -133,6 +134,11 @@ namespace FastExplorer.Services
         /// 選択されたテーマカラーのセカンダリカラーコードを取得または設定します
         /// </summary>
         public string? ThemeSecondaryColorCode { get; set; }
+
+        /// <summary>
+        /// 保存されたタブのパスのリストを取得または設定します
+        /// </summary>
+        public List<string> TabPaths { get; set; } = new();
     }
 }
 

@@ -13,6 +13,7 @@ namespace FastExplorer.ViewModels.Pages
     {
         private readonly FileSystemService _fileSystemService;
         private readonly FavoriteService? _favoriteService;
+        private readonly WindowSettingsService? _windowSettingsService;
         
         // MainWindowViewModelをキャッシュ（パフォーマンス向上）
         private ViewModels.Windows.MainWindowViewModel? _cachedMainWindowViewModel;
@@ -34,10 +35,12 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         /// <param name="fileSystemService">ファイルシステムサービス</param>
         /// <param name="favoriteService">お気に入りサービス</param>
-        public ExplorerPageViewModel(FileSystemService fileSystemService, FavoriteService? favoriteService = null)
+        /// <param name="windowSettingsService">ウィンドウ設定サービス</param>
+        public ExplorerPageViewModel(FileSystemService fileSystemService, FavoriteService? favoriteService = null, WindowSettingsService? windowSettingsService = null)
         {
             _fileSystemService = fileSystemService;
             _favoriteService = favoriteService;
+            _windowSettingsService = windowSettingsService;
         }
 
         /// <summary>
@@ -48,7 +51,14 @@ namespace FastExplorer.ViewModels.Pages
         {
             if (Tabs.Count == 0)
             {
-                CreateNewTab();
+                // 保存されたタブ情報を復元
+                RestoreTabs();
+                
+                // タブが復元されなかった場合は新しいタブを作成
+                if (Tabs.Count == 0)
+                {
+                    CreateNewTab();
+                }
             }
             return Task.CompletedTask;
         }
@@ -207,6 +217,87 @@ namespace FastExplorer.ViewModels.Pages
             else
             {
                 _cachedMainWindowViewModel.StatusBarText = "準備完了";
+            }
+        }
+
+        /// <summary>
+        /// 保存されたタブ情報を復元します
+        /// </summary>
+        private void RestoreTabs()
+        {
+            try
+            {
+                // WindowSettingsServiceを取得（コンストラクタで取得できなかった場合はApp.Servicesから取得）
+                var windowSettingsService = _windowSettingsService ?? 
+                    App.Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
+                
+                if (windowSettingsService == null)
+                    return;
+
+                var settings = windowSettingsService.GetSettings();
+                var tabPaths = settings.TabPaths;
+
+                if (tabPaths == null || tabPaths.Count == 0)
+                    return;
+
+                // 保存されたパスに基づいてタブを復元
+                foreach (var path in tabPaths)
+                {
+                    var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
+                    var tab = new ExplorerTab
+                    {
+                        Title = string.IsNullOrEmpty(path) ? "ホーム" : path,
+                        CurrentPath = path ?? string.Empty,
+                        ViewModel = viewModel
+                    };
+
+                    // CurrentPathが変更されたときにTitleとCurrentPathを更新
+                    viewModel.PropertyChanged += (s, e) =>
+                    {
+                        if (e.PropertyName == "CurrentPath" || e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
+                        {
+                            tab.CurrentPath = viewModel.CurrentPath;
+                            UpdateTabTitle(tab);
+                            UpdateStatusBar();
+                        }
+                        else if (e.PropertyName == nameof(ExplorerViewModel.Items))
+                        {
+                            UpdateStatusBar();
+                        }
+                    };
+
+                    // パスが空の場合はホームに、そうでない場合は指定されたパスに移動
+                    if (string.IsNullOrEmpty(path))
+                    {
+                        tab.ViewModel.NavigateToHome();
+                    }
+                    else
+                    {
+                        // パスが存在するか確認してから移動
+                        if (System.IO.Directory.Exists(path))
+                        {
+                            tab.ViewModel.NavigateToPathCommand.Execute(path);
+                        }
+                        else
+                        {
+                            // パスが存在しない場合はホームに移動
+                            tab.ViewModel.NavigateToHome();
+                        }
+                    }
+
+                    Tabs.Add(tab);
+                    UpdateTabTitle(tab);
+                }
+
+                // 最初のタブを選択
+                if (Tabs.Count > 0)
+                {
+                    SelectedTab = Tabs[0];
+                }
+            }
+            catch
+            {
+                // エラーハンドリング：復元に失敗した場合は新しいタブを作成
             }
         }
     }

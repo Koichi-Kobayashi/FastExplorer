@@ -290,6 +290,26 @@ namespace FastExplorer.Views.Windows
                 else
                     settings.Theme = "System";
                 
+                // タブ情報を保存
+                try
+                {
+                    var explorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                    if (explorerPageViewModel != null)
+                    {
+                        var tabPaths = new System.Collections.Generic.List<string>();
+                        foreach (var tab in explorerPageViewModel.Tabs)
+                        {
+                            // CurrentPathが空の場合はホームなので、空文字列として保存
+                            tabPaths.Add(tab.CurrentPath ?? string.Empty);
+                        }
+                        settings.TabPaths = tabPaths;
+                    }
+                }
+                catch
+                {
+                    // タブ情報の取得に失敗した場合は無視
+                }
+                
                 _windowSettingsService.SaveSettings(settings);
             }
             catch
