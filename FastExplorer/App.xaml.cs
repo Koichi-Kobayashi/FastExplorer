@@ -100,12 +100,7 @@ namespace FastExplorer
                 Source = new Uri("pack://application:,,,/Resources/DarkThemeResources.xaml", UriKind.Absolute)
             };
             LoadAndApplyThemeOnStartup();
-            
-            // リソース更新は遅延実行（起動を最速化）
-            _ = Dispatcher.BeginInvoke(new System.Action(() =>
-            {
-                UpdateThemeResources();
-            }), DispatcherPriority.Background);
+            // リソース更新は既にLoadAndApplyThemeOnStartup内で実行されているため、ここでは実行しない
 
             // ウィンドウを表示
             await _host.StartAsync();
@@ -194,17 +189,22 @@ namespace FastExplorer
                 // テーマを適用
                 ApplicationThemeManager.Apply(themeToApply);
 
-                // 保存されたテーマカラーを適用（リソース更新はOnStartupで遅延実行）
+                // 保存されたテーマカラーを先に適用（リソース更新の前に）
                 var themeColorCode = settings?.ThemeColorCode;
                 if (themeColorCode != null && themeColorCode.Length > 0)
                 {
                     ApplyThemeColorOnStartup(settings!);
                 }
+
+                // リソースを即座に更新（ウィンドウ表示前に確実に適用するため）
+                UpdateThemeResourcesInternal();
             }
             catch
             {
                 // エラーハンドリング：デフォルトのテーマ（システムテーマ）を使用
                 ApplicationThemeManager.Apply(ApplicationTheme.Unknown);
+                // エラー時もリソースを更新
+                UpdateThemeResourcesInternal();
             }
         }
 
@@ -277,31 +277,9 @@ namespace FastExplorer
                     }
                     mainDictionary["StatusBarTextBrush"] = statusBarTextBrush;
 
-                    // ウィンドウの背景色を即座に更新（ちらつきを防ぐため、遅延実行しない）
-                    // 既に存在するウィンドウの背景色を更新
-                    var windows = Application.Current.Windows;
-                    for (int i = 0; i < windows.Count; i++)
-                    {
-                        var window = windows[i];
-                        if (window != null)
-                        {
-                            // ウィンドウの背景色を直接設定
-                            window.Background = mainBrush;
-
-                            // FluentWindowの場合は、Backgroundプロパティも更新
-                            if (window is Wpf.Ui.Controls.FluentWindow fluentWindow)
-                            {
-                                fluentWindow.Background = mainBrush;
-                            }
-
-                            // ウィンドウ内のNavigationViewの背景色も更新（存在する場合のみ）
-                            var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(window);
-                            if (navigationView != null)
-                            {
-                                navigationView.Background = secondaryBrush;
-                            }
-                        }
-                    }
+                    // 起動時はウィンドウがまだ作成されていない可能性があるため、
+                    // ウィンドウの背景色更新はMainWindowのコンストラクタとLoadedイベントで行う
+                    // ここではリソースのみ更新（ちらつきを防ぐため、ウィンドウ更新処理は削除）
                 }
             }
             catch
@@ -439,27 +417,31 @@ namespace FastExplorer
                     {
                         // リソースディクショナリーを更新した後、すべてのウィンドウのリソースを更新
                         // DynamicResourceの再評価を強制するため、ウィンドウを更新
-                        // 起動時の高速化のため、Background優先度で遅延実行
                         var isStartup = Current.Windows.Count == 0; // ウィンドウが存在しない場合は起動時
-                        Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                        
+                        if (isStartup)
                         {
-                            // すべてのウィンドウのリソースを更新
-                            foreach (System.Windows.Window window in Current.Windows)
+                            // 起動時は、ウィンドウが表示された後にリソースを再評価する
+                            // MainWindowのLoadedイベントで処理されるため、ここでは何もしない
+                        }
+                        else
+                        {
+                            // 起動時以外は、即座にリソースを更新
+                            Current.Dispatcher.BeginInvoke(new System.Action(() =>
                             {
-                                if (window != null)
+                                // すべてのウィンドウのリソースを更新
+                                foreach (System.Windows.Window window in Current.Windows)
                                 {
-                                    // ウィンドウのビジュアルを無効化してDynamicResourceの再評価を強制
-                                    window.InvalidateVisual();
-                                    
-                                    // 起動時以外の場合のみ、レイアウト更新と再帰的なリソース無効化（起動時の高速化）
-                                    if (!isStartup)
+                                    if (window != null)
                                     {
+                                        // ウィンドウのビジュアルを無効化してDynamicResourceの再評価を強制
+                                        window.InvalidateVisual();
                                         window.UpdateLayout();
                                         InvalidateResourcesRecursive(window);
                                     }
                                 }
-                            }
-                        }), System.Windows.Threading.DispatcherPriority.Background);
+                            }), System.Windows.Threading.DispatcherPriority.Background);
+                        }
                     }
                 }
             }
@@ -477,7 +459,7 @@ namespace FastExplorer
         /// 再帰的に要素内のすべてのDependencyObjectのリソースを無効化します
         /// </summary>
         /// <param name="element">開始要素</param>
-        private static void InvalidateResourcesRecursive(System.Windows.DependencyObject element)
+        public static void InvalidateResourcesRecursive(System.Windows.DependencyObject element)
         {
             if (element == null)
                 return;

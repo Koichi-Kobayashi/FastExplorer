@@ -67,7 +67,7 @@ namespace FastExplorer.Views.Windows
 
             InitializeComponent();
             
-            // テーマカラーを先に適用（ちらつきを防ぐため、ウィンドウ表示前に背景色を設定）
+            // テーマカラーをウィンドウ表示前に適用（ちらつきを防ぐため）
             var settings = _windowSettingsService.GetSettings();
             var themeColorCode = settings.ThemeColorCode;
             if (themeColorCode != null && themeColorCode.Length > 0)
@@ -76,7 +76,16 @@ namespace FastExplorer.Views.Windows
                 try
                 {
                     var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
-                    Background = new System.Windows.Media.SolidColorBrush(mainColor);
+                    var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
+                    Background = mainBrush;
+
+                    // NavigationViewの背景色も設定（InitializeComponent後に利用可能）
+                    var nav = RootNavigation;
+                    if (nav != null)
+                    {
+                        var secondaryColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+                        nav.Background = new System.Windows.Media.SolidColorBrush(secondaryColor);
+                    }
                 }
                 catch
                 {
@@ -99,6 +108,82 @@ namespace FastExplorer.Views.Windows
                 
                 // ViewModelにNavigationServiceを設定
                 viewModel.SetNavigationService(navigationService);
+                
+                // ウィンドウ表示後にテーマとテーマカラーを確実に反映
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    // テーマのリソースを再評価（起動時に確実に反映させるため）
+                    App.UpdateThemeResourcesInternal();
+                    
+                    var settings = _windowSettingsService.GetSettings();
+                    var themeColorCode = settings.ThemeColorCode;
+                    
+                    // テーマカラーが設定されている場合
+                    if (themeColorCode != null && themeColorCode.Length > 0)
+                    {
+                        var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
+                        var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
+                        var secondaryColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+                        var secondaryBrush = new System.Windows.Media.SolidColorBrush(secondaryColor);
+                        
+                        // NavigationViewの背景色を確実に設定
+                        if (nav != null)
+                        {
+                            nav.Background = secondaryBrush;
+                            // NavigationViewの内部パネルも更新
+                            nav.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
+                            nav.InvalidateVisual();
+                            nav.UpdateLayout();
+                            
+                            // NavigationViewの内部要素も再評価
+                            App.InvalidateResourcesRecursive(nav);
+                        }
+                        
+                        // TitleBarの背景色を設定（ウィンドウの背景色と同じ）
+                        if (TitleBar != null)
+                        {
+                            // TitleBarは通常、ウィンドウの背景色を使用するため、ウィンドウの背景色を設定
+                            Background = mainBrush;
+                        }
+                        
+                        // ステータスバーの背景色とテキスト色を直接設定（DynamicResourceが反映されない場合のフォールバック）
+                        // ステータスバーの背景色を直接設定（XAMLでx:Name="StatusBar"を設定）
+                        if (StatusBar != null)
+                        {
+                            StatusBar.Background = mainBrush;
+                        }
+                        
+                        // ステータスバーのテキスト色を設定（背景色に応じて）
+                        if (StatusBarText != null)
+                        {
+                            var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
+                            var statusBarTextColor = luminance > 0.5 ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
+                            StatusBarText.Foreground = new System.Windows.Media.SolidColorBrush(statusBarTextColor);
+                        }
+                    }
+                    else
+                    {
+                        // テーマカラーが設定されていない場合でも、テーマに応じた背景色を設定
+                        var isDark = Wpf.Ui.Appearance.ApplicationThemeManager.GetAppTheme() == Wpf.Ui.Appearance.ApplicationTheme.Dark;
+                        var defaultBackground = isDark ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
+                        Background = new System.Windows.Media.SolidColorBrush(defaultBackground);
+                        
+                        if (nav != null)
+                        {
+                            var defaultNavBackground = isDark ? System.Windows.Media.Color.FromRgb(32, 32, 32) : System.Windows.Media.Color.FromRgb(252, 252, 252);
+                            nav.Background = new System.Windows.Media.SolidColorBrush(defaultNavBackground);
+                        }
+                    }
+                    
+                    // ウィンドウ内のすべての要素のDynamicResourceを再評価
+                    App.InvalidateResourcesRecursive(this);
+                    
+                    // ウィンドウのビジュアルを無効化してDynamicResourceの再評価を強制
+                    InvalidateVisual();
+                    
+                    // レイアウトを更新してDynamicResourceの再評価を確実に実行
+                    UpdateLayout();
+                }), DispatcherPriority.Loaded);
                 
                 // SystemThemeWatcherを遅延実行（起動を最速化）
                 // ウィンドウ位置とサイズの復元はShowWindow()で実行されるため、ここでは実行しない
@@ -202,17 +287,11 @@ namespace FastExplorer.Views.Windows
             var settings = _windowSettingsService.GetSettings();
             var isMaximized = settings.State == WindowState.Maximized;
             
-            // ウィンドウ位置とサイズを復元（テーマ適用と同じタイミング）
+            // ウィンドウ位置とサイズを復元
             RestoreWindowSettings();
             
-            // テーマカラーを先に適用（ちらつきを防ぐため、ウィンドウ表示前に実行）
-            var themeColorCode = settings.ThemeColorCode;
-            var hasThemeColor = themeColorCode != null && themeColorCode.Length > 0;
-            if (hasThemeColor)
-            {
-                // ウィンドウ表示前に背景色を設定（ちらつきを防ぐ）
-                App.ApplyThemeColorFromSettings(settings);
-            }
+            // テーマカラーは既にApp.xaml.csのOnStartupで適用されているため、
+            // ここでは再適用しない（ちらつきを防ぐため）
             
             // ウィンドウを即座に表示（起動を最速化）
             Visibility = Visibility.Visible;
