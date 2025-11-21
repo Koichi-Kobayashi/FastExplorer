@@ -394,6 +394,9 @@
                     KeyDown="ListView_KeyDown"
                     MouseDoubleClick="ListView_MouseDoubleClick"
                     MouseDown="ListView_MouseButtonDown"
+                    DragOver="ListView_DragOver"
+                    Drop="ListView_Drop"
+                    AllowDrop="True"
                     ScrollViewer.CanContentScroll="False"
                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -412,6 +415,8 @@
                         <Style TargetType="ListViewItem">
                             <Setter Property="Padding" Value="0" />
                             <Setter Property="MinHeight" Value="32" />
+                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
+                            <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListViewItem">
@@ -1512,6 +1517,9 @@
                             KeyDown="ListView_KeyDown"
                             MouseDoubleClick="ListView_MouseDoubleClick"
                             MouseDown="ListView_MouseButtonDown"
+                            DragOver="ListView_DragOver"
+                            Drop="ListView_Drop"
+                            AllowDrop="True"
                             ScrollViewer.CanContentScroll="False"
                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -1530,6 +1538,8 @@
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="Padding" Value="0" />
                                     <Setter Property="MinHeight" Value="32" />
+                                    <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
+                                    <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="ListViewItem">

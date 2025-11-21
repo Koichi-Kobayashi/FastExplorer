@@ -120,6 +120,59 @@ namespace FastExplorer.Services
         {
             return Directory.GetLogicalDrives();
         }
+
+        /// <summary>
+        /// ファイルまたはフォルダーを指定されたディレクトリに移動します
+        /// </summary>
+        /// <param name="sourcePath">移動元のパス</param>
+        /// <param name="destinationDirectory">移動先のディレクトリパス</param>
+        /// <returns>移動に成功した場合はtrue、それ以外の場合はfalse</returns>
+        public bool MoveItem(string sourcePath, string destinationDirectory)
+        {
+            if (string.IsNullOrEmpty(sourcePath) || string.IsNullOrEmpty(destinationDirectory))
+                return false;
+
+            try
+            {
+                // 移動先のディレクトリが存在しない場合は作成
+                if (!Directory.Exists(destinationDirectory))
+                {
+                    Directory.CreateDirectory(destinationDirectory);
+                }
+
+                // 移動先のパスを構築
+                var fileName = Path.GetFileName(sourcePath);
+                var destinationPath = Path.Combine(destinationDirectory, fileName);
+
+                // 同じパスの場合は何もしない
+                if (string.Equals(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                // 移動先に既に同じ名前のファイル/フォルダーが存在する場合はエラー
+                if (File.Exists(destinationPath) || Directory.Exists(destinationPath))
+                    return false;
+
+                // ファイルまたはディレクトリを移動
+                if (File.Exists(sourcePath))
+                {
+                    File.Move(sourcePath, destinationPath);
+                }
+                else if (Directory.Exists(sourcePath))
+                {
+                    Directory.Move(sourcePath, destinationPath);
+                }
+                else
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }
 

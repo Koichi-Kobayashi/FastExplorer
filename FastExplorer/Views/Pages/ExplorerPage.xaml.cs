@@ -3,6 +3,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using FastExplorer.ViewModels.Pages;
+using FastExplorer.Services;
+using FastExplorer.Models;
 using Wpf.Ui.Abstractions.Controls;
 
 namespace FastExplorer.Views.Pages
@@ -380,6 +382,195 @@ namespace FastExplorer.Views.Pages
         private void SplitPaneMenuItem_Click(object sender, RoutedEventArgs e)
         {
             ViewModel.ToggleSplitPaneCommand.Execute(null);
+        }
+
+        // ドラッグ&ドロップ用の変数
+        private Point _dragStartPoint;
+        private bool _isDragging = false;
+        private FileSystemItem? _draggedItem = null;
+
+        /// <summary>
+        /// ListViewItemでマウスが押されたときに呼び出されます（ドラッグ開始の検出）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void ListViewItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _dragStartPoint = e.GetPosition(null);
+            _isDragging = false;
+            _draggedItem = null;
+
+            if (sender is ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem item)
+            {
+                _draggedItem = item;
+            }
+        }
+
+        /// <summary>
+        /// ListViewItemでマウスが移動したときに呼び出されます（ドラッグ開始の判定）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスイベント引数</param>
+        private void ListViewItem_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (_draggedItem == null)
+                return;
+
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                _isDragging = false;
+                return;
+            }
+
+            var currentPoint = e.GetPosition(null);
+            var diff = _dragStartPoint - currentPoint;
+
+            // ドラッグ開始の閾値（5ピクセル以上移動した場合）
+            if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+            {
+                if (!_isDragging)
+                {
+                    _isDragging = true;
+                    var dataObject = new DataObject();
+                    dataObject.SetData("FileSystemItem", _draggedItem);
+                    DragDrop.DoDragDrop(sender as DependencyObject ?? this, dataObject, DragDropEffects.Move);
+                    _isDragging = false;
+                    _draggedItem = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// ListViewでドラッグオーバーされたときに呼び出されます（ホバー表示）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ドラッグイベント引数</param>
+        private void ListView_DragOver(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent("FileSystemItem"))
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+
+            var activeTab = GetActiveTab();
+            if (activeTab == null)
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+
+            // マウス位置にあるListViewItemを取得
+            var listView = sender as ListView;
+            if (listView == null)
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+
+            var point = e.GetPosition(listView);
+            var item = GetItemAtPoint(listView, point);
+
+            // フォルダーの上にホバーしている場合のみ移動を許可
+            if (item is FileSystemItem fileItem && fileItem.IsDirectory)
+            {
+                e.Effects = DragDropEffects.Move;
+                e.Handled = true;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// ListViewでドロップされたときに呼び出されます（ファイル移動）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ドラッグイベント引数</param>
+        private void ListView_Drop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent("FileSystemItem"))
+                return;
+
+            var draggedItem = e.Data.GetData("FileSystemItem") as FileSystemItem;
+            if (draggedItem == null)
+                return;
+
+            var activeTab = GetActiveTab();
+            if (activeTab == null)
+                return;
+
+            var listView = sender as ListView;
+            if (listView == null)
+                return;
+
+            // マウス位置にあるListViewItemを取得
+            var point = e.GetPosition(listView);
+            var dropTarget = GetItemAtPoint(listView, point);
+
+            // ドロップ先がフォルダーの場合のみ移動
+            if (dropTarget is FileSystemItem targetItem && targetItem.IsDirectory)
+            {
+                // 同じフォルダーへの移動は無視
+                if (string.Equals(draggedItem.FullPath, targetItem.FullPath, StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                // 親フォルダーへの移動も無視（無限ループを防ぐ）
+                var parentPath = System.IO.Path.GetDirectoryName(draggedItem.FullPath);
+                if (string.Equals(parentPath, targetItem.FullPath, StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                // FileSystemServiceを取得して移動を実行
+                var fileSystemService = App.Services.GetService(typeof(FileSystemService)) as FileSystemService;
+                if (fileSystemService != null)
+                {
+                    try
+                    {
+                        if (fileSystemService.MoveItem(draggedItem.FullPath, targetItem.FullPath))
+                        {
+                            // 移動成功後、現在のタブを更新
+                            activeTab.ViewModel.RefreshCommand.Execute(null);
+                        }
+                    }
+                    catch
+                    {
+                        // エラーハンドリング
+                    }
+                }
+            }
+
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 指定されたポイントにあるListViewItemのDataContextを取得します
+        /// </summary>
+        /// <param name="listView">ListView</param>
+        /// <param name="point">ポイント</param>
+        /// <returns>DataContext、見つからない場合はnull</returns>
+        private object? GetItemAtPoint(ListView listView, Point point)
+        {
+            var hitTestResult = VisualTreeHelper.HitTest(listView, point);
+            if (hitTestResult == null)
+                return null;
+
+            var dependencyObject = hitTestResult.VisualHit;
+            while (dependencyObject != null && dependencyObject != listView)
+            {
+                if (dependencyObject is ListViewItem listViewItem)
+                {
+                    return listViewItem.DataContext;
+                }
+                dependencyObject = VisualTreeHelper.GetParent(dependencyObject);
+            }
+
+            return null;
         }
     }
 }
