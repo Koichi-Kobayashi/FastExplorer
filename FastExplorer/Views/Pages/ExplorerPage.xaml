@@ -574,19 +574,25 @@
                                         x:Name="PART_ButtonScrollLeft"
                                         Width="0"
                                         Height="0"
-                                        Visibility="Collapsed">
-                                        <RepeatButton.Content>
-                                            <ui:SymbolIcon Symbol="ChevronLeft24" />
-                                        </RepeatButton.Content>
+                                        Visibility="Collapsed"
+                                        Content="{x:Null}">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
                                     </RepeatButton>
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
-                                        Visibility="Collapsed">
-                                        <RepeatButton.Content>
-                                            <ui:SymbolIcon Symbol="ChevronRight24" />
-                                        </RepeatButton.Content>
+                                        Visibility="Collapsed"
+                                        Content="{x:Null}">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <ui:SymbolIcon Symbol="ChevronRight24" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
                                     </RepeatButton>
                                     <ui:Button
                                         Width="32"
@@ -786,19 +792,25 @@
                                         x:Name="PART_ButtonScrollLeft"
                                         Width="0"
                                         Height="0"
-                                        Visibility="Collapsed">
-                                        <RepeatButton.Content>
-                                            <ui:SymbolIcon Symbol="ChevronLeft24" />
-                                        </RepeatButton.Content>
+                                        Visibility="Collapsed"
+                                        Content="{x:Null}">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
                                     </RepeatButton>
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
-                                        Visibility="Collapsed">
-                                        <RepeatButton.Content>
-                                            <ui:SymbolIcon Symbol="ChevronRight24" />
-                                        </RepeatButton.Content>
+                                        Visibility="Collapsed"
+                                        Content="{x:Null}">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <ui:SymbolIcon Symbol="ChevronRight24" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
                                     </RepeatButton>
                                     <ui:Button
                                         Width="32"
@@ -990,19 +1002,25 @@
                                     x:Name="PART_ButtonScrollLeft"
                                     Width="0"
                                     Height="0"
-                                    Visibility="Collapsed">
-                                    <RepeatButton.Content>
-                                        <ui:SymbolIcon Symbol="ChevronLeft24" />
-                                    </RepeatButton.Content>
+                                    Visibility="Collapsed"
+                                    Content="{x:Null}">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
                                 </RepeatButton>
                                 <RepeatButton
                                     x:Name="PART_ButtonScrollRight"
                                     Width="0"
                                     Height="0"
-                                    Visibility="Collapsed">
-                                    <RepeatButton.Content>
-                                        <ui:SymbolIcon Symbol="ChevronRight24" />
-                                    </RepeatButton.Content>
+                                    Visibility="Collapsed"
+                                    Content="{x:Null}">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <ui:SymbolIcon Symbol="ChevronRight24" />
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
                                 </RepeatButton>
                                 <ui:Button
                                     Width="32"
