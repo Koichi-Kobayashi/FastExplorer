@@ -55,34 +55,64 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void ListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            var activeTab = GetActiveTab();
-            if (activeTab != null)
+            var listView = sender as System.Windows.Controls.ListView;
+            if (listView == null)
+                return;
+
+            Models.ExplorerTab? targetTab = null;
+            
+            if (ViewModel.IsSplitPaneEnabled)
             {
-                var listView = sender as System.Windows.Controls.ListView;
-                var selectedItem = activeTab.ViewModel.SelectedItem;
-                
-                // ディレクトリの場合は、新しいディレクトリに移動した後にスクロール位置を0に戻す
-                if (selectedItem != null && selectedItem.IsDirectory)
+                // 分割ペインモードの場合、クリックされたListViewがどのペインに属しているかを判定
+                var pane = GetPaneForElement(listView);
+                if (pane == 0)
                 {
-                    activeTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
-                    
-                    // 少し遅延してからスクロール位置を0に戻す（ItemsSourceが更新されるのを待つ）
-                    Dispatcher.BeginInvoke(new System.Action(() =>
-                    {
-                        if (listView != null)
-                        {
-                            var scrollViewer = GetScrollViewer(listView);
-                            if (scrollViewer != null)
-                            {
-                                scrollViewer.ScrollToTop();
-                            }
-                        }
-                    }), System.Windows.Threading.DispatcherPriority.Loaded);
+                    // 左ペイン
+                    targetTab = ViewModel.SelectedLeftPaneTab;
+                }
+                else if (pane == 2)
+                {
+                    // 右ペイン
+                    targetTab = ViewModel.SelectedRightPaneTab;
                 }
                 else
                 {
-                    activeTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
+                    // 判定できない場合は、GetActiveTab()を使用
+                    targetTab = GetActiveTab();
                 }
+            }
+            else
+            {
+                // 通常モード
+                targetTab = ViewModel.SelectedTab;
+            }
+
+            if (targetTab == null)
+                return;
+
+            var selectedItem = targetTab.ViewModel.SelectedItem;
+            
+            // ディレクトリの場合は、新しいディレクトリに移動した後にスクロール位置を0に戻す
+            if (selectedItem != null && selectedItem.IsDirectory)
+            {
+                targetTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
+                
+                // 少し遅延してからスクロール位置を0に戻す（ItemsSourceが更新されるのを待つ）
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    if (listView != null)
+                    {
+                        var scrollViewer = GetScrollViewer(listView);
+                        if (scrollViewer != null)
+                        {
+                            scrollViewer.ScrollToTop();
+                        }
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+            else
+            {
+                targetTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
             }
         }
 
