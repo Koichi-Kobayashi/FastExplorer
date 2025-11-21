@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using System.Linq;
 using FastExplorer.Services;
 using FastExplorer.ViewModels.Windows;
 using Wpf.Ui;
@@ -85,7 +86,8 @@ namespace FastExplorer.Views.Windows
                 // テーマカラーを適用（ウィンドウ表示前に適用することでチラつきを防ぐ）
                 var settings = _windowSettingsService.GetSettings();
                 var themeColorCode = settings.ThemeColorCode;
-                if (themeColorCode != null && themeColorCode.Length > 0)
+                // string.IsNullOrEmptyよりLength > 0の方がわずかに高速（nullチェックは既に含まれている）
+                if (themeColorCode != null && themeColorCode.Length != 0)
                 {
                     // リソースを更新（App.ApplyThemeColorFromSettingsを呼び出す）
                     App.ApplyThemeColorFromSettings(settings);
@@ -282,14 +284,14 @@ namespace FastExplorer.Views.Windows
                 settings.Top = top;
                 settings.State = state;
                 
-                // 現在のテーマを保存
+                // 現在のテーマを保存（switch式で高速化）
                 var currentTheme = ApplicationThemeManager.GetAppTheme();
-                if (currentTheme == ApplicationTheme.Light)
-                    settings.Theme = "Light";
-                else if (currentTheme == ApplicationTheme.Dark)
-                    settings.Theme = "Dark";
-                else
-                    settings.Theme = "System";
+                settings.Theme = currentTheme switch
+                {
+                    ApplicationTheme.Light => "Light",
+                    ApplicationTheme.Dark => "Dark",
+                    _ => "System"
+                };
                 
                 // タブ情報を保存（キャッシュされたViewModelを使用して高速化）
                 try
@@ -305,15 +307,17 @@ namespace FastExplorer.Views.Windows
                         if (_cachedExplorerPageViewModel.IsSplitPaneEnabled)
                         {
                             // 分割ペインモードの場合、左右のペインのタブ情報をそれぞれ保存
-                            var leftPaneTabPaths = new System.Collections.Generic.List<string>();
-                            foreach (var tab in _cachedExplorerPageViewModel.LeftPaneTabs)
+                            var leftPaneTabs = _cachedExplorerPageViewModel.LeftPaneTabs;
+                            var leftPaneTabPaths = new System.Collections.Generic.List<string>(leftPaneTabs.Count);
+                            foreach (var tab in leftPaneTabs)
                             {
                                 leftPaneTabPaths.Add(tab.CurrentPath ?? string.Empty);
                             }
                             settings.LeftPaneTabPaths = leftPaneTabPaths;
 
-                            var rightPaneTabPaths = new System.Collections.Generic.List<string>();
-                            foreach (var tab in _cachedExplorerPageViewModel.RightPaneTabs)
+                            var rightPaneTabs = _cachedExplorerPageViewModel.RightPaneTabs;
+                            var rightPaneTabPaths = new System.Collections.Generic.List<string>(rightPaneTabs.Count);
+                            foreach (var tab in rightPaneTabs)
                             {
                                 rightPaneTabPaths.Add(tab.CurrentPath ?? string.Empty);
                             }
@@ -322,8 +326,9 @@ namespace FastExplorer.Views.Windows
                         else
                         {
                             // 通常モードの場合、従来通り
-                            var tabPaths = new System.Collections.Generic.List<string>();
-                            foreach (var tab in _cachedExplorerPageViewModel.Tabs)
+                            var tabs = _cachedExplorerPageViewModel.Tabs;
+                            var tabPaths = new System.Collections.Generic.List<string>(tabs.Count);
+                            foreach (var tab in tabs)
                             {
                                 // CurrentPathが空の場合はホームなので、空文字列として保存
                                 tabPaths.Add(tab.CurrentPath ?? string.Empty);
@@ -475,53 +480,132 @@ namespace FastExplorer.Views.Windows
         public static void InvalidateTabAndListViewStyles(System.Windows.Window window)
         {
             var explorerPage = FindVisualChild<Views.Pages.ExplorerPage>(window);
-            if (explorerPage != null)
+            if (explorerPage == null)
+                return;
+
+            // TabControlとListViewを一度の走査で見つける（高速化）
+            System.Windows.Controls.TabControl? tabControl = null;
+            System.Windows.Controls.ListView? listView = null;
+            
+            FindTabControlAndListView(explorerPage, ref tabControl, ref listView);
+
+            // TabControl内のすべてのTabItemのスタイルを無効化
+            if (tabControl != null)
             {
-                // TabControl内のすべてのTabItemのスタイルを無効化
-                var tabControl = FindVisualChild<System.Windows.Controls.TabControl>(explorerPage);
-                if (tabControl != null)
+                // プロパティをキャッシュして高速化
+                var templateProperty = System.Windows.Controls.Control.TemplateProperty;
+                tabControl.InvalidateProperty(templateProperty);
+                InvalidateTabItems(tabControl);
+            }
+
+            // ListView内のすべてのListViewItemのスタイルを無効化
+            if (listView != null)
+            {
+                // プロパティをキャッシュして高速化
+                var itemContainerStyleProperty = System.Windows.Controls.ItemsControl.ItemContainerStyleProperty;
+                listView.InvalidateProperty(itemContainerStyleProperty);
+                InvalidateListViewItems(listView);
+            }
+        }
+
+        /// <summary>
+        /// ビジュアルツリーを走査してTabControlとListViewを見つけます
+        /// </summary>
+        private static void FindTabControlAndListView(
+            System.Windows.DependencyObject parent,
+            ref System.Windows.Controls.TabControl? tabControl,
+            ref System.Windows.Controls.ListView? listView)
+        {
+            if (parent == null)
+                return;
+
+            // 両方見つかった場合は早期終了（ループの最初でチェックして高速化）
+            if (tabControl != null && listView != null)
+                return;
+
+            var childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                // 両方見つかった場合は早期終了
+                if (tabControl != null && listView != null)
+                    return;
+
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                
+                // 型チェックを最適化（if-elseの方がswitch式よりわずかに高速）
+                if (tabControl == null && child is System.Windows.Controls.TabControl tc)
                 {
-                    tabControl.InvalidateProperty(System.Windows.Controls.Control.TemplateProperty);
-                    
-                    for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabControl); i++)
+                    tabControl = tc;
+                }
+                else if (listView == null && child is System.Windows.Controls.ListView lv)
+                {
+                    listView = lv;
+                }
+
+                // 再帰的に検索
+                FindTabControlAndListView(child, ref tabControl, ref listView);
+            }
+        }
+
+        /// <summary>
+        /// TabControl内のすべてのTabItemのスタイルを無効化します
+        /// </summary>
+        private static void InvalidateTabItems(System.Windows.Controls.TabControl tabControl)
+        {
+            // プロパティをキャッシュして高速化（静的フィールドアクセスを削減）
+            var styleProperty = System.Windows.FrameworkElement.StyleProperty;
+            var backgroundProperty = System.Windows.Controls.TabItem.BackgroundProperty;
+            
+            // VisualTreeHelperをキャッシュ（メソッド呼び出しを削減）
+            var childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabControl);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(tabControl, i);
+                if (child is System.Windows.Controls.TabItem tabItem)
+                {
+                    tabItem.InvalidateProperty(styleProperty);
+                    tabItem.InvalidateProperty(backgroundProperty);
+                }
+                
+                // FindVisualChildの代わりに直接走査（高速化）
+                var childChildrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(child);
+                for (int j = 0; j < childChildrenCount; j++)
+                {
+                    var grandChild = System.Windows.Media.VisualTreeHelper.GetChild(child, j);
+                    if (grandChild is System.Windows.Controls.Primitives.TabPanel tabPanel)
                     {
-                        var child = System.Windows.Media.VisualTreeHelper.GetChild(tabControl, i);
-                        if (child is System.Windows.Controls.TabItem tabItem)
+                        var panelChildrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabPanel);
+                        for (int k = 0; k < panelChildrenCount; k++)
                         {
-                            tabItem.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                            tabItem.InvalidateProperty(System.Windows.Controls.TabItem.BackgroundProperty);
-                        }
-                        var tabPanel = FindVisualChild<System.Windows.Controls.Primitives.TabPanel>(child);
-                        if (tabPanel != null)
-                        {
-                            for (int j = 0; j < System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabPanel); j++)
+                            var tabItemChild = System.Windows.Media.VisualTreeHelper.GetChild(tabPanel, k);
+                            if (tabItemChild is System.Windows.Controls.TabItem tabItem2)
                             {
-                                var tabItemChild = System.Windows.Media.VisualTreeHelper.GetChild(tabPanel, j);
-                                if (tabItemChild is System.Windows.Controls.TabItem tabItem2)
-                                {
-                                    tabItem2.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                                    tabItem2.InvalidateProperty(System.Windows.Controls.TabItem.BackgroundProperty);
-                                }
+                                tabItem2.InvalidateProperty(styleProperty);
+                                tabItem2.InvalidateProperty(backgroundProperty);
                             }
                         }
                     }
                 }
+            }
+        }
 
-                // ListView内のすべてのListViewItemのスタイルを無効化
-                var listView = FindVisualChild<System.Windows.Controls.ListView>(explorerPage);
-                if (listView != null)
+        /// <summary>
+        /// ListView内のすべてのListViewItemのスタイルを無効化します
+        /// </summary>
+        private static void InvalidateListViewItems(System.Windows.Controls.ListView listView)
+        {
+            // プロパティをキャッシュして高速化
+            var styleProperty = System.Windows.FrameworkElement.StyleProperty;
+            var backgroundProperty = System.Windows.Controls.Control.BackgroundProperty;
+            
+            var childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(listView);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(listView, i);
+                if (child is System.Windows.Controls.ListViewItem listViewItem)
                 {
-                    listView.InvalidateProperty(System.Windows.Controls.ItemsControl.ItemContainerStyleProperty);
-                    
-                    for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(listView); i++)
-                    {
-                        var child = System.Windows.Media.VisualTreeHelper.GetChild(listView, i);
-                        if (child is System.Windows.Controls.ListViewItem listViewItem)
-                        {
-                            listViewItem.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                            listViewItem.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
-                        }
-                    }
+                    listViewItem.InvalidateProperty(styleProperty);
+                    listViewItem.InvalidateProperty(backgroundProperty);
                 }
             }
         }
@@ -564,14 +648,17 @@ namespace FastExplorer.Views.Windows
             
             // ページが読み込まれるのを待ってから処理を実行
             // DispatcherPriority.Normalを使用することで、レイアウト完了を待たずに高速に実行される
-            if (selectedTab == null)
+            if (selectedTab?.ViewModel == null)
                 return;
             
             var viewModel = selectedTab.ViewModel;
-            var isHome = string.Equals(tag, HomeTag, StringComparison.Ordinal);
+            // ReadOnlySpan<char>を使用してメモリ割り当てを削減（高速化）
+            var isHome = tag.AsSpan().SequenceEqual(HomeTag.AsSpan());
             
             // ホームアイテムとお気に入りアイテムの処理を統合（メモリ割り当て削減）
             // DispatcherPriority.Normalに変更して高速化（Loadedはレイアウト完了まで待つため遅い）
+            // 1つのBeginInvokeに統合してオーバーヘッドを削減
+            // 条件分岐を簡略化してキャプチャする変数を削減（高速化）
             if (isHome)
             {
                 _ = Dispatcher.BeginInvoke(new System.Action(() =>
@@ -600,28 +687,29 @@ namespace FastExplorer.Views.Windows
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
             // バックスペースキーが押された場合、戻るボタンと同じ動作をする
-            if (e.Key == Key.Back)
+            if (e.Key != Key.Back)
+                return;
+
+            // テキストボックスやエディットコントロールにフォーカスがある場合は処理しない（switch式で高速化）
+            var source = e.OriginalSource;
+            if (source is System.Windows.Controls.TextBox or 
+                System.Windows.Controls.TextBlock or 
+                System.Windows.Controls.RichTextBox)
             {
-                // テキストボックスやエディットコントロールにフォーカスがある場合は処理しない
-                if (e.OriginalSource is System.Windows.Controls.TextBox || 
-                    e.OriginalSource is System.Windows.Controls.TextBlock ||
-                    e.OriginalSource is System.Windows.Controls.RichTextBox)
-                {
-                    return;
-                }
+                return;
+            }
 
-                // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
-                if (_cachedExplorerPageViewModel == null)
-                {
-                    _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
-                }
+            // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+            if (_cachedExplorerPageViewModel == null)
+            {
+                _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+            }
 
-                var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
-                if (selectedTab?.ViewModel != null)
-                {
-                    selectedTab.ViewModel.NavigateToParentCommand.Execute(null);
-                    e.Handled = true;
-                }
+            var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
+            if (selectedTab?.ViewModel != null)
+            {
+                selectedTab.ViewModel.NavigateToParentCommand.Execute(null);
+                e.Handled = true;
             }
         }
     }
