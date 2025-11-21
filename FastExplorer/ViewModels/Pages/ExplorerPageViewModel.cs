@@ -147,6 +147,11 @@ namespace FastExplorer.ViewModels.Pages
                 // 分割モードから通常モードへ
                 // 左ペインのタブを通常のタブに移動
                 var selectedLeftTab = SelectedLeftPaneTab;
+                
+                // 選択タブを先にnullに設定してからClear()を呼び出す（バインディングエラーを防ぐため）
+                SelectedLeftPaneTab = null;
+                SelectedRightPaneTab = null;
+                
                 foreach (var tab in LeftPaneTabs)
                 {
                     Tabs.Add(tab);
@@ -156,7 +161,6 @@ namespace FastExplorer.ViewModels.Pages
                 // 右ペインのタブも通常のタブに移動（最初のタブのみ保持する場合は、ここで処理）
                 // 現在は右ペインのタブは保持しない
                 RightPaneTabs.Clear();
-                SelectedRightPaneTab = null;
                 
                 // 選択タブを設定
                 if (selectedLeftTab != null)
@@ -168,7 +172,6 @@ namespace FastExplorer.ViewModels.Pages
                     // 選択タブがなかった場合は、最初のタブを選択
                     SelectedTab = Tabs[0];
                 }
-                SelectedLeftPaneTab = null;
                 
                 // タブが存在しない場合は、新しいタブを作成
                 if (Tabs.Count == 0)
