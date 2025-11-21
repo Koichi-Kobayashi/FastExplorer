@@ -229,15 +229,15 @@ namespace FastExplorer.ViewModels.Pages
             }
             else
             {
+            if (Tabs.Count == 0)
+            {
+                // 保存されたタブ情報を復元
+                RestoreTabs();
+                
+                // タブが復元されなかった場合は新しいタブを作成
                 if (Tabs.Count == 0)
                 {
-                    // 保存されたタブ情報を復元
-                    RestoreTabs();
-                    
-                    // タブが復元されなかった場合は新しいタブを作成
-                    if (Tabs.Count == 0)
-                    {
-                        CreateNewTab();
+                    CreateNewTab();
                     }
                 }
             }
@@ -317,7 +317,7 @@ namespace FastExplorer.ViewModels.Pages
             // タブを追加する前に初期化を完了させる
             // これにより、タブが追加された直後にフォルダーをダブルクリックしても問題が発生しない
             tab.ViewModel.NavigateToHome();
-
+            
             return tab;
         }
 
@@ -367,7 +367,7 @@ namespace FastExplorer.ViewModels.Pages
             else
             {
                 if (Tabs.Count <= 1)
-                    return;
+                return;
 
                 var index = Tabs.IndexOf(tab);
                 Tabs.Remove(tab);
@@ -555,7 +555,7 @@ namespace FastExplorer.ViewModels.Pages
                 else
                 {
                     // 通常モードの場合は従来通り
-                    var tabPaths = settings.TabPaths;
+                var tabPaths = settings.TabPaths;
                     if (tabPaths == null || tabPaths.Count == 0)
                         return;
 
@@ -573,60 +573,60 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private void RestorePaneTabs(List<string> tabPaths, ObservableCollection<ExplorerTab> tabs, Action<ExplorerTab> setSelectedTab)
         {
-            if (tabPaths == null || tabPaths.Count == 0)
-                return;
+                if (tabPaths == null || tabPaths.Count == 0)
+                    return;
 
-            foreach (var path in tabPaths)
-            {
-                var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
-                var tab = new ExplorerTab
+                foreach (var path in tabPaths)
                 {
-                    Title = string.IsNullOrEmpty(path) ? "ホーム" : path,
-                    CurrentPath = path ?? string.Empty,
-                    ViewModel = viewModel
-                };
+                    var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
+                    var tab = new ExplorerTab
+                    {
+                        Title = string.IsNullOrEmpty(path) ? "ホーム" : path,
+                        CurrentPath = path ?? string.Empty,
+                        ViewModel = viewModel
+                    };
 
-                // CurrentPathが変更されたときにTitleとCurrentPathを更新
-                viewModel.PropertyChanged += (s, e) =>
-                {
-                    if (e.PropertyName == "CurrentPath" || e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
+                    // CurrentPathが変更されたときにTitleとCurrentPathを更新
+                    viewModel.PropertyChanged += (s, e) =>
                     {
-                        tab.CurrentPath = viewModel.CurrentPath;
-                        UpdateTabTitle(tab);
-                        UpdateStatusBar();
-                    }
-                    else if (e.PropertyName == nameof(ExplorerViewModel.Items))
-                    {
-                        UpdateStatusBar();
-                    }
-                };
+                        if (e.PropertyName == "CurrentPath" || e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
+                        {
+                            tab.CurrentPath = viewModel.CurrentPath;
+                            UpdateTabTitle(tab);
+                            UpdateStatusBar();
+                        }
+                        else if (e.PropertyName == nameof(ExplorerViewModel.Items))
+                        {
+                            UpdateStatusBar();
+                        }
+                    };
 
-                // パスが空の場合はホームに、そうでない場合は指定されたパスに移動
-                if (string.IsNullOrEmpty(path))
-                {
-                    tab.ViewModel.NavigateToHome();
-                }
-                else
-                {
-                    // パスが存在するか確認してから移動
-                    if (System.IO.Directory.Exists(path))
+                    // パスが空の場合はホームに、そうでない場合は指定されたパスに移動
+                    if (string.IsNullOrEmpty(path))
                     {
-                        tab.ViewModel.NavigateToPathCommand.Execute(path);
+                        tab.ViewModel.NavigateToHome();
                     }
                     else
                     {
-                        // パスが存在しない場合はホームに移動
-                        tab.ViewModel.NavigateToHome();
+                        // パスが存在するか確認してから移動
+                        if (System.IO.Directory.Exists(path))
+                        {
+                            tab.ViewModel.NavigateToPathCommand.Execute(path);
+                        }
+                        else
+                        {
+                            // パスが存在しない場合はホームに移動
+                            tab.ViewModel.NavigateToHome();
+                        }
                     }
-                }
 
                 tabs.Add(tab);
-                UpdateTabTitle(tab);
-            }
+                    UpdateTabTitle(tab);
+                }
 
-            // 最初のタブを選択
+                // 最初のタブを選択
             if (tabs.Count > 0)
-            {
+                {
                 setSelectedTab(tabs[0]);
             }
         }

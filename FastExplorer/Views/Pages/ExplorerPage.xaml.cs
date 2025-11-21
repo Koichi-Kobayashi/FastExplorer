@@ -207,7 +207,7 @@ namespace FastExplorer.Views.Pages
                 if (targetTab != null)
                 {
                     targetTab.ViewModel.NavigateToPathCommand.Execute(favorite.Path);
-                    e.Handled = true;
+                e.Handled = true;
                 }
             }
         }
@@ -254,8 +254,8 @@ namespace FastExplorer.Views.Pages
                 if (targetTab != null)
                 {
                     targetTab.ViewModel.NavigateToPathCommand.Execute(drive.Path);
-                    e.Handled = true;
-                }
+                e.Handled = true;
+            }
             }
         }
 
@@ -308,7 +308,7 @@ namespace FastExplorer.Views.Pages
                     var element = border as FrameworkElement;
                     var pane = GetPaneForElement(element);
                     if (pane == 0)
-                    {
+                {
                         // 左ペイン
                         targetTab = ViewModel.SelectedLeftPaneTab;
                     }
@@ -338,9 +338,9 @@ namespace FastExplorer.Views.Pages
                     else
                     {
                         targetTab.ViewModel.NavigateToItemCommand.Execute(fileItem);
-                    }
-                    e.Handled = true;
                 }
+                e.Handled = true;
+            }
             }
         }
 

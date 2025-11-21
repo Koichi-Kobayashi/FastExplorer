@@ -8,6 +8,7 @@
     xmlns:models="clr-namespace:FastExplorer.Models"
     xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:uiControls="clr-namespace:Wpf.Ui.Controls;assembly=Wpf.Ui"
     xmlns:controls="clr-namespace:FastExplorer.Controls"
     d:DataContext="{d:DesignInstance local:ExplorerPage,
                                      IsDesignTimeCreatable=False}"
@@ -509,6 +510,10 @@
                 </Grid>
             </Grid>
         </DataTemplate>
+        <!-- RepeatButtonのContentをSymbolRegular値に設定するスタイル -->
+        <Style TargetType="RepeatButton" x:Key="ScrollButtonStyle">
+            <!-- Contentは各RepeatButtonで個別に設定 -->
+        </Style>
     </UserControl.Resources>
 
     <Grid Margin="0">
@@ -570,14 +575,18 @@
                                         Width="0"
                                         Height="0"
                                         Visibility="Collapsed">
-                                        <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                        <RepeatButton.Content>
+                                            <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                        </RepeatButton.Content>
                                     </RepeatButton>
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
                                         Visibility="Collapsed">
-                                        <ui:SymbolIcon Symbol="ChevronRight24" />
+                                        <RepeatButton.Content>
+                                            <ui:SymbolIcon Symbol="ChevronRight24" />
+                                        </RepeatButton.Content>
                                     </RepeatButton>
                                     <ui:Button
                                         Width="32"
@@ -778,14 +787,18 @@
                                         Width="0"
                                         Height="0"
                                         Visibility="Collapsed">
-                                        <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                        <RepeatButton.Content>
+                                            <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                        </RepeatButton.Content>
                                     </RepeatButton>
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
                                         Visibility="Collapsed">
-                                        <ui:SymbolIcon Symbol="ChevronRight24" />
+                                        <RepeatButton.Content>
+                                            <ui:SymbolIcon Symbol="ChevronRight24" />
+                                        </RepeatButton.Content>
                                     </RepeatButton>
                                     <ui:Button
                                         Width="32"
@@ -978,14 +991,18 @@
                                     Width="0"
                                     Height="0"
                                     Visibility="Collapsed">
-                                    <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                    <RepeatButton.Content>
+                                        <ui:SymbolIcon Symbol="ChevronLeft24" />
+                                    </RepeatButton.Content>
                                 </RepeatButton>
                                 <RepeatButton
                                     x:Name="PART_ButtonScrollRight"
                                     Width="0"
                                     Height="0"
                                     Visibility="Collapsed">
-                                    <ui:SymbolIcon Symbol="ChevronRight24" />
+                                    <RepeatButton.Content>
+                                        <ui:SymbolIcon Symbol="ChevronRight24" />
+                                    </RepeatButton.Content>
                                 </RepeatButton>
                                 <ui:Button
                                     Width="32"
