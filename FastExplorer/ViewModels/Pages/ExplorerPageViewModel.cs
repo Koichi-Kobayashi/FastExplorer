@@ -426,7 +426,18 @@ namespace FastExplorer.ViewModels.Pages
             }
             else
             {
-                tab.Title = tab.ViewModel.CurrentPath;
+                // フォルダー名のみを表示（パス全体ではなく）
+                var folderName = Path.GetFileName(tab.ViewModel.CurrentPath);
+                // ルートディレクトリ（例：C:\）の場合は、パス自体を表示
+                if (string.IsNullOrEmpty(folderName))
+                {
+                    var root = Path.GetPathRoot(tab.ViewModel.CurrentPath);
+                    tab.Title = string.IsNullOrEmpty(root) ? tab.ViewModel.CurrentPath : root.TrimEnd('\\');
+                }
+                else
+                {
+                    tab.Title = folderName;
+                }
             }
         }
 
@@ -666,9 +677,29 @@ namespace FastExplorer.ViewModels.Pages
                 foreach (var path in tabPaths)
                 {
                     var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
+                    // フォルダー名のみを表示（パス全体ではなく）
+                    string tabTitle;
+                    if (string.IsNullOrEmpty(path))
+                    {
+                        tabTitle = "ホーム";
+                    }
+                    else
+                    {
+                        var folderName = Path.GetFileName(path);
+                        // ルートディレクトリ（例：C:\）の場合は、パス自体を表示
+                        if (string.IsNullOrEmpty(folderName))
+                        {
+                            var root = Path.GetPathRoot(path);
+                            tabTitle = string.IsNullOrEmpty(root) ? path : root.TrimEnd('\\');
+                        }
+                        else
+                        {
+                            tabTitle = folderName;
+                        }
+                    }
                     var tab = new ExplorerTab
                     {
-                        Title = string.IsNullOrEmpty(path) ? "ホーム" : path,
+                        Title = tabTitle,
                         CurrentPath = path ?? string.Empty,
                         ViewModel = viewModel
                     };

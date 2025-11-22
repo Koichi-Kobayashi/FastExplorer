@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using Cysharp.Text;
 using FastExplorer.Models;
 
 namespace FastExplorer.Services
@@ -162,9 +163,11 @@ namespace FastExplorer.Services
                         var driveInfo = new DriveInfo(drive);
                         if (driveInfo.IsReady)
                         {
+                            // 文字列補間を最適化（ZString.Concatを使用してボクシングを回避）
+                            var driveLetter = drive.TrimEnd('\\');
                             var driveName = string.IsNullOrEmpty(driveInfo.VolumeLabel) 
-                                ? $"ローカルディスク ({drive})" 
-                                : $"{driveInfo.VolumeLabel} ({drive})";
+                                ? ZString.Concat("ローカルディスク (", driveLetter, ")")
+                                : ZString.Concat(driveInfo.VolumeLabel, " (", driveLetter, ")");
                             AddDefaultFolder(driveName, drive);
                         }
                     }

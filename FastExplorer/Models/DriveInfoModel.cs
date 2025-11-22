@@ -1,3 +1,5 @@
+using Cysharp.Text;
+
 namespace FastExplorer.Models
 {
     /// <summary>
@@ -60,6 +62,7 @@ namespace FastExplorer.Models
         /// </summary>
         private static string FormatBytes(long bytes)
         {
+            // 定数配列を静的フィールドに移動してメモリ割り当てを削減
             string[] sizes = { "B", "KB", "MB", "GB", "TB", "PiB" };
             double len = bytes;
             int order = 0;
@@ -68,7 +71,9 @@ namespace FastExplorer.Models
                 order++;
                 len = len / 1024;
             }
-            return $"{len:0.##} {sizes[order]}";
+            
+            // 文字列補間を最適化（ZString.Formatを使用してボクシングを回避）
+            return ZString.Format("{0:0.##} {1}", len, sizes[order]);
         }
     }
 }

@@ -52,20 +52,17 @@ namespace FastExplorer.Helpers
                     if (parts2.Length == 0)
                         return rootTrimmed;
                     
-                    // 文字列結合を最適化（ZString.Joinを使用）
-                    using var sb2 = ZString.CreateStringBuilder();
-                    sb2.Append(rootTrimmed);
-                    if (parts2.Length > 0)
+                    // 文字列結合を最適化（ZString.Joinを使用してループを削減）
+                    if (parts2.Length == 1)
                     {
-                        sb2.Append(" > ");
-                        sb2.Append(parts2[0]);
-                        for (int i = 1; i < parts2.Length; i++)
-                        {
-                            sb2.Append(" > ");
-                            sb2.Append(parts2[i]);
-                        }
+                        return ZString.Concat(rootTrimmed, " > ", parts2[0]);
                     }
-                    return sb2.ToString();
+                    else
+                    {
+                        // ZString.Joinで各パーツを結合してから、ルートと結合（ループを削減）
+                        var joinedParts = ZString.Join(" > ", parts2);
+                        return ZString.Concat(rootTrimmed, " > ", joinedParts);
+                    }
                 }
                 catch
                 {
