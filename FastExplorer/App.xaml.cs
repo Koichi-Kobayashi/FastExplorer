@@ -24,7 +24,7 @@ namespace FastExplorer
     /// </summary>
     public partial class App
     {
-        private ResourceDictionary? _darkThemeResources;
+        private ResourceDictionary? _darkThemeResources = null;
 
         // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
         // https://docs.microsoft.com/dotnet/core/extensions/generic-host

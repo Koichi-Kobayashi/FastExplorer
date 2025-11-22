@@ -1,10 +1,13 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using FastExplorer.ViewModels.Pages;
 using FastExplorer.Services;
 using FastExplorer.Models;
+using FastExplorer.Helpers;
 using Wpf.Ui.Abstractions.Controls;
 
 namespace FastExplorer.Views.Pages
@@ -376,43 +379,6 @@ namespace FastExplorer.Views.Pages
             }
         }
 
-        /// <summary>
-        /// コンテキストメニューが開かれたときに呼び出されます
-        /// </summary>
-        /// <param name="sender">イベントの送信元</param>
-        /// <param name="e">ルーティングイベント引数</param>
-        private void ContextMenu_Opened(object sender, RoutedEventArgs e)
-        {
-            if (sender is System.Windows.Controls.ContextMenu contextMenu && ViewModel != null)
-            {
-                // すべてのMenuItemを確認
-                foreach (var item in contextMenu.Items)
-                {
-                    if (item is System.Windows.Controls.MenuItem menuItem)
-                    {
-                        // アイコンで分割ペインメニューアイテムを識別
-                        if (menuItem.Icon is Wpf.Ui.Controls.SymbolIcon symbolIcon && symbolIcon.Symbol == Wpf.Ui.Controls.SymbolRegular.SplitHorizontal24)
-                        {
-                            // メニューテキストを更新
-                            var converter = new Helpers.BooleanToSplitPaneMenuTextConverter();
-                            var header = converter.Convert(ViewModel.IsSplitPaneEnabled, typeof(string), null, System.Globalization.CultureInfo.CurrentCulture) ?? "分割ペインを有効にする";
-                            menuItem.Header = header;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// 分割ペインメニューアイテムがクリックされたときに呼び出されます
-        /// </summary>
-        /// <param name="sender">イベントの送信元</param>
-        /// <param name="e">ルーティングイベント引数</param>
-        private void SplitPaneMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            ViewModel.ToggleSplitPaneCommand.Execute(null);
-        }
 
         // ドラッグ&ドロップ用の変数
         private Point _dragStartPoint;
@@ -601,6 +567,176 @@ namespace FastExplorer.Views.Pages
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// ListViewItemでマウス右ボタンが離されたときに呼び出されます（右クリックメニュー表示）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void ListViewItem_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("[ExplorerPage] ListViewItem_MouseRightButtonUp呼び出されました");
+
+            // DataContextからファイルパスを取得
+            if (sender is ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem fileItem)
+            {
+                var filePath = fileItem.FullPath;
+                System.Diagnostics.Debug.WriteLine($"[ExplorerPage] ListViewItem右クリック: path={filePath}");
+
+                if (!string.IsNullOrEmpty(filePath) && (System.IO.Directory.Exists(filePath) || System.IO.File.Exists(filePath)))
+                {
+                    // イベントを処理済みとしてマーク
+                    e.Handled = true;
+
+                    // 画面上の座標をスクリーン座標に変換
+                    var point = e.GetPosition(this);
+                    var screenPoint = PointToScreen(point);
+
+                    // ウィンドウハンドルを取得
+                    var window = Window.GetWindow(this);
+                    var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
+
+                    // ShellContextMenuでOS標準メニューを表示
+                    var scm = new ShellContextMenu();
+                    scm.ShowContextMenu(new[] { filePath }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
+                }
+            }
+        }
+
+        /// <summary>
+        /// ListViewでマウス右ボタンが離されたときに呼び出されます（空領域の右クリックメニュー表示）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void ListView_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("[ExplorerPage] ListView_MouseRightButtonUp呼び出されました");
+
+            // ListViewItem上でクリックされた場合は処理しない
+            if (e.OriginalSource is DependencyObject source)
+            {
+                DependencyObject? current = source;
+                while (current != null)
+                {
+                    if (current is ListViewItem)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[ExplorerPage] ListViewItem上でクリックされたため、ListView_MouseRightButtonUpをスキップ");
+                        return;
+                    }
+                    current = VisualTreeHelper.GetParent(current);
+                }
+            }
+
+            // イベントを処理済みとしてマーク
+            e.Handled = true;
+
+            // 現在のタブを取得
+            Models.ExplorerTab? targetTab = null;
+
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                // 分割ペインモードの場合、クリックされたListViewがどのペインに属しているかを判定
+                if (sender is System.Windows.Controls.ListView listView)
+                {
+                    var pane = GetPaneForElement(listView);
+                    if (pane == 0)
+                    {
+                        targetTab = ViewModel.SelectedLeftPaneTab;
+                    }
+                    else if (pane == 2)
+                    {
+                        targetTab = ViewModel.SelectedRightPaneTab;
+                    }
+                    else
+                    {
+                        targetTab = GetActiveTab();
+                    }
+                }
+            }
+            else
+            {
+                // 通常モード
+                targetTab = ViewModel.SelectedTab;
+            }
+
+            if (targetTab == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[ExplorerPage] ターゲットタブがnullです（空領域）");
+                return;
+            }
+
+            // 現在のパスを取得
+            var path = targetTab.ViewModel?.CurrentPath;
+
+            // パスが空の場合はホームディレクトリを使用
+            if (string.IsNullOrEmpty(path))
+            {
+                path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                System.Diagnostics.Debug.WriteLine($"[ExplorerPage] ListView右クリック（空領域、ホーム）: path={path}");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[ExplorerPage] ListView右クリック（空領域）: path={path}");
+            }
+
+            if (!string.IsNullOrEmpty(path) && (System.IO.Directory.Exists(path) || System.IO.File.Exists(path)))
+            {
+                // 画面上の座標をスクリーン座標に変換
+                var point = e.GetPosition(this);
+                var screenPoint = PointToScreen(point);
+
+                // ウィンドウハンドルを取得
+                var window = Window.GetWindow(this);
+                var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
+
+                // ShellContextMenuでOS標準メニューを表示
+                var scm = new ShellContextMenu();
+                scm.ShowContextMenu(new[] { path }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
+            }
+        }
+
+        /// <summary>
+        /// タブエリアでマウス右ボタンが離されたときに呼び出されます（タブの右クリックメニュー表示）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void TabArea_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("[ExplorerPage] TabArea_MouseRightButtonUp呼び出されました");
+
+            // タブのDataContextを取得
+            if (sender is FrameworkElement element && element.DataContext is Models.ExplorerTab tab)
+            {
+                // タブのパスを取得
+                var path = tab.ViewModel?.CurrentPath;
+
+                // パスが空の場合はホームディレクトリを使用
+                if (string.IsNullOrEmpty(path))
+                {
+                    path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    System.Diagnostics.Debug.WriteLine($"[ExplorerPage] タブ右クリック（ホーム）: path={path}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ExplorerPage] タブ右クリック: path={path}");
+                }
+
+                if (!string.IsNullOrEmpty(path) && (System.IO.Directory.Exists(path) || System.IO.File.Exists(path)))
+                {
+                    // 画面上の座標をスクリーン座標に変換
+                    var point = e.GetPosition(this);
+                    var screenPoint = PointToScreen(point);
+
+                    // ウィンドウハンドルを取得
+                    var window = Window.GetWindow(this);
+                    var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
+
+                    // ShellContextMenuでOS標準メニューを表示
+                    var scm = new ShellContextMenu();
+                    scm.ShowContextMenu(new[] { path }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
+                }
+            }
         }
     }
 }

@@ -11,35 +11,35 @@
             <ResourceDictionary.MergedDictionaries>
                 <ui:ThemesDictionary Theme="Light" />
                 <ui:ControlsDictionary />
-                <!-- ダークモード用のリソースディクショナリーはコードビハインドで動的に追加されます -->
+                <!--  ダークモード用のリソースディクショナリーはコードビハインドで動的に追加されます  -->
             </ResourceDictionary.MergedDictionaries>
-            <helpers:DirectoryIconConverter x:Key="DirectoryIconConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
-            <helpers:PathToBreadcrumbConverter x:Key="PathToBreadcrumbConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
-            <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
-            <helpers:FolderIconConverter x:Key="FolderIconConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
-            <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
-            <helpers:BooleanToSplitPaneMenuTextConverter x:Key="BooleanToSplitPaneMenuTextConverter" xmlns:helpers="clr-namespace:FastExplorer.Helpers" />
+            <helpers:DirectoryIconConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="DirectoryIconConverter" />
+            <helpers:PathToBreadcrumbConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="PathToBreadcrumbConverter" />
+            <helpers:InverseBooleanToVisibilityConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="InverseBooleanToVisibilityConverter" />
+            <helpers:FolderIconConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="FolderIconConverter" />
+            <helpers:EnumToBooleanConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="EnumToBooleanConverter" />
+            <helpers:BooleanToSplitPaneMenuTextConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="BooleanToSplitPaneMenuTextConverter" />
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-            
-            <!-- SVGアイコンの色（ライトモード） -->
+
+            <!--  SVGアイコンの色（ライトモード）  -->
             <SolidColorBrush x:Key="IconBrush" Color="#000000" />
-            
-            <!-- テーマカラー（デフォルト値、コードで動的に更新される） -->
+
+            <!--  テーマカラー（デフォルト値、コードで動的に更新される）  -->
             <SolidColorBrush x:Key="ApplicationBackgroundBrush" Color="#F5F5F5" />
             <SolidColorBrush x:Key="TabAndNavigationBackgroundBrush" Color="#FCFCFC" />
-            
-            <!-- アクセントカラー（タブとListViewの選択中に使用、コードで動的に更新される） -->
+
+            <!--  アクセントカラー（タブとListViewの選択中に使用、コードで動的に更新される）  -->
             <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#F5F5F5" />
             <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#E5E5E5" />
-            
-            <!-- コントロールの背景色（タブの非選択時など、コードで動的に更新される） -->
+
+            <!--  コントロールの背景色（タブの非選択時など、コードで動的に更新される）  -->
             <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FCFCFC" />
             <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#F0F0F0" />
-            
-            <!-- ステータスバーのテキスト色（背景色に応じて動的に更新される） -->
+
+            <!--  ステータスバーのテキスト色（背景色に応じて動的に更新される）  -->
             <SolidColorBrush x:Key="StatusBarTextBrush" Color="#FFFFFF" />
-            
-            <!-- FluentIconスタイル -->
+
+            <!--  FluentIconスタイル  -->
             <Style x:Key="FluentIcon" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="Segoe Fluent Icons" />
                 <Setter Property="FontSize" Value="32" />
@@ -47,8 +47,8 @@
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="HorizontalAlignment" Value="Center" />
             </Style>
-            
-            <!-- グローバルスタイル: Frameのスクロールバーを無効化 -->
+
+            <!--  グローバルスタイル: Frameのスクロールバーを無効化  -->
             <Style TargetType="Frame">
                 <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
                 <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />

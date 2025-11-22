@@ -87,6 +87,7 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
@@ -138,6 +139,7 @@
 
                         <ui:Button
                             Grid.Column="2"
+                            Margin="0,0,4,0"
                             Appearance="Secondary"
                             Command="{Binding DataContext.ViewModel.AddCurrentPathToFavoritesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             ToolTip="お気に入りに追加">
@@ -155,6 +157,28 @@
                             </ui:Button.Style>
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="Star24" />
+                            </ui:Button.Icon>
+                        </ui:Button>
+
+                        <ui:Button
+                            Grid.Column="3"
+                            Appearance="Secondary"
+                            Command="{Binding DataContext.ViewModel.ToggleSplitPaneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}">
+                            <ui:Button.Style>
+                                <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ui:Button.Style>
+                            <ui:Button.Icon>
+                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
                             </ui:Button.Icon>
                         </ui:Button>
                     </Grid>
@@ -394,6 +418,7 @@
                     KeyDown="ListView_KeyDown"
                     MouseDoubleClick="ListView_MouseDoubleClick"
                     MouseDown="ListView_MouseButtonDown"
+                    MouseRightButtonUp="ListView_MouseRightButtonUp"
                     DragOver="ListView_DragOver"
                     Drop="ListView_Drop"
                     AllowDrop="True"
@@ -417,6 +442,7 @@
                             <Setter Property="MinHeight" Value="32" />
                             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
                             <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
+                            <EventSetter Event="MouseRightButtonUp" Handler="ListViewItem_MouseRightButtonUp" />
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListViewItem">
@@ -559,17 +585,6 @@
                                 <StackPanel
                                     Grid.Column="0"
                                     Orientation="Horizontal">
-                                    <StackPanel.ContextMenu>
-                                        <ContextMenu Opened="ContextMenu_Opened">
-                                            <MenuItem
-                                                Header="分割ペインを有効にする"
-                                                Click="SplitPaneMenuItem_Click">
-                                                <MenuItem.Icon>
-                                                    <ui:SymbolIcon Symbol="SplitHorizontal24" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                        </ContextMenu>
-                                    </StackPanel.ContextMenu>
                                     <TabPanel
                                         x:Name="HeaderPanel"
                                         Grid.IsSharedSizeScope="True"
@@ -614,17 +629,6 @@
                                 KeyboardNavigation.DirectionalNavigation="Contained"
                                 KeyboardNavigation.TabIndex="2"
                                 KeyboardNavigation.TabNavigation="Local">
-                                <Border.ContextMenu>
-                                    <ContextMenu Opened="ContextMenu_Opened">
-                                        <MenuItem
-                                            Header="分割ペインを有効にする"
-                                            Click="SplitPaneMenuItem_Click">
-                                            <MenuItem.Icon>
-                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                    </ContextMenu>
-                                </Border.ContextMenu>
                                 <ContentPresenter
                                     x:Name="PART_SelectedContentHost"
                                     Margin="{TemplateBinding Padding}"
@@ -680,7 +684,7 @@
                 </TabControl.Resources>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid>
+                        <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -718,17 +722,6 @@
                                 </Button.Style>
                                 <ui:SymbolIcon Symbol="Dismiss24" />
                             </Button>
-                            <Grid.ContextMenu>
-                                <ContextMenu Opened="ContextMenu_Opened">
-                                        <MenuItem
-                                            Header="分割ペインを有効にする"
-                                            Click="SplitPaneMenuItem_Click">
-                                            <MenuItem.Icon>
-                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                </ContextMenu>
-                            </Grid.ContextMenu>
                         </Grid>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
@@ -769,17 +762,6 @@
                                 <StackPanel
                                     Grid.Column="0"
                                     Orientation="Horizontal">
-                                    <StackPanel.ContextMenu>
-                                        <ContextMenu Opened="ContextMenu_Opened">
-                                            <MenuItem
-                                                Header="分割ペインを有効にする"
-                                                Click="SplitPaneMenuItem_Click">
-                                                <MenuItem.Icon>
-                                                    <ui:SymbolIcon Symbol="SplitHorizontal24" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                        </ContextMenu>
-                                    </StackPanel.ContextMenu>
                                     <TabPanel
                                         x:Name="HeaderPanel"
                                         Grid.IsSharedSizeScope="True"
@@ -824,17 +806,6 @@
                                 KeyboardNavigation.DirectionalNavigation="Contained"
                                 KeyboardNavigation.TabIndex="2"
                                 KeyboardNavigation.TabNavigation="Local">
-                                <Border.ContextMenu>
-                                    <ContextMenu Opened="ContextMenu_Opened">
-                                        <MenuItem
-                                            Header="分割ペインを有効にする"
-                                            Click="SplitPaneMenuItem_Click">
-                                            <MenuItem.Icon>
-                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                    </ContextMenu>
-                                </Border.ContextMenu>
                                 <ContentPresenter
                                     x:Name="PART_SelectedContentHost"
                                     Margin="{TemplateBinding Padding}"
@@ -890,7 +861,7 @@
                 </TabControl.Resources>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid>
+                        <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -928,17 +899,6 @@
                                 </Button.Style>
                                 <ui:SymbolIcon Symbol="Dismiss24" />
                             </Button>
-                            <Grid.ContextMenu>
-                                <ContextMenu Opened="ContextMenu_Opened">
-                                        <MenuItem
-                                            Header="分割ペインを有効にする"
-                                            Click="SplitPaneMenuItem_Click">
-                                            <MenuItem.Icon>
-                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                </ContextMenu>
-                            </Grid.ContextMenu>
                         </Grid>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
@@ -971,17 +931,6 @@
                             <StackPanel
                                 Grid.Column="0"
                                 Orientation="Horizontal">
-                                <StackPanel.ContextMenu>
-                                    <ContextMenu Opened="ContextMenu_Opened">
-                                        <MenuItem
-                                            Header="分割ペインを有効にする"
-                                            Click="SplitPaneMenuItem_Click">
-                                            <MenuItem.Icon>
-                                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                    </ContextMenu>
-                                </StackPanel.ContextMenu>
                                 <TabPanel
                                     x:Name="HeaderPanel"
                                     Grid.IsSharedSizeScope="True"
@@ -1026,17 +975,6 @@
                             KeyboardNavigation.DirectionalNavigation="Contained"
                             KeyboardNavigation.TabIndex="2"
                             KeyboardNavigation.TabNavigation="Local">
-                            <Border.ContextMenu>
-                                <ContextMenu Opened="ContextMenu_Opened">
-                                    <MenuItem
-                                        Header="分割ペインを有効にする"
-                                        Click="SplitPaneMenuItem_Click">
-                                        <MenuItem.Icon>
-                                            <ui:SymbolIcon Symbol="SplitHorizontal24" />
-                                        </MenuItem.Icon>
-                                    </MenuItem>
-                                </ContextMenu>
-                            </Border.ContextMenu>
                             <ContentPresenter
                                 x:Name="PART_SelectedContentHost"
                                 Margin="{TemplateBinding Padding}"
@@ -1092,7 +1030,7 @@
             </TabControl.Resources>
             <TabControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                    <Grid>
+                    <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -1130,17 +1068,6 @@
                             </Button.Style>
                             <ui:SymbolIcon Symbol="Dismiss24" />
                         </Button>
-                        <Grid.ContextMenu>
-                            <ContextMenu Opened="ContextMenu_Opened">
-                                <MenuItem
-                                    Header="分割ペインを有効にする"
-                                    Click="SplitPaneMenuItem_Click">
-                                    <MenuItem.Icon>
-                                        <ui:SymbolIcon Symbol="SplitHorizontal24" />
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                            </ContextMenu>
-                        </Grid.ContextMenu>
                     </Grid>
                 </DataTemplate>
             </TabControl.ItemTemplate>
@@ -1210,6 +1137,7 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
@@ -1261,6 +1189,7 @@
 
                                 <ui:Button
                                     Grid.Column="2"
+                                    Margin="0,0,4,0"
                                     Appearance="Secondary"
                                     Command="{Binding DataContext.ViewModel.AddCurrentPathToFavoritesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     ToolTip="お気に入りに追加">
@@ -1278,6 +1207,28 @@
                                     </ui:Button.Style>
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="Star24" />
+                                    </ui:Button.Icon>
+                                </ui:Button>
+
+                                <ui:Button
+                                    Grid.Column="3"
+                                    Appearance="Secondary"
+                                    Command="{Binding DataContext.ViewModel.ToggleSplitPaneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}">
+                                    <ui:Button.Style>
+                                        <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ui:Button.Style>
+                                    <ui:Button.Icon>
+                                        <ui:SymbolIcon Symbol="SplitHorizontal24" />
                                     </ui:Button.Icon>
                                 </ui:Button>
                             </Grid>
