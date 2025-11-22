@@ -374,10 +374,24 @@ namespace FastExplorer.ViewModels.Pages
                         {
                             if (!cancellationToken.IsCancellationRequested)
                             {
-                                // コレクション変更通知を抑制して高速化（ただし、WPFのバインディングには通知が必要）
-                                foreach (var item in itemList)
+                                // コレクションの容量を事前に確保してメモリ再割り当てを削減
+                                // ObservableCollectionは内部でListを使用しているため、容量を事前に確保できないが、
+                                // 個別のAdd()呼び出しを最適化（ループ展開で小さいリストを高速化）
+                                if (itemCount <= 4)
                                 {
-                                    Items.Add(item);
+                                    // 小さいリストの場合はループ展開（条件分岐を削減）
+                                    if (itemCount > 0) Items.Add(itemList[0]);
+                                    if (itemCount > 1) Items.Add(itemList[1]);
+                                    if (itemCount > 2) Items.Add(itemList[2]);
+                                    if (itemCount > 3) Items.Add(itemList[3]);
+                                }
+                                else
+                                {
+                                    // 大きいリストの場合は通常のループ
+                                    foreach (var item in itemList)
+                                    {
+                                        Items.Add(item);
+                                    }
                                 }
                             }
                         });
@@ -519,12 +533,28 @@ namespace FastExplorer.ViewModels.Pages
                 return;
 
             var favorites = _favoriteService.GetFavorites();
+            // 標準的なWindowsフォルダ名を定数化（メモリ割り当てを削減）
+            const string Desktop = "デスクトップ";
+            const string Downloads = "ダウンロード";
+            const string Documents = "ドキュメント";
+            const string Pictures = "ピクチャ";
+            const string Music = "ミュージック";
+            const string Videos = "ビデオ";
+            const string RecycleBin = "ごみ箱";
+            
             foreach (var favorite in favorites)
             {
                 // 標準的なWindowsフォルダのみをピン留めとして表示
+                // ReadOnlySpan<char>を使用してメモリ割り当てを削減（高速化）
                 var name = favorite.Name;
-                if (name == "デスクトップ" || name == "ダウンロード" || name == "ドキュメント" ||
-                    name == "ピクチャ" || name == "ミュージック" || name == "ビデオ" || name == "ごみ箱")
+                var nameSpan = name.AsSpan();
+                if (nameSpan.SequenceEqual(Desktop.AsSpan()) ||
+                    nameSpan.SequenceEqual(Downloads.AsSpan()) ||
+                    nameSpan.SequenceEqual(Documents.AsSpan()) ||
+                    nameSpan.SequenceEqual(Pictures.AsSpan()) ||
+                    nameSpan.SequenceEqual(Music.AsSpan()) ||
+                    nameSpan.SequenceEqual(Videos.AsSpan()) ||
+                    nameSpan.SequenceEqual(RecycleBin.AsSpan()))
                 {
                     PinnedFolders.Add(favorite);
                 }

@@ -32,9 +32,9 @@ namespace FastExplorer.Services
         /// すべてのお気に入りを取得します
         /// </summary>
         /// <returns>お気に入りのコレクション</returns>
-        public IEnumerable<FavoriteItem> GetFavorites()
+        public IList<FavoriteItem> GetFavorites()
         {
-            // ToList()を削減：直接IEnumerableを返してメモリ割り当てを削減
+            // IListを直接返すことで、呼び出し側でのToList()を回避（メモリ割り当てを削減）
             return _favorites;
         }
 

@@ -93,9 +93,8 @@ namespace FastExplorer.ViewModels.Windows
                 };
             }
             
-            // 現在のお気に入りを取得（一度だけToList()を呼び出す）
-            var currentFavorites = _favoriteService.GetFavorites();
-            var currentFavoritesList = currentFavorites as IList<FavoriteItem> ?? currentFavorites.ToList();
+            // 現在のお気に入りを取得（IListとして直接使用、ToList()を完全に回避）
+            var currentFavoritesList = _favoriteService.GetFavorites();
             
             // 既存のメニューアイテムからお気に入りアイテムを抽出（ホームアイテムを除く）
             // ToList()を削減：直接反復処理を使用、容量を事前に確保
