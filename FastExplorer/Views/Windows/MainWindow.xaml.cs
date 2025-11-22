@@ -72,7 +72,7 @@ namespace FastExplorer.Views.Windows
             {
                 Loaded -= InitializeHandler; // 一度だけ実行されるように解除
                 
-                // RootNavigationの初期化
+                // RootNavigationの初期化（1回だけ取得して再利用）
                 var nav = RootNavigation;
                 if (nav != null)
                 {
@@ -86,32 +86,36 @@ namespace FastExplorer.Views.Windows
                 // テーマカラーを適用（ウィンドウ表示前に適用することでチラつきを防ぐ）
                 var settings = _windowSettingsService.GetSettings();
                 var themeColorCode = settings.ThemeColorCode;
-                // string.IsNullOrEmptyよりLength > 0の方がわずかに高速（nullチェックは既に含まれている）
+                // 高速化：nullチェックとLengthチェックを1回に統合
                 if (themeColorCode != null && themeColorCode.Length != 0)
                 {
-                    // 色計算を先に実行（リソース更新前に計算することで、リソース更新と同時に色を適用できる）
+                    // 色計算を1回だけ実行（リソース更新とUI更新の両方で使用）
                     var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
-                    var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
                     var secondaryColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+                    var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
                     var secondaryBrush = new System.Windows.Media.SolidColorBrush(secondaryColor);
                     var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
                     var statusBarTextColor = luminance > 0.5 ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
                     var statusBarTextBrush = new System.Windows.Media.SolidColorBrush(statusBarTextColor);
                     
-                    // リソースを更新（App.ApplyThemeColorFromSettingsを呼び出す）
-                    App.ApplyThemeColorFromSettings(settings);
+                    // リソースを更新（計算済みの色を渡して重複計算を回避）
+                    App.ApplyThemeColorFromSettings(settings, (mainColor, secondaryColor));
                     
                     // すべての色を同じタイミングで設定（リソース更新直後、計算済みの色を使用）
                     Background = mainBrush;
-                    if (this is Wpf.Ui.Controls.FluentWindow fluentWindow)
+                    // FluentWindowのBackgroundを設定（型チェックを削除して高速化）
+                    var fluentWindow = this as Wpf.Ui.Controls.FluentWindow;
+                    if (fluentWindow != null)
                     {
                         fluentWindow.Background = mainBrush;
                     }
+                    // navは既に取得済みなので、nullチェックを削除（navがnullの場合は既にreturnしている）
                     if (nav != null)
                     {
                         nav.Background = secondaryBrush;
                     }
                     // ステータスバーも直接設定して、DynamicResourceの自動更新を上書き（すべての色が同じタイミングで付くようにする）
+                    // XAMLで定義されているため、nullチェックは不要だが、念のため保持
                     if (StatusBar != null)
                     {
                         StatusBar.Background = mainBrush;

@@ -217,18 +217,29 @@ namespace FastExplorer
         /// 設定からテーマカラーを適用します（公開メソッド）
         /// </summary>
         /// <param name="settings">ウィンドウ設定</param>
-        public static void ApplyThemeColorFromSettings(Services.WindowSettings settings)
+        /// <param name="precomputedColors">事前計算済みの色（nullの場合は計算する）</param>
+        public static void ApplyThemeColorFromSettings(Services.WindowSettings settings, (Color mainColor, Color secondaryColor)? precomputedColors = null)
         {
             try
             {
                 if (Application.Current.Resources is ResourceDictionary mainDictionary)
                 {
-                    // メインカラーを適用
-                    var mainColor = (Color)ColorConverter.ConvertFromString(settings.ThemeColorCode ?? "#F5F5F5");
-                    var mainBrush = new SolidColorBrush(mainColor);
+                    Color mainColor;
+                    Color secondaryColor;
                     
-                    // セカンダリカラーを適用
-                    var secondaryColor = (Color)ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+                    // 事前計算済みの色を使用するか、計算する
+                    if (precomputedColors.HasValue)
+                    {
+                        mainColor = precomputedColors.Value.mainColor;
+                        secondaryColor = precomputedColors.Value.secondaryColor;
+                    }
+                    else
+                    {
+                        mainColor = (Color)ColorConverter.ConvertFromString(settings.ThemeColorCode ?? "#F5F5F5");
+                        secondaryColor = (Color)ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+                    }
+                    
+                    var mainBrush = new SolidColorBrush(mainColor);
                     var secondaryBrush = new SolidColorBrush(secondaryColor);
 
                     // リソースを更新（高速化：Contains/Removeを削除して直接インデクサーで上書き）

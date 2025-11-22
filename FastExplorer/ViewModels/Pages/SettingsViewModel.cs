@@ -292,17 +292,17 @@ namespace FastExplorer.ViewModels.Pages
                 settings.ThemeSecondaryColorCode = themeColor.SecondaryColorCode;
                 _windowSettingsService.SaveSettings(settings);
 
-                // リソースを更新（App.ApplyThemeColorFromSettingsを使用）
-                App.ApplyThemeColorFromSettings(settings);
-
-                // メインカラーとセカンダリカラーを取得（ウィンドウ更新用）
+                // 色計算を1回だけ実行（リソース更新とUI更新の両方で使用）
                 var mainColor = (Color)ColorConverter.ConvertFromString(themeColor.ColorCode);
-                var mainBrush = new SolidColorBrush(mainColor);
                 var secondaryColor = (Color)ColorConverter.ConvertFromString(themeColor.SecondaryColorCode);
+                var mainBrush = new SolidColorBrush(mainColor);
                 var secondaryBrush = new SolidColorBrush(secondaryColor);
                 var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
                 var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;
                 var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
+
+                // リソースを更新（計算済みの色を渡して重複計算を回避）
+                App.ApplyThemeColorFromSettings(settings, (mainColor, secondaryColor));
 
                 System.Diagnostics.Debug.WriteLine($"Theme color applied: {themeColor.Name} - Main: {themeColor.ColorCode}, Secondary: {themeColor.SecondaryColorCode}");
 
