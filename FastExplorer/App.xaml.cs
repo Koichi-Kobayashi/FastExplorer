@@ -387,18 +387,11 @@ namespace FastExplorer
                     }
 
                     // IconBrushリソースを直接更新してDynamicResourceの再評価を強制
-                    // リソースを一度削除して再追加することで、DynamicResourceの再評価を確実にトリガー
+                    // 高速化：Contains/Removeを削除して直接インデクサーで上書き
                     try
                     {
                         var newColor = isDark ? Color.FromRgb(255, 255, 255) : Color.FromRgb(0, 0, 0);
-                        
-                        // 既存のIconBrushリソースを削除
-                        if (mainDictionary.Contains("IconBrush"))
-                        {
-                            mainDictionary.Remove("IconBrush");
-                        }
-                        
-                        // 新しいIconBrushリソースを作成して追加
+                        // 新しいIconBrushリソースを作成して追加（直接インデクサーで上書き）
                         var newBrush = new SolidColorBrush(newColor);
                         mainDictionary["IconBrush"] = newBrush;
                         resourceChanged = true;
@@ -444,10 +437,11 @@ namespace FastExplorer
 
             // すべてのThemedSvgIconインスタンスにブラシを再適用（遅延実行でちらつきを防ぐ）
             // 起動時の高速化のため、常にBackground優先度で実行（起動を最速化）
-            Current.Dispatcher.BeginInvoke(new System.Action(() =>
+            // デリゲートのメモリアロケーションを削減
+            Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new System.Action(() =>
             {
                 FastExplorer.Controls.ThemedSvgIcon.RefreshAllInstances();
-            }), System.Windows.Threading.DispatcherPriority.Background);
+            }));
         }
 
 

@@ -122,15 +122,16 @@ namespace FastExplorer.Views.Windows
 
                     // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
                     // ContentRenderedイベントで実行（確実にExplorerPageが読み込まれた後）
-                    // 起動を高速化するため、さらに遅延実行
+                    // 起動を高速化するため、さらに遅延実行（デリゲートのメモリアロケーションを削減）
                     void ContentRenderedHandler(object? s, EventArgs e)
                     {
                         ContentRendered -= ContentRenderedHandler;
-                        // 遅延実行して起動を高速化
-                        _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                        // 遅延実行して起動を高速化（静的メソッド参照を使用してメモリアロケーションを削減）
+                        var window = this;
+                        _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new System.Action(() =>
                         {
-                            InvalidateTabAndListViewStyles(this);
-                        }), DispatcherPriority.Background);
+                            InvalidateTabAndListViewStyles(window);
+                        }));
                     }
                     ContentRendered += ContentRenderedHandler;
                 }
@@ -145,10 +146,12 @@ namespace FastExplorer.Views.Windows
                 
                 // SystemThemeWatcherを遅延実行（起動を最速化）
                 // ウィンドウ位置とサイズの復元はShowWindow()で実行されるため、ここでは実行しない
-                _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                // デリゲートのメモリアロケーションを削減
+                var window = this;
+                _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new System.Action(() =>
                 {
-                    SystemThemeWatcher.Watch(this);
-                }), DispatcherPriority.Background);
+                    SystemThemeWatcher.Watch(window);
+                }));
             }
             Loaded += InitializeHandler;
         }

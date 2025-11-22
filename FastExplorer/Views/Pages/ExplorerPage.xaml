@@ -18,12 +18,242 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-    ScrollViewer.VerticalScrollBarVisibility="Disabled"
+    UseLayoutRounding="True"
+    SnapsToDevicePixels="True"
     mc:Ignorable="d">
     <UserControl.Resources>
+        <!--  ListView用の共通スタイル（重複を削減）  -->
+        <Style x:Key="FileListViewGridViewColumnHeaderStyle" TargetType="GridViewColumnHeader">
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,1,1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style x:Key="FileListViewItemStyle" TargetType="ListViewItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="32" />
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
+            <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Border
+                            x:Name="Border"
+                            Background="Transparent"
+                            BorderThickness="0">
+                            <GridViewRowPresenter Margin="8,4" Content="{TemplateBinding Content}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!--  共通のBorderスタイル（ホバー効果付き）  -->
+        <Style x:Key="InteractiveBorderStyle" TargetType="Border">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                    <Setter Property="BorderThickness" Value="2" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <!--  最近使用したファイル用のBorderスタイル  -->
+        <Style x:Key="RecentFileBorderStyle" TargetType="Border">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <!--  ピン留めフォルダーのDataTemplate  -->
+        <DataTemplate x:Key="PinnedFolderTemplate" DataType="{x:Type models:FavoriteItem}">
+            <Border
+                x:Name="PinnedFolderBorder"
+                Margin="4"
+                Padding="12"
+                Background="{DynamicResource ControlFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Cursor="Hand"
+                MouseLeftButtonDown="PinnedFolder_MouseLeftButtonDown"
+                Style="{StaticResource InteractiveBorderStyle}">
+                <StackPanel>
+                    <ui:SymbolIcon
+                        Width="48"
+                        Height="48"
+                        Margin="0,0,0,8"
+                        HorizontalAlignment="Center"
+                        Symbol="{Binding Name, Mode=OneWay, Converter={StaticResource FolderIconConverter}}" />
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        FontSize="12"
+                        Text="{Binding Name, Mode=OneWay}"
+                        TextAlignment="Center"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+        
+        <!--  ドライブのDataTemplate  -->
+        <DataTemplate x:Key="DriveTemplate" DataType="{x:Type models:DriveInfoModel}">
+            <Border
+                Margin="0,0,0,8"
+                Padding="12"
+                Background="{DynamicResource ControlFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Cursor="Hand"
+                MouseLeftButtonDown="Drive_MouseLeftButtonDown"
+                Style="{StaticResource InteractiveBorderStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        FontFamily="Segoe Fluent Icons"
+                        FontSize="32"
+                        Width="32"
+                        Height="32"
+                        Margin="0,0,10,0"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        Foreground="{DynamicResource IconBrush}"
+                        Text="&#xEDA2;" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock FontWeight="SemiBold" Text="{Binding Name, Mode=OneWay}" />
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="{Binding Path, Mode=OneWay}" />
+                        <ProgressBar
+                            Height="4"
+                            Margin="0,4,0,0"
+                            Maximum="1"
+                            Value="{Binding UsagePercentage, Mode=OneWay}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                            <Run Text="空き領域 " />
+                            <Run Text="{Binding FormattedFreeSpace, Mode=OneWay}" />
+                            <Run Text="/" />
+                            <Run Text="{Binding FormattedTotalSize, Mode=OneWay}" />
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+        
+        <!--  GridViewColumn用のCellTemplate（重複を削減）  -->
+        <DataTemplate x:Key="FileNameCellTemplate" DataType="{x:Type models:FileSystemItem}">
+            <StackPanel VerticalAlignment="Center" Orientation="Horizontal" UseLayoutRounding="True">
+                <ui:SymbolIcon
+                    Width="20"
+                    Height="20"
+                    Margin="0,0,12,0"
+                    VerticalAlignment="Center"
+                    Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay, FallbackValue=''}" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Text="{Binding Name, Mode=OneWay, FallbackValue=''}"
+                    TextTrimming="CharacterEllipsis"
+                    TextOptions.TextFormattingMode="Display"
+                    TextOptions.TextRenderingMode="ClearType" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="FileSizeCellTemplate" DataType="{x:Type models:FileSystemItem}">
+            <TextBlock
+                Padding="8,0"
+                HorizontalAlignment="Right"
+                Text="{Binding FormattedSize, Mode=OneWay, FallbackValue=''}"
+                TextTrimming="CharacterEllipsis"
+                TextOptions.TextFormattingMode="Display"
+                TextOptions.TextRenderingMode="ClearType" />
+        </DataTemplate>
+        <DataTemplate x:Key="FileExtensionCellTemplate" DataType="{x:Type models:FileSystemItem}">
+            <TextBlock
+                Padding="8,0"
+                Text="{Binding Extension, Mode=OneWay, FallbackValue=''}"
+                TextTrimming="CharacterEllipsis"
+                TextOptions.TextFormattingMode="Display"
+                TextOptions.TextRenderingMode="ClearType" />
+        </DataTemplate>
+        <DataTemplate x:Key="FileDateCellTemplate" DataType="{x:Type models:FileSystemItem}">
+            <TextBlock
+                Padding="8,0"
+                Text="{Binding FormattedDate, Mode=OneWay, FallbackValue=''}"
+                TextTrimming="CharacterEllipsis"
+                TextOptions.TextFormattingMode="Display"
+                TextOptions.TextRenderingMode="ClearType" />
+        </DataTemplate>
+        
+        <!--  共通のButtonスタイル（ホバー効果付き）  -->
+        <Style x:Key="HoverableButtonStyle" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <!--  最近使用したファイルのDataTemplate  -->
+        <DataTemplate x:Key="RecentFileTemplate" DataType="{x:Type models:FileSystemItem}">
+            <Border
+                Margin="0,0,0,4"
+                Padding="8,6"
+                Background="Transparent"
+                BorderThickness="0"
+                CornerRadius="4"
+                Cursor="Hand"
+                MouseLeftButtonDown="RecentFile_MouseLeftButtonDown"
+                Style="{StaticResource RecentFileBorderStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ui:SymbolIcon
+                        Grid.Column="0"
+                        Width="20"
+                        Height="20"
+                        Margin="0,0,12,0"
+                        VerticalAlignment="Center"
+                        Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay}" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name, Mode=OneWay}" />
+                        <TextBlock
+                            FontSize="11"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="{Binding FullPath, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+        
         <DataTemplate x:Key="ExplorerTabContentTemplate" DataType="{x:Type models:ExplorerTab}">
-            <Grid Margin="0">
+            <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -45,19 +275,8 @@
                                 Appearance="Secondary"
                                 Command="{Binding ViewModel.NavigateToPathCommand, Mode=OneWay}"
                                 CommandParameter=""
-                                ToolTip="ホーム">
-                                <ui:Button.Style>
-                                    <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </ui:Button.Style>
+                                ToolTip="ホーム"
+                                Style="{StaticResource HoverableButtonStyle}">
                                 <ui:Button.Icon>
                                     <ui:SymbolIcon Symbol="Home24" />
                                 </ui:Button.Icon>
@@ -96,19 +315,8 @@
                             Margin="0,0,4,0"
                             Appearance="Secondary"
                             Command="{Binding ViewModel.NavigateToParentCommand, Mode=OneWay}"
-                            ToolTip="戻る">
-                            <ui:Button.Style>
-                                <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ui:Button.Style>
+                            ToolTip="戻る"
+                            Style="{StaticResource HoverableButtonStyle}">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="ArrowLeft24" />
                             </ui:Button.Icon>
@@ -119,19 +327,8 @@
                             Margin="0,0,4,0"
                             Appearance="Secondary"
                             Command="{Binding ViewModel.RefreshCommand, Mode=OneWay}"
-                            ToolTip="更新">
-                            <ui:Button.Style>
-                                <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ui:Button.Style>
+                            ToolTip="更新"
+                            Style="{StaticResource HoverableButtonStyle}">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="ArrowClockwise24" />
                             </ui:Button.Icon>
@@ -142,19 +339,8 @@
                             Margin="0,0,4,0"
                             Appearance="Secondary"
                             Command="{Binding DataContext.ViewModel.AddCurrentPathToFavoritesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            ToolTip="お気に入りに追加">
-                            <ui:Button.Style>
-                                <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ui:Button.Style>
+                            ToolTip="お気に入りに追加"
+                            Style="{StaticResource HoverableButtonStyle}">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="Star24" />
                             </ui:Button.Icon>
@@ -164,19 +350,8 @@
                             Grid.Column="3"
                             Appearance="Secondary"
                             Command="{Binding DataContext.ViewModel.ToggleSplitPaneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}">
-                            <ui:Button.Style>
-                                <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ui:Button.Style>
+                            ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}"
+                            Style="{StaticResource HoverableButtonStyle}">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="SplitHorizontal24" />
                             </ui:Button.Icon>
@@ -205,45 +380,7 @@
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type models:FavoriteItem}">
-                                        <Border
-                                            x:Name="PinnedFolderBorder"
-                                            Margin="4"
-                                            Padding="12"
-                                            Background="{DynamicResource ControlFillColorDefaultBrush}"
-                                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="4"
-                                            Cursor="Hand"
-                                            MouseLeftButtonDown="PinnedFolder_MouseLeftButtonDown">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                            <Setter Property="BorderThickness" Value="2" />
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <StackPanel>
-                                                <ui:SymbolIcon
-                                                    Width="48"
-                                                    Height="48"
-                                                    Margin="0,0,0,8"
-                                                    HorizontalAlignment="Center"
-                                                    Symbol="{Binding Name, Mode=OneWay, Converter={StaticResource FolderIconConverter}}" />
-                                                <TextBlock
-                                                    HorizontalAlignment="Center"
-                                                    FontSize="12"
-                                                    Text="{Binding Name, Mode=OneWay}"
-                                                    TextAlignment="Center"
-                                                    TextTrimming="CharacterEllipsis"
-                                                    TextWrapping="Wrap" />
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
+                                    <StaticResource ResourceKey="PinnedFolderTemplate" />
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </StackPanel>
@@ -262,64 +399,7 @@
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type models:DriveInfoModel}">
-                                        <Border
-                                            Margin="0,0,0,8"
-                                            Padding="12"
-                                            Background="{DynamicResource ControlFillColorDefaultBrush}"
-                                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="4"
-                                            Cursor="Hand"
-                                            MouseLeftButtonDown="Drive_MouseLeftButtonDown">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                            <Setter Property="BorderThickness" Value="2" />
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock
-                                                    FontFamily="Segoe Fluent Icons"
-                                                    FontSize="32"
-                                                    Width="32"
-                                                    Height="32"
-                                                    Margin="0,0,10,0"
-                                                    VerticalAlignment="Center"
-                                                    HorizontalAlignment="Center"
-                                                    Foreground="{DynamicResource IconBrush}"
-                                                    Text="&#xEDA2;" />
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <TextBlock FontWeight="SemiBold" Text="{Binding Name, Mode=OneWay}" />
-                                                    <TextBlock
-                                                        FontSize="12"
-                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                        Text="{Binding Path, Mode=OneWay}" />
-                                                    <ProgressBar
-                                                        Height="4"
-                                                        Margin="0,4,0,0"
-                                                        Maximum="1"
-                                                        Value="{Binding UsagePercentage, Mode=OneWay}" />
-                                                    <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                                                        <Run Text="空き領域 " />
-                                                        <Run Text="{Binding FormattedFreeSpace, Mode=OneWay}" />
-                                                        <Run Text="/" />
-                                                        <Run Text="{Binding FormattedTotalSize, Mode=OneWay}" />
-                                                    </TextBlock>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
+                                    <StaticResource ResourceKey="DriveTemplate" />
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </StackPanel>
@@ -358,50 +438,7 @@
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                        <Border
-                                            Margin="0,0,0,4"
-                                            Padding="8,6"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            CornerRadius="4"
-                                            Cursor="Hand"
-                                            MouseLeftButtonDown="RecentFile_MouseLeftButtonDown">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                            <Setter Property="BorderThickness" Value="1" />
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <ui:SymbolIcon
-                                                    Grid.Column="0"
-                                                    Width="20"
-                                                    Height="20"
-                                                    Margin="0,0,12,0"
-                                                    VerticalAlignment="Center"
-                                                    Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay}" />
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name, Mode=OneWay}" />
-                                                    <TextBlock
-                                                        FontSize="11"
-                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                        Text="{Binding FullPath, Mode=OneWay}"
-                                                        TextTrimming="CharacterEllipsis" />
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
+                                    <StaticResource ResourceKey="RecentFileTemplate" />
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </StackPanel>
@@ -422,103 +459,29 @@
                     DragOver="ListView_DragOver"
                     Drop="ListView_Drop"
                     AllowDrop="True"
+                    VirtualizingStackPanel.IsVirtualizing="True"
+                    VirtualizingStackPanel.VirtualizationMode="Recycling"
+                    VirtualizingStackPanel.CacheLength="0,1000"
                     ScrollViewer.CanContentScroll="False"
                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                    SelectedItem="{Binding ViewModel.SelectedItem, Mode=TwoWay}"
+                    SelectedItem="{Binding ViewModel.SelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                     SelectionMode="Single"
+                    UseLayoutRounding="True"
+                    RenderOptions.ClearTypeHint="Enabled"
                     Visibility="{Binding ViewModel.IsHomePage, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                     <ListView.Resources>
-                        <Style TargetType="GridViewColumnHeader">
-                            <Setter Property="Padding" Value="8,6" />
-                            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
-                            <Setter Property="BorderThickness" Value="0,0,1,1" />
-                            <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="HorizontalContentAlignment" Value="Left" />
-                        </Style>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="Padding" Value="0" />
-                            <Setter Property="MinHeight" Value="32" />
-                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
-                            <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
+                        <Style TargetType="GridViewColumnHeader" BasedOn="{StaticResource FileListViewGridViewColumnHeaderStyle}" />
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource FileListViewItemStyle}">
                             <EventSetter Event="MouseRightButtonUp" Handler="ListViewItem_MouseRightButtonUp" />
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListViewItem">
-                                        <Border
-                                            x:Name="Border"
-                                            Background="Transparent"
-                                            BorderThickness="0">
-                                            <GridViewRowPresenter Margin="8,4" Content="{TemplateBinding Content}" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
                         </Style>
                     </ListView.Resources>
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Width="350" Header="名前">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                                            <ui:SymbolIcon
-                                                Width="20"
-                                                Height="20"
-                                                Margin="0,0,12,0"
-                                                VerticalAlignment="Center"
-                                                Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay}" />
-                                            <TextBlock
-                                                VerticalAlignment="Center"
-                                                Text="{Binding Name, Mode=OneWay}"
-                                                TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Width="120" Header="サイズ">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                        <TextBlock
-                                            Padding="8,0"
-                                            HorizontalAlignment="Right"
-                                            VerticalAlignment="Center"
-                                            Text="{Binding FormattedSize, Mode=OneWay}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Width="180" Header="種類">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                        <TextBlock
-                                            Padding="8,0"
-                                            VerticalAlignment="Center"
-                                            Text="{Binding Extension, Mode=OneWay}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Width="200" Header="更新日時">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                        <TextBlock
-                                            Padding="8,0"
-                                            VerticalAlignment="Center"
-                                            Text="{Binding FormattedDate, Mode=OneWay}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
+                            <GridViewColumn Width="350" Header="名前" CellTemplate="{StaticResource FileNameCellTemplate}" />
+                            <GridViewColumn Width="120" Header="サイズ" CellTemplate="{StaticResource FileSizeCellTemplate}" />
+                            <GridViewColumn Width="180" Header="種類" CellTemplate="{StaticResource FileExtensionCellTemplate}" />
+                            <GridViewColumn Width="200" Header="更新日時" CellTemplate="{StaticResource FileDateCellTemplate}" />
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -1146,19 +1109,8 @@
                                     Margin="0,0,4,0"
                                     Appearance="Secondary"
                                     Command="{Binding ViewModel.NavigateToParentCommand, Mode=OneWay}"
-                                    ToolTip="戻る">
-                                    <ui:Button.Style>
-                                        <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </ui:Button.Style>
+                                    ToolTip="戻る"
+                                    Style="{StaticResource HoverableButtonStyle}">
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="ArrowLeft24" />
                                     </ui:Button.Icon>
@@ -1169,19 +1121,8 @@
                                     Margin="0,0,4,0"
                                     Appearance="Secondary"
                                     Command="{Binding ViewModel.RefreshCommand, Mode=OneWay}"
-                                    ToolTip="更新">
-                                    <ui:Button.Style>
-                                        <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </ui:Button.Style>
+                                    ToolTip="更新"
+                                    Style="{StaticResource HoverableButtonStyle}">
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="ArrowClockwise24" />
                                     </ui:Button.Icon>
@@ -1192,19 +1133,8 @@
                                     Margin="0,0,4,0"
                                     Appearance="Secondary"
                                     Command="{Binding DataContext.ViewModel.AddCurrentPathToFavoritesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    ToolTip="お気に入りに追加">
-                                    <ui:Button.Style>
-                                        <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </ui:Button.Style>
+                                    ToolTip="お気に入りに追加"
+                                    Style="{StaticResource HoverableButtonStyle}">
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="Star24" />
                                     </ui:Button.Icon>
@@ -1214,19 +1144,8 @@
                                     Grid.Column="3"
                                     Appearance="Secondary"
                                     Command="{Binding DataContext.ViewModel.ToggleSplitPaneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}">
-                                    <ui:Button.Style>
-                                        <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </ui:Button.Style>
+                                    ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}"
+                                    Style="{StaticResource HoverableButtonStyle}">
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="SplitHorizontal24" />
                                     </ui:Button.Icon>
@@ -1255,45 +1174,7 @@
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type models:FavoriteItem}">
-                                                <Border
-                                                    x:Name="PinnedFolderBorder"
-                                                    Margin="4"
-                                                    Padding="12"
-                                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
-                                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="4"
-                                                    Cursor="Hand"
-                                                    MouseLeftButtonDown="PinnedFolder_MouseLeftButtonDown">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                                    <Setter Property="BorderThickness" Value="2" />
-                                                                </Trigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <StackPanel>
-                                                        <ui:SymbolIcon
-                                                            Width="48"
-                                                            Height="48"
-                                                            Margin="0,0,0,8"
-                                                            HorizontalAlignment="Center"
-                                                            Symbol="{Binding Name, Mode=OneWay, Converter={StaticResource FolderIconConverter}}" />
-                                                        <TextBlock
-                                                            HorizontalAlignment="Center"
-                                                            FontSize="12"
-                                                            Text="{Binding Name, Mode=OneWay}"
-                                                            TextAlignment="Center"
-                                                            TextTrimming="CharacterEllipsis"
-                                                            TextWrapping="Wrap" />
-                                                    </StackPanel>
-                                                </Border>
-                                            </DataTemplate>
+                                            <StaticResource ResourceKey="PinnedFolderTemplate" />
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
@@ -1312,64 +1193,7 @@
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type models:DriveInfoModel}">
-                                                <Border
-                                                    Margin="0,0,0,8"
-                                                    Padding="12"
-                                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
-                                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="4"
-                                                    Cursor="Hand"
-                                                    MouseLeftButtonDown="Drive_MouseLeftButtonDown">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                                    <Setter Property="BorderThickness" Value="2" />
-                                                                </Trigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock
-                                                            FontFamily="Segoe Fluent Icons"
-                                                            FontSize="32"
-                                                            Width="32"
-                                                            Height="32"
-                                                            Margin="0,0,10,0"
-                                                            VerticalAlignment="Center"
-                                                            HorizontalAlignment="Center"
-                                                            Foreground="{DynamicResource IconBrush}"
-                                                            Text="&#xEDA2;" />
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                            <TextBlock FontWeight="SemiBold" Text="{Binding Name, Mode=OneWay}" />
-                                                            <TextBlock
-                                                                FontSize="12"
-                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                                Text="{Binding Path, Mode=OneWay}" />
-                                                            <ProgressBar
-                                                                Height="4"
-                                                                Margin="0,4,0,0"
-                                                                Maximum="1"
-                                                                Value="{Binding UsagePercentage, Mode=OneWay}" />
-                                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                                                                <Run Text="空き領域 " />
-                                                                <Run Text="{Binding FormattedFreeSpace, Mode=OneWay}" />
-                                                                <Run Text="/" />
-                                                                <Run Text="{Binding FormattedTotalSize, Mode=OneWay}" />
-                                                            </TextBlock>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
+                                            <StaticResource ResourceKey="DriveTemplate" />
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
@@ -1408,50 +1232,7 @@
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                                <Border
-                                                    Margin="0,0,0,4"
-                                                    Padding="8,6"
-                                                    Background="Transparent"
-                                                    BorderThickness="0"
-                                                    CornerRadius="4"
-                                                    Cursor="Hand"
-                                                    MouseLeftButtonDown="RecentFile_MouseLeftButtonDown">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                                    <Setter Property="BorderThickness" Value="1" />
-                                                                </Trigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <ui:SymbolIcon
-                                                            Grid.Column="0"
-                                                            Width="20"
-                                                            Height="20"
-                                                            Margin="0,0,12,0"
-                                                            VerticalAlignment="Center"
-                                                            Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay}" />
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Name, Mode=OneWay}" />
-                                                            <TextBlock
-                                                                FontSize="11"
-                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                                Text="{Binding FullPath, Mode=OneWay}"
-                                                                TextTrimming="CharacterEllipsis" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
+                                            <StaticResource ResourceKey="RecentFileTemplate" />
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
@@ -1471,102 +1252,30 @@
                             DragOver="ListView_DragOver"
                             Drop="ListView_Drop"
                             AllowDrop="True"
+                            VirtualizingStackPanel.IsVirtualizing="True"
+                            VirtualizingStackPanel.VirtualizationMode="Recycling"
+                            VirtualizingStackPanel.CacheLength="0,1000"
                             ScrollViewer.CanContentScroll="False"
                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                            SelectedItem="{Binding ViewModel.SelectedItem, Mode=TwoWay}"
+                            SelectedItem="{Binding ViewModel.SelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                             SelectionMode="Single"
+                            UseLayoutRounding="True"
+                            RenderOptions.ClearTypeHint="Enabled"
                             Visibility="{Binding ViewModel.IsHomePage, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                             <ListView.Resources>
-                                <Style TargetType="GridViewColumnHeader">
-                                    <Setter Property="Padding" Value="8,6" />
-                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                    <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
-                                    <Setter Property="BorderThickness" Value="0,0,1,1" />
-                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                    <Setter Property="HorizontalContentAlignment" Value="Left" />
-                                </Style>
-                                <Style TargetType="ListViewItem">
-                                    <Setter Property="Padding" Value="0" />
-                                    <Setter Property="MinHeight" Value="32" />
+                                <Style TargetType="GridViewColumnHeader" BasedOn="{StaticResource FileListViewGridViewColumnHeaderStyle}" />
+                                <Style TargetType="ListViewItem" BasedOn="{StaticResource FileListViewItemStyle}">
                                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
                                     <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="ListViewItem">
-                                                <Border
-                                                    x:Name="Border"
-                                                    Background="Transparent"
-                                                    BorderThickness="0">
-                                                    <GridViewRowPresenter Margin="8,4" Content="{TemplateBinding Content}" />
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsSelected" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
                                 </Style>
                             </ListView.Resources>
                             <ListView.View>
                                 <GridView>
-                                    <GridViewColumn Width="350" Header="名前">
-                                        <GridViewColumn.CellTemplate>
-                                            <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                                                    <ui:SymbolIcon
-                                                        Width="20"
-                                                        Height="20"
-                                                        Margin="0,0,12,0"
-                                                        VerticalAlignment="Center"
-                                                        Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay}" />
-                                                    <TextBlock
-                                                        VerticalAlignment="Center"
-                                                        Text="{Binding Name, Mode=OneWay}"
-                                                        TextTrimming="CharacterEllipsis" />
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </GridViewColumn.CellTemplate>
-                                    </GridViewColumn>
-                                    <GridViewColumn Width="120" Header="サイズ">
-                                        <GridViewColumn.CellTemplate>
-                                            <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                                <TextBlock
-                                                    Padding="8,0"
-                                                    HorizontalAlignment="Right"
-                                                    VerticalAlignment="Center"
-                                                    Text="{Binding FormattedSize, Mode=OneWay}"
-                                                    TextTrimming="CharacterEllipsis" />
-                                            </DataTemplate>
-                                        </GridViewColumn.CellTemplate>
-                                    </GridViewColumn>
-                                    <GridViewColumn Width="180" Header="種類">
-                                        <GridViewColumn.CellTemplate>
-                                            <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                                <TextBlock
-                                                    Padding="8,0"
-                                                    VerticalAlignment="Center"
-                                                    Text="{Binding Extension, Mode=OneWay}"
-                                                    TextTrimming="CharacterEllipsis" />
-                                            </DataTemplate>
-                                        </GridViewColumn.CellTemplate>
-                                    </GridViewColumn>
-                                    <GridViewColumn Width="200" Header="更新日時">
-                                        <GridViewColumn.CellTemplate>
-                                            <DataTemplate DataType="{x:Type models:FileSystemItem}">
-                                                <TextBlock
-                                                    Padding="8,0"
-                                                    VerticalAlignment="Center"
-                                                    Text="{Binding FormattedDate, Mode=OneWay}"
-                                                    TextTrimming="CharacterEllipsis" />
-                                            </DataTemplate>
-                                        </GridViewColumn.CellTemplate>
-                                    </GridViewColumn>
+                                    <GridViewColumn Width="350" Header="名前" CellTemplate="{StaticResource FileNameCellTemplate}" />
+                                    <GridViewColumn Width="120" Header="サイズ" CellTemplate="{StaticResource FileSizeCellTemplate}" />
+                                    <GridViewColumn Width="180" Header="種類" CellTemplate="{StaticResource FileExtensionCellTemplate}" />
+                                    <GridViewColumn Width="200" Header="更新日時" CellTemplate="{StaticResource FileDateCellTemplate}" />
                                 </GridView>
                             </ListView.View>
                         </ListView>
