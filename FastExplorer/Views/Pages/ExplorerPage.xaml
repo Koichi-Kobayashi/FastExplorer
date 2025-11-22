@@ -605,7 +605,7 @@
                         <Setter Property="Padding" Value="12,8" />
                         <Setter Property="Margin" Value="2,0,0,0" />
                         <Setter Property="MinHeight" Value="36" />
-                        <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                        <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
                         <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
                         <Setter Property="BorderThickness" Value="1,1,1,0" />
                         <Setter Property="Template">
@@ -625,8 +625,8 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource ControlFillColorDefaultBrush}" />
                                             <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,2" />
                                         </Trigger>
                                         <Trigger Property="IsMouseOver" Value="True">
@@ -637,7 +637,7 @@
                                                 <Condition Property="IsSelected" Value="True" />
                                                 <Condition Property="IsMouseOver" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorSecondaryBrush}" />
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
                                         </MultiTrigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -782,7 +782,7 @@
                         <Setter Property="Padding" Value="12,8" />
                         <Setter Property="Margin" Value="2,0,0,0" />
                         <Setter Property="MinHeight" Value="36" />
-                        <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                        <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
                         <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
                         <Setter Property="BorderThickness" Value="1,1,1,0" />
                         <Setter Property="Template">
@@ -802,8 +802,8 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource ControlFillColorDefaultBrush}" />
                                             <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,2" />
                                         </Trigger>
                                         <Trigger Property="IsMouseOver" Value="True">
@@ -814,7 +814,7 @@
                                                 <Condition Property="IsSelected" Value="True" />
                                                 <Condition Property="IsMouseOver" Value="True" />
                                             </MultiTrigger.Conditions>
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorSecondaryBrush}" />
+                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
                                         </MultiTrigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
