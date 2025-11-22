@@ -89,11 +89,7 @@ namespace FastExplorer.Views.Windows
                 // string.IsNullOrEmptyよりLength > 0の方がわずかに高速（nullチェックは既に含まれている）
                 if (themeColorCode != null && themeColorCode.Length != 0)
                 {
-                    // リソースを更新（App.ApplyThemeColorFromSettingsを呼び出す）
-                    App.ApplyThemeColorFromSettings(settings);
-                    
-                    // すべての色をリソース更新と同時に設定（ステータスバーと同じタイミングで色が付くようにする）
-                    // 色計算を先に実行
+                    // 色計算を先に実行（リソース更新前に計算することで、リソース更新と同時に色を適用できる）
                     var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
                     var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
                     var secondaryColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
@@ -102,7 +98,10 @@ namespace FastExplorer.Views.Windows
                     var statusBarTextColor = luminance > 0.5 ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
                     var statusBarTextBrush = new System.Windows.Media.SolidColorBrush(statusBarTextColor);
                     
-                    // すべての色を同じタイミングで設定（リソース更新直後）
+                    // リソースを更新（App.ApplyThemeColorFromSettingsを呼び出す）
+                    App.ApplyThemeColorFromSettings(settings);
+                    
+                    // すべての色を同じタイミングで設定（リソース更新直後、計算済みの色を使用）
                     Background = mainBrush;
                     if (this is Wpf.Ui.Controls.FluentWindow fluentWindow)
                     {
@@ -142,7 +141,7 @@ namespace FastExplorer.Views.Windows
                 if (Visibility == Visibility.Hidden)
                 {
                     Visibility = Visibility.Visible;
-                    ShowInTaskbar = true;
+                    // ShowInTaskbarは既にコンストラクタで設定済み
                 }
                 
                 // SystemThemeWatcherを遅延実行（起動を最速化）

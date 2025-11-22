@@ -231,24 +231,11 @@ namespace FastExplorer
                     var secondaryColor = (Color)ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
                     var secondaryBrush = new SolidColorBrush(secondaryColor);
 
-                    // リソースを更新
-                    if (mainDictionary.Contains("ApplicationBackgroundBrush"))
-                    {
-                        mainDictionary.Remove("ApplicationBackgroundBrush");
-                    }
+                    // リソースを更新（高速化：Contains/Removeを削除して直接インデクサーで上書き）
                     mainDictionary["ApplicationBackgroundBrush"] = mainBrush;
-
-                    if (mainDictionary.Contains("TabAndNavigationBackgroundBrush"))
-                    {
-                        mainDictionary.Remove("TabAndNavigationBackgroundBrush");
-                    }
                     mainDictionary["TabAndNavigationBackgroundBrush"] = secondaryBrush;
 
                     // アクセントカラー（タブとステータスバー用）を更新
-                    if (mainDictionary.Contains("AccentFillColorDefaultBrush"))
-                    {
-                        mainDictionary.Remove("AccentFillColorDefaultBrush");
-                    }
                     mainDictionary["AccentFillColorDefaultBrush"] = mainBrush;
 
                     // アクセントカラー（セカンダリ、ホバー時など）を更新
@@ -257,17 +244,9 @@ namespace FastExplorer
                         (byte)Math.Max(0, mainColor.G - 20),
                         (byte)Math.Max(0, mainColor.B - 20));
                     var accentSecondaryBrush = new SolidColorBrush(accentSecondaryColor);
-                    if (mainDictionary.Contains("AccentFillColorSecondaryBrush"))
-                    {
-                        mainDictionary.Remove("AccentFillColorSecondaryBrush");
-                    }
                     mainDictionary["AccentFillColorSecondaryBrush"] = accentSecondaryBrush;
 
                     // コントロールの背景色（タブの非選択時など）を更新
-                    if (mainDictionary.Contains("ControlFillColorDefaultBrush"))
-                    {
-                        mainDictionary.Remove("ControlFillColorDefaultBrush");
-                    }
                     mainDictionary["ControlFillColorDefaultBrush"] = secondaryBrush;
 
                     // コントロールの背景色（セカンダリ、ホバー時など）を更新
@@ -276,20 +255,12 @@ namespace FastExplorer
                         (byte)Math.Min(255, secondaryColor.G + 10),
                         (byte)Math.Min(255, secondaryColor.B + 10));
                     var controlSecondaryBrush = new SolidColorBrush(controlSecondaryColor);
-                    if (mainDictionary.Contains("ControlFillColorSecondaryBrush"))
-                    {
-                        mainDictionary.Remove("ControlFillColorSecondaryBrush");
-                    }
                     mainDictionary["ControlFillColorSecondaryBrush"] = controlSecondaryBrush;
 
                     // ステータスバーの文字色を背景色に応じて設定
                     var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
                     var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;
                     var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
-                    if (mainDictionary.Contains("StatusBarTextBrush"))
-                    {
-                        mainDictionary.Remove("StatusBarTextBrush");
-                    }
                     mainDictionary["StatusBarTextBrush"] = statusBarTextBrush;
 
                     // 起動時はウィンドウがまだ作成されていない可能性があるため、
