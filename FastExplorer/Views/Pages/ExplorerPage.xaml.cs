@@ -150,10 +150,44 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">キーイベント引数</param>
         private void ListView_KeyDown(object sender, KeyEventArgs e)
         {
-            var activeTab = GetActiveTab();
-            if (e.Key == Key.Back && activeTab != null)
+            if (e.Key != Key.Back)
+                return;
+
+            var listView = sender as System.Windows.Controls.ListView;
+            if (listView == null)
+                return;
+
+            Models.ExplorerTab? targetTab = null;
+            
+            if (ViewModel.IsSplitPaneEnabled)
             {
-                activeTab.ViewModel.NavigateToParentCommand.Execute(null);
+                // 分割ペインモードの場合、フォーカスがあるListViewがどのペインに属しているかを判定
+                var pane = GetPaneForElement(listView);
+                if (pane == 0)
+                {
+                    // 左ペイン
+                    targetTab = ViewModel.SelectedLeftPaneTab;
+                }
+                else if (pane == 2)
+                {
+                    // 右ペイン
+                    targetTab = ViewModel.SelectedRightPaneTab;
+                }
+                else
+                {
+                    // 判定できない場合は、GetActiveTab()を使用
+                    targetTab = GetActiveTab();
+                }
+            }
+            else
+            {
+                // 通常モード
+                targetTab = ViewModel.SelectedTab;
+            }
+
+            if (targetTab != null)
+            {
+                targetTab.ViewModel.NavigateToParentCommand.Execute(null);
                 e.Handled = true;
             }
         }
@@ -165,20 +199,51 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void ListView_MouseButtonDown(object sender, MouseButtonEventArgs e)
         {
-            var activeTab = GetActiveTab();
-            if (activeTab == null)
+            var listView = sender as System.Windows.Controls.ListView;
+            if (listView == null)
+                return;
+
+            Models.ExplorerTab? targetTab = null;
+            
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                // 分割ペインモードの場合、クリックされたListViewがどのペインに属しているかを判定
+                var pane = GetPaneForElement(listView);
+                if (pane == 0)
+                {
+                    // 左ペイン
+                    targetTab = ViewModel.SelectedLeftPaneTab;
+                }
+                else if (pane == 2)
+                {
+                    // 右ペイン
+                    targetTab = ViewModel.SelectedRightPaneTab;
+                }
+                else
+                {
+                    // 判定できない場合は、GetActiveTab()を使用
+                    targetTab = GetActiveTab();
+                }
+            }
+            else
+            {
+                // 通常モード
+                targetTab = ViewModel.SelectedTab;
+            }
+
+            if (targetTab == null)
                 return;
 
             // マウスのバックボタン（XButton1）が押された場合
             if (e.ChangedButton == MouseButton.XButton1)
             {
-                activeTab.ViewModel.NavigateToParentCommand.Execute(null);
+                targetTab.ViewModel.NavigateToParentCommand.Execute(null);
                 e.Handled = true;
             }
             // マウスの進むボタン（XButton2）が押された場合
             else if (e.ChangedButton == MouseButton.XButton2)
             {
-                activeTab.ViewModel.NavigateForwardCommand.Execute(null);
+                targetTab.ViewModel.NavigateForwardCommand.Execute(null);
                 e.Handled = true;
             }
         }
