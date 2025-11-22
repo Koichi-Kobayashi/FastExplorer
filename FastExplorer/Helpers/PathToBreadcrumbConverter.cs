@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Windows.Data;
+using Cysharp.Text;
 
 namespace FastExplorer.Helpers
 {
@@ -33,24 +34,50 @@ namespace FastExplorer.Helpers
                     {
                         // ルートがない場合は、パスを分割して処理
                         var parts = normalizedPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-                        return string.Join(" > ", parts);
+                        if (parts.Length == 0)
+                            return string.Empty;
+                        if (parts.Length == 1)
+                            return parts[0];
+                        
+                        // 文字列結合を最適化（ZString.Joinを使用）
+                        return ZString.Join(" > ", parts);
                     }
                     
                     // ルートを除いた部分を取得
                     var relativePath = normalizedPath.Substring(root.Length);
                     var parts2 = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
                     
-                    // ルートと各セグメントを結合
-                    var breadcrumbParts = new List<string> { root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) };
-                    breadcrumbParts.AddRange(parts2);
+                    // ルートと各セグメントを結合（StringBuilderを使用してメモリ割り当てを削減）
+                    var rootTrimmed = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    if (parts2.Length == 0)
+                        return rootTrimmed;
                     
-                    return string.Join(" > ", breadcrumbParts);
+                    // 文字列結合を最適化（ZString.Joinを使用）
+                    using var sb2 = ZString.CreateStringBuilder();
+                    sb2.Append(rootTrimmed);
+                    if (parts2.Length > 0)
+                    {
+                        sb2.Append(" > ");
+                        sb2.Append(parts2[0]);
+                        for (int i = 1; i < parts2.Length; i++)
+                        {
+                            sb2.Append(" > ");
+                            sb2.Append(parts2[i]);
+                        }
+                    }
+                    return sb2.ToString();
                 }
                 catch
                 {
                     // パスが無効な場合は、パスを分割して処理
                     var parts = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-                    return parts.Length > 0 ? string.Join(" > ", parts) : string.Empty;
+                    if (parts.Length == 0)
+                        return string.Empty;
+                    if (parts.Length == 1)
+                        return parts[0];
+                    
+                    // 文字列結合を最適化（ZString.Joinを使用）
+                    return ZString.Join(" > ", parts);
                 }
             }
             return string.Empty;

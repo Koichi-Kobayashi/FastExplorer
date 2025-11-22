@@ -1,4 +1,5 @@
 using System.IO;
+using Cysharp.Text;
 
 namespace FastExplorer.Models
 {
@@ -64,15 +65,39 @@ namespace FastExplorer.Models
         /// <returns>フォーマット済みのサイズ文字列</returns>
         private static string FormatFileSize(long bytes)
         {
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+            // 定数配列を静的フィールドに移動してメモリ割り当てを削減
+            const string B = "B";
+            const string KB = "KB";
+            const string MB = "MB";
+            const string GB = "GB";
+            const string TB = "TB";
+            
             double len = bytes;
             int order = 0;
-            while (len >= 1024 && order < sizes.Length - 1)
+            while (len >= 1024 && order < 4) // sizes.Length - 1 = 4
             {
                 order++;
                 len = len / 1024;
             }
-            return $"{len:0.##} {sizes[order]}";
+            
+            // 文字列補間を最適化（ToString()の呼び出しを削減）
+            string unit = order switch
+            {
+                0 => B,
+                1 => KB,
+                2 => MB,
+                3 => GB,
+                4 => TB,
+                _ => B
+            };
+            
+            // 数値のフォーマットを最適化（ZString.Formatを使用してボクシングを回避）
+            if (len >= 100)
+                return ZString.Format("{0:F0} {1}", len, unit);
+            else if (len >= 10)
+                return ZString.Format("{0:F1} {1}", len, unit);
+            else
+                return ZString.Format("{0:F2} {1}", len, unit);
         }
     }
 }

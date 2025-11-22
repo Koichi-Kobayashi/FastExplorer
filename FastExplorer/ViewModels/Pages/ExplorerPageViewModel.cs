@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using Cysharp.Text;
 using FastExplorer.Models;
 using FastExplorer.Services;
 using Wpf.Ui.Abstractions.Controls;
@@ -559,10 +560,18 @@ namespace FastExplorer.ViewModels.Pages
                 var path = activeTab.ViewModel.CurrentPath;
                 var itemCount = activeTab.ViewModel.Items.Count;
                 
-                // 文字列補間を最適化（StringBuilderを使用するほどではないが、キャッシュ可能な場合はキャッシュ）
-                var statusText = string.IsNullOrEmpty(path)
-                    ? $"パス: ホーム {itemCount}個の項目"
-                    : $"パス: {path} {itemCount}個の項目";
+                // 文字列補間を最適化（ZString.Concat/Formatを使用してメモリ割り当てを削減）
+                string statusText;
+                if (string.IsNullOrEmpty(path))
+                {
+                    // ZString.Concatを使用（ボクシングを回避）
+                    statusText = ZString.Concat("パス: ホーム ", itemCount, "個の項目");
+                }
+                else
+                {
+                    // ZString.Concatを使用（ボクシングを回避）
+                    statusText = ZString.Concat("パス: ", path, " ", itemCount, "個の項目");
+                }
                 
                 // 値が変更された場合のみ更新（不要なPropertyChangedイベントを削減）
                 if (_cachedMainWindowViewModel.StatusBarText != statusText)

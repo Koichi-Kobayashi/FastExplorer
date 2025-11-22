@@ -41,7 +41,8 @@ namespace FastExplorer.ViewModels.Pages
         private void InitializeViewModel()
         {
             var random = new Random();
-            var colorCollection = new List<DataColor>();
+            // リストの容量を事前に確保（8192個の要素）
+            var colorCollection = new List<DataColor>(8192);
 
             for (int i = 0; i < 8192; i++)
                 colorCollection.Add(

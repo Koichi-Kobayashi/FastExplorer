@@ -18,7 +18,9 @@ namespace FastExplorer.Services
             if (!Directory.Exists(path))
                 return Enumerable.Empty<FileSystemItem>();
 
-            var items = new List<FileSystemItem>();
+            // リストの容量を事前に推定（平均的なディレクトリサイズを想定）
+            // 実際の数がわからないため、初期容量を32に設定（必要に応じて拡張される）
+            var items = new List<FileSystemItem>(32);
 
             try
             {
@@ -71,7 +73,23 @@ namespace FastExplorer.Services
             }
 
             // ディレクトリを先に、その後ファイルを名前順でソート
-            return items.OrderByDescending(x => x.IsDirectory).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase);
+            // ソートを最適化：リストが空の場合は早期リターン
+            if (items.Count == 0)
+                return Enumerable.Empty<FileSystemItem>();
+
+            // ソートを最適化：Array.Sortを使用してメモリ割り当てを削減
+            items.Sort((x, y) =>
+            {
+                // ディレクトリを先に
+                var dirCompare = y.IsDirectory.CompareTo(x.IsDirectory);
+                if (dirCompare != 0)
+                    return dirCompare;
+                
+                // 名前でソート（大文字小文字を区別しない）
+                return string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase);
+            });
+
+            return items;
         }
 
         /// <summary>

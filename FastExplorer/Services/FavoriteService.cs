@@ -33,7 +33,8 @@ namespace FastExplorer.Services
         /// <returns>お気に入りのコレクション</returns>
         public IEnumerable<FavoriteItem> GetFavorites()
         {
-            return _favorites.ToList();
+            // ToList()を削減：直接IEnumerableを返してメモリ割り当てを削減
+            return _favorites;
         }
 
         /// <summary>
@@ -46,9 +47,12 @@ namespace FastExplorer.Services
             if (string.IsNullOrWhiteSpace(path))
                 return;
 
-            // 既に同じパスが存在する場合は追加しない
-            if (_favorites.Any(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
-                return;
+            // 既に同じパスが存在する場合は追加しない（Any()を最適化）
+            foreach (var existingFavorite in _favorites)
+            {
+                if (existingFavorite.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
 
             var favorite = new FavoriteItem
             {

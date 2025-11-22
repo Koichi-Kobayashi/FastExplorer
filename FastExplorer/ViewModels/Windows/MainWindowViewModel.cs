@@ -89,41 +89,56 @@ namespace FastExplorer.ViewModels.Windows
                 };
             }
             
-            // 現在のお気に入りを取得
-            var currentFavorites = _favoriteService.GetFavorites().ToList();
+            // 現在のお気に入りを取得（一度だけToList()を呼び出す）
+            var currentFavorites = _favoriteService.GetFavorites();
+            var currentFavoritesList = currentFavorites as IList<FavoriteItem> ?? currentFavorites.ToList();
             
             // 既存のメニューアイテムからお気に入りアイテムを抽出（ホームアイテムを除く）
-            var existingFavoriteItems = MenuItems
-                .OfType<NavigationViewItem>()
-                .Where(item => item.Tag is string tag && tag != "HOME")
-                .ToList();
-            
-            // 既存のお気に入りパスを取得
-            var existingPaths = existingFavoriteItems
-                .Select(item => item.Tag as string)
-                .Where(path => !string.IsNullOrEmpty(path))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            
-            // 新しいお気に入りのパスを取得
-            var newPaths = currentFavorites
-                .Select(f => f.Path)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            
-            // 削除されたお気に入りをメニューから削除
-            var itemsToRemove = existingFavoriteItems
-                .Where(item => item.Tag is string tag && !newPaths.Contains(tag))
-                .ToList();
-            
-            foreach (var item in itemsToRemove)
+            // ToList()を削減：直接反復処理を使用、容量を事前に確保
+            var existingFavoriteItems = new List<NavigationViewItem>(MenuItems.Count);
+            foreach (var item in MenuItems)
             {
-                MenuItems.Remove(item);
+                if (item is NavigationViewItem navItem && navItem.Tag is string tag && tag != "HOME")
+                {
+                    existingFavoriteItems.Add(navItem);
+                }
             }
             
-            // 新しく追加されたお気に入りをメニューに追加
-            var itemsToAdd = currentFavorites
-                .Where(f => !existingPaths.Contains(f.Path))
-                .Select(CreateFavoriteNavigationItem)
-                .ToList();
+            // 既存のお気に入りパスを取得（HashSetを直接構築、容量を事前に確保）
+            var existingPaths = new HashSet<string>(existingFavoriteItems.Count, StringComparer.OrdinalIgnoreCase);
+            foreach (var item in existingFavoriteItems)
+            {
+                if (item.Tag is string path && !string.IsNullOrEmpty(path))
+                {
+                    existingPaths.Add(path);
+                }
+            }
+            
+            // 新しいお気に入りのパスを取得（HashSetを直接構築、容量を事前に確保）
+            var newPaths = new HashSet<string>(currentFavoritesList.Count, StringComparer.OrdinalIgnoreCase);
+            foreach (var favorite in currentFavoritesList)
+            {
+                newPaths.Add(favorite.Path);
+            }
+            
+            // 削除されたお気に入りをメニューから削除（ToList()を削減）
+            foreach (var item in existingFavoriteItems)
+            {
+                if (item.Tag is string tag && !newPaths.Contains(tag))
+                {
+                    MenuItems.Remove(item);
+                }
+            }
+            
+            // 新しく追加されたお気に入りをメニューに追加（ToList()を削減、容量を事前に確保）
+            var itemsToAdd = new List<NavigationViewItem>(currentFavoritesList.Count);
+            foreach (var favorite in currentFavoritesList)
+            {
+                if (!existingPaths.Contains(favorite.Path))
+                {
+                    itemsToAdd.Add(CreateFavoriteNavigationItem(favorite));
+                }
+            }
             
             // ホームアイテムが存在しない場合は先頭に追加
             if (!MenuItems.Contains(_homeMenuItem))
@@ -138,12 +153,18 @@ namespace FastExplorer.ViewModels.Windows
                 MenuItems.Insert(homeIndex + 1 + i, itemsToAdd[i]);
             }
             
-            // 既存アイテムの名前が変更された場合は更新
-            foreach (var favorite in currentFavorites)
+            // 既存アイテムの名前が変更された場合は更新（FirstOrDefault()を最適化）
+            foreach (var favorite in currentFavoritesList)
             {
-                var existingItem = existingFavoriteItems
-                    .FirstOrDefault(item => item.Tag is string tag && 
-                                          string.Equals(tag, favorite.Path, StringComparison.OrdinalIgnoreCase));
+                NavigationViewItem? existingItem = null;
+                foreach (var item in existingFavoriteItems)
+                {
+                    if (item.Tag is string tag && string.Equals(tag, favorite.Path, StringComparison.OrdinalIgnoreCase))
+                    {
+                        existingItem = item;
+                        break; // 見つかったら早期終了
+                    }
+                }
                 if (existingItem != null && existingItem.Content?.ToString() != favorite.Name)
                 {
                     existingItem.Content = favorite.Name;

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Cysharp.Text;
 using FastExplorer.Models;
 using FastExplorer.Services;
 using Wpf.Ui.Abstractions.Controls;
@@ -334,7 +335,23 @@ namespace FastExplorer.ViewModels.Pages
             {
                 try
                 {
-                    var fileItems = _fileSystemService.GetItems(path).ToList();
+                    // ToList()を削減：IEnumerableを直接使用してメモリ割り当てを削減
+                    var fileItems = _fileSystemService.GetItems(path);
+                    
+                    // キャンセルされた場合は処理を中断
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+                    
+                    // アイテム数をカウント（ToList()を避けるため、一度だけ反復）
+                    // リストの容量を事前に確保（平均的なディレクトリサイズを想定）
+                    var itemList = new List<FileSystemItem>(256);
+                    foreach (var item in fileItems)
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                            return;
+                        itemList.Add(item);
+                    }
+                    var itemCount = itemList.Count;
                     
                     // キャンセルされた場合は処理を中断
                     if (cancellationToken.IsCancellationRequested)
@@ -352,7 +369,7 @@ namespace FastExplorer.ViewModels.Pages
                         return;
 
                     // 大量のアイテムがある場合は、一度に追加してパフォーマンスを向上
-                    if (fileItems.Count <= batchSize)
+                    if (itemCount <= batchSize)
                     {
                         // 少量の場合は一度に追加
                         await dispatcher.InvokeAsync(() =>
@@ -360,7 +377,7 @@ namespace FastExplorer.ViewModels.Pages
                             if (!cancellationToken.IsCancellationRequested)
                             {
                                 // コレクション変更通知を抑制して高速化（ただし、WPFのバインディングには通知が必要）
-                                foreach (var item in fileItems)
+                                foreach (var item in itemList)
                                 {
                                     Items.Add(item);
                                 }
@@ -369,13 +386,18 @@ namespace FastExplorer.ViewModels.Pages
                     }
                     else
                     {
-                        // 大量の場合はバッチ更新
-                        for (int i = 0; i < fileItems.Count; i += batchSize)
+                        // 大量の場合はバッチ更新（Skip/Takeを削減して直接インデックスアクセス）
+                        for (int i = 0; i < itemList.Count; i += batchSize)
                         {
                             if (cancellationToken.IsCancellationRequested)
                                 return;
 
-                            var batch = fileItems.Skip(i).Take(batchSize).ToList();
+                            var endIndex = Math.Min(i + batchSize, itemList.Count);
+                            var batch = new List<FileSystemItem>(batchSize);
+                            for (int j = i; j < endIndex; j++)
+                            {
+                                batch.Add(itemList[j]);
+                            }
                             
                             await dispatcher.InvokeAsync(() =>
                             {
@@ -509,7 +531,8 @@ namespace FastExplorer.ViewModels.Pages
             try
             {
                 var drives = _fileSystemService.GetDrives();
-                var driveModels = new List<DriveInfoModel>();
+                // リストの容量を事前に確保（通常のドライブ数は10個以下）
+                var driveModels = new List<DriveInfoModel>(drives.Length);
 
                 // バックグラウンドスレッドでドライブ情報を取得
                 foreach (var drive in drives)
@@ -526,9 +549,11 @@ namespace FastExplorer.ViewModels.Pages
                                 // そのため、Task.Run内で実行してUIスレッドをブロックしない
                                 if (driveInfo.IsReady)
                                 {
+                                    // 文字列操作を最適化（ZString.Concatを使用してボクシングを回避）
+                                    var driveLetter = drive.TrimEnd('\\');
                                     var driveName = string.IsNullOrEmpty(driveInfo.VolumeLabel)
-                                        ? $"ローカルディスク ({drive.TrimEnd('\\')})"
-                                        : $"{driveInfo.VolumeLabel} ({drive.TrimEnd('\\')})";
+                                        ? ZString.Concat("ローカルディスク (", driveLetter, ")")
+                                        : ZString.Concat(driveInfo.VolumeLabel, " (", driveLetter, ")");
                                     
                                     return new DriveInfoModel
                                     {
