@@ -44,6 +44,11 @@ namespace FastExplorer.ViewModels.Pages
         
         // UpdateStatusBarデリゲートをキャッシュ（メモリ割り当てを削減）
         private System.Action? _cachedUpdateStatusBarAction;
+        
+        // ActivePaneの定数（パフォーマンス向上）
+        private const int ActivePaneLeft = 0;
+        private const int ActivePaneRight = 2;
+        private const int ActivePaneNone = -1;
 
         /// <summary>
         /// エクスプローラータブのコレクション
@@ -206,11 +211,11 @@ namespace FastExplorer.ViewModels.Pages
                 // 最初は左ペインをデフォルトにする
                 if (SelectedLeftPaneTab != null)
                 {
-                    ActivePane = 0; // 左ペインをデフォルト
+                    ActivePane = ActivePaneLeft; // 左ペインをデフォルト
                 }
                 else if (SelectedRightPaneTab != null)
                 {
-                    ActivePane = 2; // 左ペインが存在しない場合のみ右ペインをデフォルト
+                    ActivePane = ActivePaneRight; // 左ペインが存在しない場合のみ右ペインをデフォルト
                 }
             }
             else
@@ -315,11 +320,11 @@ namespace FastExplorer.ViewModels.Pages
                 // 起動時に分割ペインモードが有効な場合、ActivePaneを左ペインに設定
                 if (SelectedLeftPaneTab != null)
                 {
-                    ActivePane = 0; // 左ペインをデフォルト
+                    ActivePane = ActivePaneLeft; // 左ペインをデフォルト
                 }
                 else if (SelectedRightPaneTab != null)
                 {
-                    ActivePane = 2; // 左ペインが存在しない場合のみ右ペインをデフォルト
+                    ActivePane = ActivePaneRight; // 左ペインが存在しない場合のみ右ペインをデフォルト
                 }
             }
             else
@@ -625,13 +630,17 @@ namespace FastExplorer.ViewModels.Pages
             // タイマーが存在しない場合は作成
             if (_statusBarUpdateTimer == null)
             {
+                // タイマーのIntervalを定数化（メモリ割り当てを削減）
+                const int StatusBarUpdateIntervalMs = 100;
                 _statusBarUpdateTimer = new System.Windows.Threading.DispatcherTimer
                 {
-                    Interval = TimeSpan.FromMilliseconds(100) // 100ms間隔で更新
+                    Interval = TimeSpan.FromMilliseconds(StatusBarUpdateIntervalMs) // 100ms間隔で更新
                 };
-                _statusBarUpdateTimer.Tick += (s, e) =>
+                // Tickイベントハンドラーを最適化（タイマー参照をキャッシュ）
+                var timer = _statusBarUpdateTimer;
+                timer.Tick += (s, e) =>
                 {
-                    _statusBarUpdateTimer.Stop();
+                    timer.Stop();
                     _statusBarUpdatePending = false;
                     UpdateStatusBarInternal();
                 };
@@ -648,42 +657,48 @@ namespace FastExplorer.ViewModels.Pages
         private void UpdateStatusBarInternal()
         {
             // MainWindowViewModelをキャッシュから取得（なければ取得してキャッシュ）
-            if (_cachedMainWindowViewModel == null)
+            // nullチェックを最適化（パターンマッチング）
+            if (_cachedMainWindowViewModel is null)
             {
                 _cachedMainWindowViewModel = App.Services.GetService(MainWindowViewModelType) as ViewModels.Windows.MainWindowViewModel;
             }
             
-            if (_cachedMainWindowViewModel == null)
+            if (_cachedMainWindowViewModel is null)
                 return;
 
+            // プロパティアクセスを一度だけ取得してキャッシュ（パフォーマンス向上）
+            var isSplitPaneEnabled = IsSplitPaneEnabled;
             ExplorerTab? activeTab = null;
-            if (IsSplitPaneEnabled)
+            
+            if (isSplitPaneEnabled)
             {
                 // 分割ペインの場合は、フォーカスがある方のタブを表示
                 // ActivePaneプロパティを使用して、正しいペインのタブを取得
-                if (ActivePane == 0)
+                // switch式で高速化（条件分岐を最適化）
+                var activePane = ActivePane;
+                activeTab = activePane switch
                 {
-                    // 左ペイン
-                    activeTab = SelectedLeftPaneTab;
-                }
-                else if (ActivePane == 2)
+                    ActivePaneLeft => SelectedLeftPaneTab,
+                    ActivePaneRight => SelectedRightPaneTab,
+                    _ => null
+                };
+                
+                // ActivePaneが設定されていない場合は、選択されているタブを優先
+                if (activeTab == null)
                 {
-                    // 右ペイン
-                    activeTab = SelectedRightPaneTab;
-                }
-                else
-                {
-                    // ActivePaneが設定されていない場合は、選択されているタブを優先
                     // 両方選択されている場合は右ペインを優先、どちらか一方のみの場合はそのタブを使用
-                    activeTab = SelectedRightPaneTab ?? SelectedLeftPaneTab;
+                    var rightTab = SelectedRightPaneTab;
+                    var leftTab = SelectedLeftPaneTab;
+                    activeTab = rightTab ?? leftTab;
+                    
                     // ActivePaneが未設定の場合は、選択されているタブに基づいて設定
-                    if (activeTab == SelectedRightPaneTab)
+                    if (activeTab == rightTab)
                     {
-                        ActivePane = 2;
+                        ActivePane = ActivePaneRight;
                     }
-                    else if (activeTab == SelectedLeftPaneTab)
+                    else if (activeTab == leftTab)
                     {
-                        ActivePane = 0;
+                        ActivePane = ActivePaneLeft;
                     }
                 }
             }
@@ -692,13 +707,15 @@ namespace FastExplorer.ViewModels.Pages
                 activeTab = SelectedTab;
             }
 
-            if (activeTab != null)
+            // nullチェックを最適化（パターンマッチング）
+            if (activeTab is not null)
             {
                 // タブのタイトルも更新
                 UpdateTabTitle(activeTab);
             }
 
-            if (activeTab?.ViewModel != null)
+            // nullチェックを最適化（パターンマッチング）
+            if (activeTab?.ViewModel is not null)
             {
                 // ViewModelのプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
                 var viewModel = activeTab.ViewModel;
@@ -706,20 +723,27 @@ namespace FastExplorer.ViewModels.Pages
                 var itemCount = viewModel.Items.Count;
                 
                 // 文字列補間を最適化（ZString.Concat/Formatを使用してメモリ割り当てを削減）
+                // 文字列リテラルを定数化（メモリ割り当てを削減）
+                const string PathPrefix = "パス: ";
+                const string HomeText = "ホーム ";
+                const string ItemSuffix = "個の項目";
+                
                 string statusText;
                 if (string.IsNullOrEmpty(path))
                 {
                     // ZString.Concatを使用（ボクシングを回避）
-                    statusText = ZString.Concat("パス: ホーム ", itemCount, "個の項目");
+                    statusText = ZString.Concat(PathPrefix, HomeText, itemCount, ItemSuffix);
                 }
                 else
                 {
                     // ZString.Concatを使用（ボクシングを回避）
-                    statusText = ZString.Concat("パス: ", path, " ", itemCount, "個の項目");
+                    statusText = ZString.Concat(PathPrefix, path, " ", itemCount, ItemSuffix);
                 }
                 
                 // 値が変更された場合のみ更新（不要なPropertyChangedイベントを削減）
-                if (_cachedMainWindowViewModel.StatusBarText != statusText)
+                // StatusBarTextプロパティを一度だけ取得（パフォーマンス向上）
+                var currentStatusText = _cachedMainWindowViewModel.StatusBarText;
+                if (currentStatusText != statusText)
                 {
                     _cachedMainWindowViewModel.StatusBarText = statusText;
                 }
