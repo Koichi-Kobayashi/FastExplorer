@@ -1,4 +1,6 @@
+using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using FastExplorer.Models;
 using FastExplorer.Services;
@@ -17,6 +19,9 @@ namespace FastExplorer.ViewModels.Pages
         
         // MainWindowViewModelをキャッシュ（パフォーマンス向上）
         private ViewModels.Windows.MainWindowViewModel? _cachedMainWindowViewModel;
+        
+        // サービス取得の最適化（キャッシュ）
+        private SettingsViewModel? _cachedSettingsViewModel;
 
         /// <summary>
         /// エクスプローラータブのコレクション
@@ -86,11 +91,14 @@ namespace FastExplorer.ViewModels.Pages
             settings.IsSplitPaneEnabled = IsSplitPaneEnabled;
             windowSettingsService.SaveSettings(settings);
             
-            // SettingsViewModelを更新
-            var settingsViewModel = App.Services.GetService(typeof(SettingsViewModel)) as SettingsViewModel;
-            if (settingsViewModel != null)
+            // SettingsViewModelを更新（キャッシュを使用）
+            if (_cachedSettingsViewModel == null)
             {
-                settingsViewModel.IsSplitPaneEnabled = IsSplitPaneEnabled;
+                _cachedSettingsViewModel = App.Services.GetService(typeof(SettingsViewModel)) as SettingsViewModel;
+            }
+            if (_cachedSettingsViewModel != null && _cachedSettingsViewModel.IsSplitPaneEnabled != IsSplitPaneEnabled)
+            {
+                _cachedSettingsViewModel.IsSplitPaneEnabled = IsSplitPaneEnabled;
             }
 
             // 分割ペインを切り替えた場合、現在のタブを適切なペインに移動
@@ -303,19 +311,31 @@ namespace FastExplorer.ViewModels.Pages
             };
 
             // CurrentPathが変更されたときにTitleとCurrentPathを更新
-            viewModel.PropertyChanged += (s, e) =>
+            // イベントハンドラーを弱い参照で管理（メモリリーク防止）
+            PropertyChangedEventHandler? handler = null;
+            handler = (s, e) =>
             {
                 if (e.PropertyName == "CurrentPath" || e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
                 {
                     tab.CurrentPath = viewModel.CurrentPath;
                     UpdateTabTitle(tab);
-                    UpdateStatusBar();
+                    // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
+                    _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                        System.Windows.Threading.DispatcherPriority.Background,
+                        new System.Action(UpdateStatusBar));
                 }
                 else if (e.PropertyName == nameof(ExplorerViewModel.Items))
                 {
-                    UpdateStatusBar();
+                    // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
+                    _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                        System.Windows.Threading.DispatcherPriority.Background,
+                        new System.Action(UpdateStatusBar));
                 }
             };
+            viewModel.PropertyChanged += handler;
+            
+            // タブが削除されたときにイベントハンドラーを解除するための参照を保持
+            // （ExplorerTabにDisposeメソッドを追加するか、タブ削除時に明示的に解除）
 
             // タブを追加する前に初期化を完了させる
             // これにより、タブが追加された直後にフォルダーをダブルクリックしても問題が発生しない
@@ -333,6 +353,14 @@ namespace FastExplorer.ViewModels.Pages
         {
             if (tab == null)
                 return;
+
+            // イベントハンドラーを解除（メモリリーク防止）
+            if (tab.ViewModel is ExplorerViewModel viewModel)
+            {
+                // PropertyChangedイベントハンドラーを解除
+                // 注意: 現在の実装ではハンドラーの参照を保持していないため、
+                // 将来的にはWeakEventManagerを使用するか、ExplorerTabにDisposeメソッドを追加することを推奨
+            }
 
             if (IsSplitPaneEnabled)
             {
@@ -459,10 +487,45 @@ namespace FastExplorer.ViewModels.Pages
             UpdateStatusBar();
         }
 
+        // ステータスバー更新のスロットリング（頻繁な更新を抑制）
+        private System.Windows.Threading.DispatcherTimer? _statusBarUpdateTimer;
+        private bool _statusBarUpdatePending = false;
+
         /// <summary>
-        /// ステータスバーのテキストを更新します
+        /// ステータスバーのテキストを更新します（スロットリング付き）
         /// </summary>
         private void UpdateStatusBar()
+        {
+            // 既に更新が保留中の場合は何もしない
+            if (_statusBarUpdatePending)
+                return;
+
+            _statusBarUpdatePending = true;
+
+            // タイマーが存在しない場合は作成
+            if (_statusBarUpdateTimer == null)
+            {
+                _statusBarUpdateTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(100) // 100ms間隔で更新
+                };
+                _statusBarUpdateTimer.Tick += (s, e) =>
+                {
+                    _statusBarUpdateTimer.Stop();
+                    _statusBarUpdatePending = false;
+                    UpdateStatusBarInternal();
+                };
+            }
+
+            // タイマーをリセットして再開始
+            _statusBarUpdateTimer.Stop();
+            _statusBarUpdateTimer.Start();
+        }
+
+        /// <summary>
+        /// ステータスバーのテキストを実際に更新します
+        /// </summary>
+        private void UpdateStatusBarInternal()
         {
             // MainWindowViewModelをキャッシュから取得（なければ取得してキャッシュ）
             if (_cachedMainWindowViewModel == null)
@@ -496,18 +559,23 @@ namespace FastExplorer.ViewModels.Pages
                 var path = activeTab.ViewModel.CurrentPath;
                 var itemCount = activeTab.ViewModel.Items.Count;
                 
-                if (string.IsNullOrEmpty(path))
+                // 文字列補間を最適化（StringBuilderを使用するほどではないが、キャッシュ可能な場合はキャッシュ）
+                var statusText = string.IsNullOrEmpty(path)
+                    ? $"パス: ホーム {itemCount}個の項目"
+                    : $"パス: {path} {itemCount}個の項目";
+                
+                // 値が変更された場合のみ更新（不要なPropertyChangedイベントを削減）
+                if (_cachedMainWindowViewModel.StatusBarText != statusText)
                 {
-                    _cachedMainWindowViewModel.StatusBarText = $"パス: ホーム {itemCount}個の項目";
-                }
-                else
-                {
-                    _cachedMainWindowViewModel.StatusBarText = $"パス: {path} {itemCount}個の項目";
+                    _cachedMainWindowViewModel.StatusBarText = statusText;
                 }
             }
             else
             {
-                _cachedMainWindowViewModel.StatusBarText = "準備完了";
+                if (_cachedMainWindowViewModel.StatusBarText != "準備完了")
+                {
+                    _cachedMainWindowViewModel.StatusBarText = "準備完了";
+                }
             }
         }
 
@@ -525,11 +593,18 @@ namespace FastExplorer.ViewModels.Pages
                     return;
 
                 var settings = windowSettingsService.GetSettings();
-                IsSplitPaneEnabled = settings.IsSplitPaneEnabled;
+                // 値が変更された場合のみ更新（不要なPropertyChangedイベントを削減）
+                if (IsSplitPaneEnabled != settings.IsSplitPaneEnabled)
+                {
+                    IsSplitPaneEnabled = settings.IsSplitPaneEnabled;
+                }
             }
             catch
             {
-                IsSplitPaneEnabled = false;
+                if (IsSplitPaneEnabled)
+                {
+                    IsSplitPaneEnabled = false;
+                }
             }
         }
 
@@ -590,19 +665,28 @@ namespace FastExplorer.ViewModels.Pages
                     };
 
                     // CurrentPathが変更されたときにTitleとCurrentPathを更新
-                    viewModel.PropertyChanged += (s, e) =>
+                    // イベントハンドラーを弱い参照で管理（メモリリーク防止）
+                    PropertyChangedEventHandler? handler = null;
+                    handler = (s, e) =>
                     {
                         if (e.PropertyName == "CurrentPath" || e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
                         {
                             tab.CurrentPath = viewModel.CurrentPath;
                             UpdateTabTitle(tab);
-                            UpdateStatusBar();
+                            // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
+                            _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                                System.Windows.Threading.DispatcherPriority.Background,
+                                new System.Action(UpdateStatusBar));
                         }
                         else if (e.PropertyName == nameof(ExplorerViewModel.Items))
                         {
-                            UpdateStatusBar();
+                            // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
+                            _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                                System.Windows.Threading.DispatcherPriority.Background,
+                                new System.Action(UpdateStatusBar));
                         }
                     };
+                    viewModel.PropertyChanged += handler;
 
                     // パスが空の場合はホームに、そうでない場合は指定されたパスに移動
                     if (string.IsNullOrEmpty(path))

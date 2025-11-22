@@ -23,6 +23,9 @@ namespace FastExplorer.ViewModels.Pages
         private bool _isNavigating = false;
         private readonly List<FileSystemItem> _recentFiles = new();
         private CancellationTokenSource? _navigationCancellationTokenSource;
+        
+        // 非同期処理の最適化（Dispatcherのキャッシュ）
+        private System.Windows.Threading.Dispatcher? _cachedDispatcher;
 
         /// <summary>
         /// 現在表示しているファイルシステムアイテムのコレクション
@@ -314,10 +317,17 @@ namespace FastExplorer.ViewModels.Pages
                 _forwardHistory.Clear();
             }
 
-            IsLoading = true;
-            CurrentPath = path;
+            // プロパティ変更を最適化（値が実際に変更された場合のみ通知）
+            if (CurrentPath != path)
+            {
+                CurrentPath = path;
+            }
+            if (IsHomePage)
+            {
+                IsHomePage = false;
+            }
             Items.Clear();
-            IsHomePage = false;
+            IsLoading = true;
 
             // 非同期でファイル一覧を読み込み（UIスレッドをブロックしない）
             _ = Task.Run(async () =>
@@ -330,29 +340,54 @@ namespace FastExplorer.ViewModels.Pages
                     if (cancellationToken.IsCancellationRequested)
                         return;
 
-                    // UIスレッドでバッチ更新（100件ずつ追加してUIの応答性を保つ）
-                    const int batchSize = 100;
-                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    // UIスレッドでバッチ更新（200件ずつ追加してUIの応答性を保ちつつ、更新回数を削減）
+                    const int batchSize = 200;
+                    // Dispatcherをキャッシュ（パフォーマンス向上）
+                    if (_cachedDispatcher == null)
+                    {
+                        _cachedDispatcher = System.Windows.Application.Current?.Dispatcher;
+                    }
+                    var dispatcher = _cachedDispatcher;
                     if (dispatcher == null)
                         return;
 
-                    for (int i = 0; i < fileItems.Count; i += batchSize)
+                    // 大量のアイテムがある場合は、一度に追加してパフォーマンスを向上
+                    if (fileItems.Count <= batchSize)
                     {
-                        if (cancellationToken.IsCancellationRequested)
-                            return;
-
-                        var batch = fileItems.Skip(i).Take(batchSize).ToList();
-                        
+                        // 少量の場合は一度に追加
                         await dispatcher.InvokeAsync(() =>
                         {
                             if (!cancellationToken.IsCancellationRequested)
                             {
-                                foreach (var item in batch)
+                                // コレクション変更通知を抑制して高速化（ただし、WPFのバインディングには通知が必要）
+                                foreach (var item in fileItems)
                                 {
                                     Items.Add(item);
                                 }
                             }
                         });
+                    }
+                    else
+                    {
+                        // 大量の場合はバッチ更新
+                        for (int i = 0; i < fileItems.Count; i += batchSize)
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                                return;
+
+                            var batch = fileItems.Skip(i).Take(batchSize).ToList();
+                            
+                            await dispatcher.InvokeAsync(() =>
+                            {
+                                if (!cancellationToken.IsCancellationRequested)
+                                {
+                                    foreach (var item in batch)
+                                    {
+                                        Items.Add(item);
+                                    }
+                                }
+                            }, System.Windows.Threading.DispatcherPriority.Background);
+                        }
                     }
                 }
                 catch (Exception)
@@ -363,12 +398,13 @@ namespace FastExplorer.ViewModels.Pages
                 {
                     if (!cancellationToken.IsCancellationRequested)
                     {
-                        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                        // Dispatcherをキャッシュから使用
+                        var dispatcher = _cachedDispatcher ?? System.Windows.Application.Current?.Dispatcher;
                         dispatcher?.Invoke(() =>
                         {
                             IsLoading = false;
                             _isNavigating = false;
-                        });
+                        }, System.Windows.Threading.DispatcherPriority.Normal);
                     }
                 }
             }, cancellationToken);
@@ -393,10 +429,17 @@ namespace FastExplorer.ViewModels.Pages
                 _forwardHistory.Clear();
             }
 
-            IsLoading = true;
-            CurrentPath = string.Empty;
+            // プロパティ変更を最適化（値が実際に変更された場合のみ通知）
+            if (CurrentPath != string.Empty)
+            {
+                CurrentPath = string.Empty;
+            }
+            if (!IsHomePage)
+            {
+                IsHomePage = true;
+            }
             Items.Clear();
-            IsHomePage = true;
+            IsLoading = true;
 
             // ピン留めフォルダーを読み込み（同期的、軽量）
             LoadPinnedFolders();
@@ -417,12 +460,13 @@ namespace FastExplorer.ViewModels.Pages
                 }
                 finally
                 {
-                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    // Dispatcherをキャッシュから使用
+                    var dispatcher = _cachedDispatcher ?? System.Windows.Application.Current?.Dispatcher;
                     dispatcher?.Invoke(() =>
                     {
                         IsLoading = false;
                         _isNavigating = false;
-                    });
+                    }, System.Windows.Threading.DispatcherPriority.Normal);
                 }
             });
         }
@@ -454,7 +498,8 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private async Task LoadDrivesAsync()
         {
-            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            // Dispatcherをキャッシュから使用
+            var dispatcher = _cachedDispatcher ?? System.Windows.Application.Current?.Dispatcher;
             if (dispatcher == null)
                 return;
 
