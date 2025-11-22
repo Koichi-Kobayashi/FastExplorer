@@ -29,6 +29,9 @@ namespace FastExplorer.ViewModels.Windows
         
         // ホームアイテムをキャッシュ（パフォーマンス向上）
         private NavigationViewItem? _homeMenuItem;
+        
+        // Application.Currentをキャッシュ（パフォーマンス向上）
+        private static System.Windows.Application? _cachedApplication;
 
         /// <summary>
         /// アプリケーションのタイトル
@@ -141,13 +144,15 @@ namespace FastExplorer.ViewModels.Windows
             }
             
             // ホームアイテムが存在しない場合は先頭に追加
-            if (!MenuItems.Contains(_homeMenuItem))
+            // Contains()とIndexOf()を1回の呼び出しに統合（パフォーマンス向上）
+            var homeIndex = MenuItems.IndexOf(_homeMenuItem);
+            if (homeIndex < 0)
             {
                 MenuItems.Insert(0, _homeMenuItem);
+                homeIndex = 0;
             }
             
             // 新しいお気に入りアイテムを追加（ホームアイテムの後）
-            var homeIndex = MenuItems.IndexOf(_homeMenuItem);
             for (int i = 0; i < itemsToAdd.Count; i++)
             {
                 MenuItems.Insert(homeIndex + 1 + i, itemsToAdd[i]);
@@ -227,7 +232,9 @@ namespace FastExplorer.ViewModels.Windows
                 
                 // ページが読み込まれるのを待ってからホームページを表示
                 // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
-                Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                // Application.Currentをキャッシュ（パフォーマンス向上）
+                var app = _cachedApplication ?? (_cachedApplication = System.Windows.Application.Current);
+                app?.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
                     if (_cachedExplorerPageViewModel == null)
@@ -258,7 +265,9 @@ namespace FastExplorer.ViewModels.Windows
                 // ページが読み込まれるのを待ってからパスを設定
                 // DispatcherPriority.Loadedを使用することで、レイアウトが完了してから実行される
                 var pathCopy = path; // クロージャで使用するため変数に保存
-                Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                // Application.Currentをキャッシュ（パフォーマンス向上）
+                var app = _cachedApplication ?? (_cachedApplication = System.Windows.Application.Current);
+                app?.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
                     if (_cachedExplorerPageViewModel == null)

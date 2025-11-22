@@ -27,6 +27,9 @@ namespace FastExplorer.ViewModels.Pages
         
         // 非同期処理の最適化（Dispatcherのキャッシュ）
         private System.Windows.Threading.Dispatcher? _cachedDispatcher;
+        
+        // 文字列定数（メモリ割り当てを削減）
+        private const string ShellPrefix = "shell:";
 
         /// <summary>
         /// 現在表示しているファイルシステムアイテムのコレクション
@@ -129,13 +132,7 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void NavigateToPath(string? path)
         {
-            if (string.IsNullOrEmpty(path))
-            {
-                NavigateToHome();
-                return;
-            }
-
-            // パスが空文字列の場合はホームページに戻る
+            // IsNullOrWhiteSpaceでIsNullOrEmptyもカバーされるため、1回のチェックで十分
             if (string.IsNullOrWhiteSpace(path))
             {
                 NavigateToHome();
@@ -145,7 +142,7 @@ namespace FastExplorer.ViewModels.Pages
             var trimmedPath = path.Trim();
 
             // shell:で始まる特殊なパス（ごみ箱、ネットワークなど）の処理
-            if (trimmedPath.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+            if (trimmedPath.StartsWith(ShellPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
@@ -609,8 +606,11 @@ namespace FastExplorer.ViewModels.Pages
             RecentFilesList.Clear();
             // 簡易実装：最近アクセスしたファイルを保持
             // 実際の実装では、Windowsのジャンプリストやファイルアクセス履歴を使用
-            foreach (var file in _recentFiles.Take(10))
+            // LINQのTake()を直接ループに置き換え（メモリ割り当てを削減）
+            var count = Math.Min(_recentFiles.Count, 10);
+            for (int i = 0; i < count; i++)
             {
+                var file = _recentFiles[i];
                 if (File.Exists(file.FullPath) || Directory.Exists(file.FullPath))
                 {
                     RecentFilesList.Add(file);
@@ -639,13 +639,22 @@ namespace FastExplorer.ViewModels.Pages
                 };
 
                 // 既に存在する場合は削除
-                _recentFiles.RemoveAll(f => f.FullPath.Equals(filePath, StringComparison.OrdinalIgnoreCase));
+                // RemoveAllのラムダ式を直接ループに置き換え（メモリ割り当てを削減）
+                for (int i = _recentFiles.Count - 1; i >= 0; i--)
+                {
+                    if (_recentFiles[i].FullPath.Equals(filePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _recentFiles.RemoveAt(i);
+                    }
+                }
                 // 先頭に追加
                 _recentFiles.Insert(0, item);
                 // 最大20件まで保持
-                if (_recentFiles.Count > 20)
+                // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                var recentFilesCount = _recentFiles.Count;
+                if (recentFilesCount > 20)
                 {
-                    _recentFiles.RemoveRange(20, _recentFiles.Count - 20);
+                    _recentFiles.RemoveRange(20, recentFilesCount - 20);
                 }
 
                 // ホームページ表示中の場合は更新

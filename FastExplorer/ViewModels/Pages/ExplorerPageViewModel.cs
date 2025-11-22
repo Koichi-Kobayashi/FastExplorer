@@ -23,6 +23,19 @@ namespace FastExplorer.ViewModels.Pages
         
         // サービス取得の最適化（キャッシュ）
         private SettingsViewModel? _cachedSettingsViewModel;
+        private WindowSettingsService? _cachedWindowSettingsService;
+        
+        // 文字列定数（メモリ割り当てを削減）
+        private const string HomeTitle = "ホーム";
+        private const string ReadyStatus = "準備完了";
+        
+        // Dispatcherをキャッシュ（パフォーマンス向上）
+        private System.Windows.Threading.Dispatcher? _cachedDispatcher;
+        
+        // 型をキャッシュ（パフォーマンス向上）
+        private static readonly Type WindowSettingsServiceType = typeof(WindowSettingsService);
+        private static readonly Type SettingsViewModelType = typeof(SettingsViewModel);
+        private static readonly Type MainWindowViewModelType = typeof(ViewModels.Windows.MainWindowViewModel);
 
         /// <summary>
         /// エクスプローラータブのコレクション
@@ -81,8 +94,9 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void ToggleSplitPane()
         {
+            // WindowSettingsServiceをキャッシュ（パフォーマンス向上）
             var windowSettingsService = _windowSettingsService ?? 
-                App.Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
+                (_cachedWindowSettingsService ??= App.Services.GetService(WindowSettingsServiceType) as WindowSettingsService);
             
             if (windowSettingsService == null)
                 return;
@@ -95,7 +109,7 @@ namespace FastExplorer.ViewModels.Pages
             // SettingsViewModelを更新（キャッシュを使用）
             if (_cachedSettingsViewModel == null)
             {
-                _cachedSettingsViewModel = App.Services.GetService(typeof(SettingsViewModel)) as SettingsViewModel;
+                _cachedSettingsViewModel = App.Services.GetService(SettingsViewModelType) as SettingsViewModel;
             }
             if (_cachedSettingsViewModel != null && _cachedSettingsViewModel.IsSplitPaneEnabled != IsSplitPaneEnabled)
             {
@@ -106,7 +120,9 @@ namespace FastExplorer.ViewModels.Pages
             if (IsSplitPaneEnabled)
             {
                 // 通常モードから分割モードへ
-                if (Tabs.Count > 0)
+                // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                var tabsCount = Tabs.Count;
+                if (tabsCount > 0)
                 {
                     // 現在のタブを左ペインに移動
                     var selectedTab = SelectedTab;
@@ -120,32 +136,41 @@ namespace FastExplorer.ViewModels.Pages
                     {
                         SelectedLeftPaneTab = selectedTab;
                     }
-                    else if (LeftPaneTabs.Count > 0)
+                    else
                     {
-                        // 選択タブがなかった場合は、最初のタブを選択
-                        SelectedLeftPaneTab = LeftPaneTabs[0];
+                        // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                        var leftPaneTabsCount = LeftPaneTabs.Count;
+                        if (leftPaneTabsCount > 0)
+                        {
+                            // 選択タブがなかった場合は、最初のタブを選択
+                            SelectedLeftPaneTab = LeftPaneTabs[0];
+                        }
                     }
                     SelectedTab = null;
                 }
                 else
                 {
                     // タブが存在しない場合は、新しいタブを作成
-                    if (LeftPaneTabs.Count == 0)
+                    // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                    var leftPaneTabsCount = LeftPaneTabs.Count;
+                    if (leftPaneTabsCount == 0)
                     {
                         CreateNewLeftPaneTab();
                     }
-                    else if (SelectedLeftPaneTab == null && LeftPaneTabs.Count > 0)
+                    else if (SelectedLeftPaneTab == null)
                     {
                         // タブは存在するが選択されていない場合は、最初のタブを選択
                         SelectedLeftPaneTab = LeftPaneTabs[0];
                     }
                 }
                 // 右ペインに新しいタブを作成（存在しない場合）
-                if (RightPaneTabs.Count == 0)
+                // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                var rightPaneTabsCount = RightPaneTabs.Count;
+                if (rightPaneTabsCount == 0)
                 {
                     CreateNewRightPaneTab();
                 }
-                else if (SelectedRightPaneTab == null && RightPaneTabs.Count > 0)
+                else if (SelectedRightPaneTab == null)
                 {
                     // タブは存在するが選択されていない場合は、最初のタブを選択
                     SelectedRightPaneTab = RightPaneTabs[0];
@@ -176,16 +201,20 @@ namespace FastExplorer.ViewModels.Pages
                 {
                     SelectedTab = selectedLeftTab;
                 }
-                else if (Tabs.Count > 0)
+                else
                 {
-                    // 選択タブがなかった場合は、最初のタブを選択
-                    SelectedTab = Tabs[0];
-                }
-                
-                // タブが存在しない場合は、新しいタブを作成
-                if (Tabs.Count == 0)
-                {
-                    CreateNewTab();
+                    // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                    var tabsCount = Tabs.Count;
+                    if (tabsCount > 0)
+                    {
+                        // 選択タブがなかった場合は、最初のタブを選択
+                        SelectedTab = Tabs[0];
+                    }
+                    else
+                    {
+                        // タブが存在しない場合は、新しいタブを作成
+                        CreateNewTab();
+                    }
                 }
             }
         }
@@ -214,12 +243,16 @@ namespace FastExplorer.ViewModels.Pages
 
             if (IsSplitPaneEnabled)
             {
-                if (LeftPaneTabs.Count == 0 && RightPaneTabs.Count == 0)
+                // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                var leftPaneTabsCount = LeftPaneTabs.Count;
+                var rightPaneTabsCount = RightPaneTabs.Count;
+                if (leftPaneTabsCount == 0 && rightPaneTabsCount == 0)
                 {
                     // 保存されたタブ情報を復元
                     RestoreTabs();
                     
                     // タブが復元されなかった場合は新しいタブを作成
+                    // Countプロパティを再取得（RestoreTabs後）
                     if (LeftPaneTabs.Count == 0)
                     {
                         CreateNewLeftPaneTab();
@@ -230,18 +263,23 @@ namespace FastExplorer.ViewModels.Pages
                     }
                 }
                 // 選択タブが設定されていない場合は、最初のタブを選択
-                if (SelectedLeftPaneTab == null && LeftPaneTabs.Count > 0)
+                // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                var leftPaneTabsCount2 = LeftPaneTabs.Count;
+                if (SelectedLeftPaneTab == null && leftPaneTabsCount2 > 0)
                 {
                     SelectedLeftPaneTab = LeftPaneTabs[0];
                 }
-                if (SelectedRightPaneTab == null && RightPaneTabs.Count > 0)
+                var rightPaneTabsCount2 = RightPaneTabs.Count;
+                if (SelectedRightPaneTab == null && rightPaneTabsCount2 > 0)
                 {
                     SelectedRightPaneTab = RightPaneTabs[0];
                 }
             }
             else
             {
-            if (Tabs.Count == 0)
+            // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+            var tabsCount = Tabs.Count;
+            if (tabsCount == 0)
             {
                 // 保存されたタブ情報を復元
                 RestoreTabs();
@@ -306,7 +344,7 @@ namespace FastExplorer.ViewModels.Pages
             var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
             var tab = new ExplorerTab
             {
-                Title = "ホーム",
+                Title = HomeTitle,
                 CurrentPath = string.Empty,
                 ViewModel = viewModel
             };
@@ -321,14 +359,18 @@ namespace FastExplorer.ViewModels.Pages
                     tab.CurrentPath = viewModel.CurrentPath;
                     UpdateTabTitle(tab);
                     // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                    _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                    // Dispatcherをキャッシュ（パフォーマンス向上）
+                    var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+                    dispatcher?.BeginInvoke(
                         System.Windows.Threading.DispatcherPriority.Background,
                         new System.Action(UpdateStatusBar));
                 }
                 else if (e.PropertyName == nameof(ExplorerViewModel.Items))
                 {
                     // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                    _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                    // Dispatcherをキャッシュ（パフォーマンス向上）
+                    var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+                    dispatcher?.BeginInvoke(
                         System.Windows.Threading.DispatcherPriority.Background,
                         new System.Action(UpdateStatusBar));
                 }
@@ -366,33 +408,37 @@ namespace FastExplorer.ViewModels.Pages
             if (IsSplitPaneEnabled)
             {
                 // 左ペインのタブかチェック
-                if (LeftPaneTabs.Contains(tab))
+                // Contains()とIndexOf()を1回の呼び出しに統合（パフォーマンス向上）
+                var leftIndex = LeftPaneTabs.IndexOf(tab);
+                if (leftIndex >= 0)
                 {
                     if (LeftPaneTabs.Count <= 1)
                         return;
-                    var index = LeftPaneTabs.IndexOf(tab);
-                    LeftPaneTabs.Remove(tab);
+                    LeftPaneTabs.RemoveAt(leftIndex);
                     if (SelectedLeftPaneTab == tab)
                     {
-                        if (index > 0)
-                            SelectedLeftPaneTab = LeftPaneTabs[index - 1];
+                        if (leftIndex > 0)
+                            SelectedLeftPaneTab = LeftPaneTabs[leftIndex - 1];
                         else if (LeftPaneTabs.Count > 0)
                             SelectedLeftPaneTab = LeftPaneTabs[0];
                     }
                 }
                 // 右ペインのタブかチェック
-                else if (RightPaneTabs.Contains(tab))
+                else
                 {
-                    if (RightPaneTabs.Count <= 1)
-                        return;
-                    var index = RightPaneTabs.IndexOf(tab);
-                    RightPaneTabs.Remove(tab);
-                    if (SelectedRightPaneTab == tab)
+                    var rightIndex = RightPaneTabs.IndexOf(tab);
+                    if (rightIndex >= 0)
                     {
-                        if (index > 0)
-                            SelectedRightPaneTab = RightPaneTabs[index - 1];
-                        else if (RightPaneTabs.Count > 0)
-                            SelectedRightPaneTab = RightPaneTabs[0];
+                        if (RightPaneTabs.Count <= 1)
+                            return;
+                        RightPaneTabs.RemoveAt(rightIndex);
+                        if (SelectedRightPaneTab == tab)
+                        {
+                            if (rightIndex > 0)
+                                SelectedRightPaneTab = RightPaneTabs[rightIndex - 1];
+                            else if (RightPaneTabs.Count > 0)
+                                SelectedRightPaneTab = RightPaneTabs[0];
+                        }
                     }
                 }
             }
@@ -420,19 +466,21 @@ namespace FastExplorer.ViewModels.Pages
         /// <param name="tab">タイトルを更新するタブ</param>
         private void UpdateTabTitle(ExplorerTab tab)
         {
-            if (string.IsNullOrEmpty(tab.ViewModel.CurrentPath))
+            // ViewModel.CurrentPathを一度だけ取得してキャッシュ（パフォーマンス向上）
+            var currentPath = tab.ViewModel.CurrentPath;
+            if (string.IsNullOrEmpty(currentPath))
             {
-                tab.Title = "ホーム";
+                tab.Title = HomeTitle;
             }
             else
             {
                 // フォルダー名のみを表示（パス全体ではなく）
-                var folderName = Path.GetFileName(tab.ViewModel.CurrentPath);
+                var folderName = Path.GetFileName(currentPath);
                 // ルートディレクトリ（例：C:\）の場合は、パス自体を表示
                 if (string.IsNullOrEmpty(folderName))
                 {
-                    var root = Path.GetPathRoot(tab.ViewModel.CurrentPath);
-                    tab.Title = string.IsNullOrEmpty(root) ? tab.ViewModel.CurrentPath : root.TrimEnd('\\');
+                    var root = Path.GetPathRoot(currentPath);
+                    tab.Title = string.IsNullOrEmpty(root) ? currentPath : root.TrimEnd('\\');
                 }
                 else
                 {
@@ -447,10 +495,14 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void AddCurrentPathToFavorites()
         {
-            if (SelectedTab == null || string.IsNullOrEmpty(SelectedTab.ViewModel.CurrentPath))
+            // ViewModel.CurrentPathを一度だけ取得してキャッシュ（パフォーマンス向上）
+            var selectedTab = SelectedTab;
+            if (selectedTab == null)
                 return;
-
-            var path = SelectedTab.ViewModel.CurrentPath;
+            
+            var path = selectedTab.ViewModel.CurrentPath;
+            if (string.IsNullOrEmpty(path))
+                return;
             var name = Path.GetFileName(path) ?? path;
             
             _favoriteService?.AddFavorite(name, path);
@@ -458,7 +510,7 @@ namespace FastExplorer.ViewModels.Pages
             // MainWindowViewModelを更新（キャッシュを使用）
             if (_cachedMainWindowViewModel == null)
             {
-                _cachedMainWindowViewModel = App.Services.GetService(typeof(ViewModels.Windows.MainWindowViewModel)) as ViewModels.Windows.MainWindowViewModel;
+                _cachedMainWindowViewModel = App.Services.GetService(MainWindowViewModelType) as ViewModels.Windows.MainWindowViewModel;
             }
             _cachedMainWindowViewModel?.LoadFavorites();
         }
@@ -542,7 +594,7 @@ namespace FastExplorer.ViewModels.Pages
             // MainWindowViewModelをキャッシュから取得（なければ取得してキャッシュ）
             if (_cachedMainWindowViewModel == null)
             {
-                _cachedMainWindowViewModel = App.Services.GetService(typeof(ViewModels.Windows.MainWindowViewModel)) as ViewModels.Windows.MainWindowViewModel;
+                _cachedMainWindowViewModel = App.Services.GetService(MainWindowViewModelType) as ViewModels.Windows.MainWindowViewModel;
             }
             
             if (_cachedMainWindowViewModel == null)
@@ -568,8 +620,10 @@ namespace FastExplorer.ViewModels.Pages
 
             if (activeTab?.ViewModel != null)
             {
-                var path = activeTab.ViewModel.CurrentPath;
-                var itemCount = activeTab.ViewModel.Items.Count;
+                // ViewModelのプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                var viewModel = activeTab.ViewModel;
+                var path = viewModel.CurrentPath;
+                var itemCount = viewModel.Items.Count;
                 
                 // 文字列補間を最適化（ZString.Concat/Formatを使用してメモリ割り当てを削減）
                 string statusText;
@@ -592,9 +646,9 @@ namespace FastExplorer.ViewModels.Pages
             }
             else
             {
-                if (_cachedMainWindowViewModel.StatusBarText != "準備完了")
+                if (_cachedMainWindowViewModel.StatusBarText != ReadyStatus)
                 {
-                    _cachedMainWindowViewModel.StatusBarText = "準備完了";
+                    _cachedMainWindowViewModel.StatusBarText = ReadyStatus;
                 }
             }
         }
@@ -606,8 +660,9 @@ namespace FastExplorer.ViewModels.Pages
         {
             try
             {
+                // WindowSettingsServiceをキャッシュ（パフォーマンス向上）
                 var windowSettingsService = _windowSettingsService ?? 
-                    App.Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
+                    (_cachedWindowSettingsService ??= App.Services.GetService(WindowSettingsServiceType) as WindowSettingsService);
                 
                 if (windowSettingsService == null)
                     return;
@@ -636,8 +691,9 @@ namespace FastExplorer.ViewModels.Pages
             try
             {
                 // WindowSettingsServiceを取得（コンストラクタで取得できなかった場合はApp.Servicesから取得）
+                // WindowSettingsServiceをキャッシュ（パフォーマンス向上）
                 var windowSettingsService = _windowSettingsService ?? 
-                    App.Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
+                    (_cachedWindowSettingsService ??= App.Services.GetService(WindowSettingsServiceType) as WindowSettingsService);
                 
                 if (windowSettingsService == null)
                     return;
@@ -681,7 +737,7 @@ namespace FastExplorer.ViewModels.Pages
                     string tabTitle;
                     if (string.IsNullOrEmpty(path))
                     {
-                        tabTitle = "ホーム";
+                        tabTitle = HomeTitle;
                     }
                     else
                     {
@@ -714,14 +770,18 @@ namespace FastExplorer.ViewModels.Pages
                             tab.CurrentPath = viewModel.CurrentPath;
                             UpdateTabTitle(tab);
                             // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                            _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                            // Dispatcherをキャッシュ（パフォーマンス向上）
+                            var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+                            dispatcher?.BeginInvoke(
                                 System.Windows.Threading.DispatcherPriority.Background,
                                 new System.Action(UpdateStatusBar));
                         }
                         else if (e.PropertyName == nameof(ExplorerViewModel.Items))
                         {
                             // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                            _ = System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                            // Dispatcherをキャッシュ（パフォーマンス向上）
+                            var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+                            dispatcher?.BeginInvoke(
                                 System.Windows.Threading.DispatcherPriority.Background,
                                 new System.Action(UpdateStatusBar));
                         }

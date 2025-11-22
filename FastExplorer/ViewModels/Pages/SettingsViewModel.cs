@@ -21,6 +21,9 @@ namespace FastExplorer.ViewModels.Pages
         private bool _isInitialized = false;
         private readonly WindowSettingsService _windowSettingsService;
         
+        // 型をキャッシュ（パフォーマンス向上）
+        private static readonly Type ExplorerPageViewModelType = typeof(ExplorerPageViewModel);
+        
         // リフレクション結果をキャッシュ（パフォーマンス向上）
         private static readonly string ThemesDictionaryTypeName = "ThemesDictionary";
         private static System.Reflection.PropertyInfo? _cachedThemeProperty;
@@ -101,7 +104,8 @@ namespace FastExplorer.ViewModels.Pages
             _windowSettingsService.SaveSettings(settings);
             
             // ExplorerPageViewModelを更新（無限ループを防ぐため、値が異なる場合のみ更新）
-            var explorerPageViewModel = App.Services.GetService(typeof(ExplorerPageViewModel)) as ExplorerPageViewModel;
+            // 型をキャッシュ（パフォーマンス向上）
+            var explorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ExplorerPageViewModel;
             if (explorerPageViewModel != null && explorerPageViewModel.IsSplitPaneEnabled != value)
             {
                 explorerPageViewModel.IsSplitPaneEnabled = value;

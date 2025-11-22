@@ -71,10 +71,19 @@ namespace FastExplorer.Services
         /// <param name="id">削除するお気に入りのID</param>
         public void RemoveFavorite(string id)
         {
-            var favorite = _favorites.FirstOrDefault(f => f.Id == id);
-            if (favorite != null)
+            // LINQのFirstOrDefault()を直接ループに置き換え（メモリ割り当てを削減）
+            FavoriteItem? favoriteToRemove = null;
+            foreach (var favorite in _favorites)
             {
-                _favorites.Remove(favorite);
+                if (favorite.Id == id)
+                {
+                    favoriteToRemove = favorite;
+                    break;
+                }
+            }
+            if (favoriteToRemove != null)
+            {
+                _favorites.Remove(favoriteToRemove);
                 SaveFavorites();
             }
         }
@@ -85,10 +94,19 @@ namespace FastExplorer.Services
         /// <param name="path">削除するお気に入りのパス</param>
         public void RemoveFavoriteByPath(string path)
         {
-            var favorite = _favorites.FirstOrDefault(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
-            if (favorite != null)
+            // LINQのFirstOrDefault()を直接ループに置き換え（メモリ割り当てを削減）
+            FavoriteItem? favoriteToRemove = null;
+            foreach (var favorite in _favorites)
             {
-                _favorites.Remove(favorite);
+                if (favorite.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
+                {
+                    favoriteToRemove = favorite;
+                    break;
+                }
+            }
+            if (favoriteToRemove != null)
+            {
+                _favorites.Remove(favoriteToRemove);
                 SaveFavorites();
             }
         }
