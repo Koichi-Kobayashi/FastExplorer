@@ -292,12 +292,13 @@ namespace FastExplorer.ViewModels.Pages
                 settings.ThemeSecondaryColorCode = themeColor.SecondaryColorCode;
                 _windowSettingsService.SaveSettings(settings);
 
-                // 色計算を1回だけ実行（リソース更新とUI更新の両方で使用）
-                var mainColor = (Color)ColorConverter.ConvertFromString(themeColor.ColorCode);
-                var secondaryColor = (Color)ColorConverter.ConvertFromString(themeColor.SecondaryColorCode);
+                // 色計算を1回だけ実行（高速なカスタム変換を使用）
+                var mainColor = Helpers.FastColorConverter.ParseHexColor(themeColor.ColorCode);
+                var secondaryColor = Helpers.FastColorConverter.ParseHexColor(themeColor.SecondaryColorCode);
                 var mainBrush = new SolidColorBrush(mainColor);
                 var secondaryBrush = new SolidColorBrush(secondaryColor);
-                var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
+                // 輝度計算を最適化（定数を事前計算）
+                var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) * 0.00392156862745098; // 1/255を事前計算
                 var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;
                 var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
 

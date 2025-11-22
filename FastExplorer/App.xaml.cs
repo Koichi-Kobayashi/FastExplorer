@@ -235,8 +235,9 @@ namespace FastExplorer
                     }
                     else
                     {
-                        mainColor = (Color)ColorConverter.ConvertFromString(settings.ThemeColorCode ?? "#F5F5F5");
-                        secondaryColor = (Color)ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+                        // 高速なカスタム変換を使用
+                        mainColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeColorCode ?? "#F5F5F5");
+                        secondaryColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
                     }
                     
                     var mainBrush = new SolidColorBrush(mainColor);
@@ -249,27 +250,33 @@ namespace FastExplorer
                     // アクセントカラー（タブとステータスバー用）を更新
                     mainDictionary["AccentFillColorDefaultBrush"] = mainBrush;
 
-                    // アクセントカラー（セカンダリ、ホバー時など）を更新
+                    // アクセントカラー（セカンダリ、ホバー時など）を更新（計算を最適化）
+                    var r1 = mainColor.R;
+                    var g1 = mainColor.G;
+                    var b1 = mainColor.B;
                     var accentSecondaryColor = Color.FromRgb(
-                        (byte)Math.Max(0, mainColor.R - 20),
-                        (byte)Math.Max(0, mainColor.G - 20),
-                        (byte)Math.Max(0, mainColor.B - 20));
+                        (byte)(r1 > 20 ? r1 - 20 : 0),
+                        (byte)(g1 > 20 ? g1 - 20 : 0),
+                        (byte)(b1 > 20 ? b1 - 20 : 0));
                     var accentSecondaryBrush = new SolidColorBrush(accentSecondaryColor);
                     mainDictionary["AccentFillColorSecondaryBrush"] = accentSecondaryBrush;
 
                     // コントロールの背景色（タブの非選択時など）を更新
                     mainDictionary["ControlFillColorDefaultBrush"] = secondaryBrush;
 
-                    // コントロールの背景色（セカンダリ、ホバー時など）を更新
+                    // コントロールの背景色（セカンダリ、ホバー時など）を更新（計算を最適化）
+                    var r2 = secondaryColor.R;
+                    var g2 = secondaryColor.G;
+                    var b2 = secondaryColor.B;
                     var controlSecondaryColor = Color.FromRgb(
-                        (byte)Math.Min(255, secondaryColor.R + 10),
-                        (byte)Math.Min(255, secondaryColor.G + 10),
-                        (byte)Math.Min(255, secondaryColor.B + 10));
+                        (byte)(r2 < 245 ? r2 + 10 : 255),
+                        (byte)(g2 < 245 ? g2 + 10 : 255),
+                        (byte)(b2 < 245 ? b2 + 10 : 255));
                     var controlSecondaryBrush = new SolidColorBrush(controlSecondaryColor);
                     mainDictionary["ControlFillColorSecondaryBrush"] = controlSecondaryBrush;
 
-                    // ステータスバーの文字色を背景色に応じて設定
-                    var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
+                    // ステータスバーの文字色を背景色に応じて設定（輝度計算を最適化）
+                    var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) * 0.00392156862745098; // 1/255を事前計算
                     var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;
                     var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
                     mainDictionary["StatusBarTextBrush"] = statusBarTextBrush;

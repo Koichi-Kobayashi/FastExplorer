@@ -89,12 +89,13 @@ namespace FastExplorer.Views.Windows
                 // 高速化：nullチェックとLengthチェックを1回に統合
                 if (themeColorCode != null && themeColorCode.Length != 0)
                 {
-                    // 色計算を1回だけ実行（リソース更新とUI更新の両方で使用）
-                    var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
-                    var secondaryColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+                    // 色計算を1回だけ実行（高速なカスタム変換を使用）
+                    var mainColor = Helpers.FastColorConverter.ParseHexColor(themeColorCode);
+                    var secondaryColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
                     var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
                     var secondaryBrush = new System.Windows.Media.SolidColorBrush(secondaryColor);
-                    var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) / 255.0;
+                    // 輝度計算を最適化（定数を事前計算）
+                    var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) * 0.00392156862745098; // 1/255を事前計算
                     var statusBarTextColor = luminance > 0.5 ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
                     var statusBarTextBrush = new System.Windows.Media.SolidColorBrush(statusBarTextColor);
                     
@@ -102,6 +103,7 @@ namespace FastExplorer.Views.Windows
                     App.ApplyThemeColorFromSettings(settings, (mainColor, secondaryColor));
                     
                     // すべての色を同じタイミングで設定（リソース更新直後、計算済みの色を使用）
+                    // プロパティ設定を最適化（nullチェックを削除して高速化）
                     Background = mainBrush;
                     // FluentWindowのBackgroundを設定（型チェックを削除して高速化）
                     var fluentWindow = this as Wpf.Ui.Controls.FluentWindow;
@@ -114,16 +116,9 @@ namespace FastExplorer.Views.Windows
                     {
                         nav.Background = secondaryBrush;
                     }
-                    // ステータスバーも直接設定して、DynamicResourceの自動更新を上書き（すべての色が同じタイミングで付くようにする）
-                    // XAMLで定義されているため、nullチェックは不要だが、念のため保持
-                    if (StatusBar != null)
-                    {
-                        StatusBar.Background = mainBrush;
-                    }
-                    if (StatusBarText != null)
-                    {
-                        StatusBarText.Foreground = statusBarTextBrush;
-                    }
+                    // ステータスバーも直接設定（XAMLで定義されているためnullチェック不要）
+                    StatusBar.Background = mainBrush;
+                    StatusBarText.Foreground = statusBarTextBrush;
 
                     // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
                     // ContentRenderedイベントで実行（確実にExplorerPageが読み込まれた後）
