@@ -703,7 +703,23 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void TabArea_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("[ExplorerPage] TabArea_MouseRightButtonUp呼び出されました");
+            // 閉じるボタン上でクリックされた場合は処理しない
+            if (e.OriginalSource is DependencyObject source)
+            {
+                DependencyObject? current = source;
+                while (current != null)
+                {
+                    if (current is Button)
+                    {
+                        // 閉じるボタン上でクリックされた場合は処理しない
+                        return;
+                    }
+                    current = VisualTreeHelper.GetParent(current);
+                }
+            }
+
+            // イベントを処理済みとしてマーク（左クリックイベントが発火しないようにする）
+            e.Handled = true;
 
             // タブのDataContextを取得
             if (sender is FrameworkElement element && element.DataContext is Models.ExplorerTab tab)
@@ -715,11 +731,6 @@ namespace FastExplorer.Views.Pages
                 if (string.IsNullOrEmpty(path))
                 {
                     path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    System.Diagnostics.Debug.WriteLine($"[ExplorerPage] タブ右クリック（ホーム）: path={path}");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[ExplorerPage] タブ右クリック: path={path}");
                 }
 
                 if (!string.IsNullOrEmpty(path) && (System.IO.Directory.Exists(path) || System.IO.File.Exists(path)))

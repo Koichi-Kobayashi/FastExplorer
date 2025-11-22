@@ -63,7 +63,7 @@ namespace FastExplorer.Views.Windows
             _windowSettingsService = windowSettingsService;
             _navigationService = navigationService;
 
-            ShowInTaskbar = false; // 初期状態ではタスクバーに表示しない
+            ShowInTaskbar = true; // タスクバーに表示
 
             InitializeComponent();
             
@@ -92,7 +92,8 @@ namespace FastExplorer.Views.Windows
                     // リソースを更新（App.ApplyThemeColorFromSettingsを呼び出す）
                     App.ApplyThemeColorFromSettings(settings);
                     
-                    // ウィンドウの背景色を直接設定（DynamicResourceが反映されるまでの間）
+                    // すべての色をリソース更新と同時に設定（ステータスバーと同じタイミングで色が付くようにする）
+                    // 色計算を先に実行
                     var mainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(themeColorCode);
                     var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
                     var secondaryColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
@@ -101,6 +102,7 @@ namespace FastExplorer.Views.Windows
                     var statusBarTextColor = luminance > 0.5 ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
                     var statusBarTextBrush = new System.Windows.Media.SolidColorBrush(statusBarTextColor);
                     
+                    // すべての色を同じタイミングで設定（リソース更新直後）
                     Background = mainBrush;
                     if (this is Wpf.Ui.Controls.FluentWindow fluentWindow)
                     {
@@ -110,6 +112,7 @@ namespace FastExplorer.Views.Windows
                     {
                         nav.Background = secondaryBrush;
                     }
+                    // ステータスバーも直接設定して、DynamicResourceの自動更新を上書き（すべての色が同じタイミングで付くようにする）
                     if (StatusBar != null)
                     {
                         StatusBar.Background = mainBrush;
@@ -121,18 +124,21 @@ namespace FastExplorer.Views.Windows
 
                     // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
                     // ContentRenderedイベントで実行（確実にExplorerPageが読み込まれた後）
+                    // 起動を高速化するため、さらに遅延実行
                     void ContentRenderedHandler(object? s, EventArgs e)
                     {
                         ContentRendered -= ContentRenderedHandler;
-                        InvalidateTabAndListViewStyles(this);
+                        // 遅延実行して起動を高速化
+                        _ = Dispatcher.BeginInvoke(new System.Action(() =>
+                        {
+                            InvalidateTabAndListViewStyles(this);
+                        }), DispatcherPriority.Background);
                     }
                     ContentRendered += ContentRenderedHandler;
                 }
                 
-                // レイアウトを更新してからウィンドウを表示（チラつきを防ぐ）
-                UpdateLayout();
-                
                 // テーマカラー適用後にウィンドウを表示（チラつきを防ぐ）
+                // UpdateLayout()を削除して起動を高速化（レイアウトは自動的に更新される）
                 if (Visibility == Visibility.Hidden)
                 {
                     Visibility = Visibility.Visible;

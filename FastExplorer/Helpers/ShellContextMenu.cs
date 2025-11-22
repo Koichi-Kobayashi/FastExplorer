@@ -31,19 +31,28 @@ namespace FastExplorer.Helpers
                     }
                 }
 
-                // 親フォルダーの IShellFolder と、子 PIDL 群を取得
+                // 親フォルダーの IShellFolder と、子 PIDL 群を取得（最適化：1回の呼び出しで取得）
                 IntPtr parentPidl;
-#pragma warning disable CS8600 // Null リテラルまたは Null の可能性がある値を Null 非許容型に変換しています。
-                IShellFolder parentFolder = GetParentFolderAndChildPidls(pidls[0], out parentPidl);
-#pragma warning restore CS8600 // Null リテラルまたは Null の可能性がある値を Null 非許容型に変換しています。
-                if (parentFolder == null)
+                IntPtr parentFolderPtr;
+                Guid iidShellFolder = IID_IShellFolder;
+                int hr = Win32.SHBindToParent(pidls[0], ref iidShellFolder, out parentFolderPtr, out parentPidl);
+                if (hr != 0 || parentFolderPtr == IntPtr.Zero)
                 {
                     throw new InvalidOperationException("親フォルダー取得に失敗");
                 }
 
+                IShellFolder parentFolder = (IShellFolder)Marshal.GetTypedObjectForIUnknown(parentFolderPtr, typeof(IShellFolder));
+
+                // 相対PIDL配列を構築（高速化：ILFindLastIDを使用）
+                IntPtr[] relativePidls = new IntPtr[pidls.Length];
+                relativePidls[0] = parentPidl; // 最初のPIDLは既に取得済み
+                for (int i = 1; i < pidls.Length; i++)
+                {
+                    relativePidls[i] = Win32.ILFindLastID(pidls[i]);
+                }
+
                 // IContextMenu を取得
                 IntPtr contextMenuPtr;
-                IntPtr[] relativePidls = GetRelativePidls(pidls);
                 Guid iidContextMenu = IID_IContextMenu;
                 parentFolder.GetUIObjectOf(
                     IntPtr.Zero,
@@ -52,6 +61,9 @@ namespace FastExplorer.Helpers
                     ref iidContextMenu,
                     IntPtr.Zero,
                     out contextMenuPtr);
+                
+                // parentFolderPtr を解放（parentFolder は既に取得済み）
+                Marshal.Release(parentFolderPtr);
 
                 if (contextMenuPtr == IntPtr.Zero)
                 {
@@ -62,16 +74,22 @@ namespace FastExplorer.Helpers
 
                 // ポップアップメニュー作成
                 IntPtr hMenu = Win32.CreatePopupMenu();
+                if (hMenu == IntPtr.Zero)
+                {
+                    Marshal.Release(contextMenuPtr);
+                    return;
+                }
+
                 try
                 {
-                    // メニュー構築
+                    // メニュー構築（高速化：CMF.EXPLOREを削除）
                     uint idCmdFirst = 1;
                     iContextMenu.QueryContextMenu(
                         hMenu,
                         0,
                         idCmdFirst,
                         0x7FFF,
-                        CMF.NORMAL | CMF.EXPLORE);
+                        CMF.NORMAL);
 
                     // メニューを表示
                     uint selected = Win32.TrackPopupMenuEx(
@@ -143,55 +161,6 @@ namespace FastExplorer.Helpers
             return pidl;
         }
 
-        private static IShellFolder? GetParentFolderAndChildPidls(IntPtr fullPidl, out IntPtr parentPidl)
-        {
-            parentPidl = IntPtr.Zero;
-            IntPtr parentFolderPtr;
-            Guid iidShellFolder = IID_IShellFolder;
-            int hr = Win32.SHBindToParent(fullPidl, ref iidShellFolder, out parentFolderPtr, out parentPidl);
-            if (hr != 0 || parentFolderPtr == IntPtr.Zero)
-                return null;
-
-            var parentFolder = (IShellFolder)Marshal.GetTypedObjectForIUnknown(parentFolderPtr, typeof(IShellFolder));
-            return parentFolder;
-        }
-
-        private static IntPtr[] GetRelativePidls(IntPtr[] fullPidls)
-        {
-            // 全部同じ親フォルダにある前提（Explorer もその前提）
-            // 最初のPIDLで親フォルダを取得し、残りは ILFindLastID を使用（高速化）
-            var result = new IntPtr[fullPidls.Length];
-            
-            // 最初のPIDLで親フォルダを取得（相対PIDLも取得）
-            IntPtr parentPidl;
-            IntPtr parentFolderPtr;
-            Guid iidShellFolder = IID_IShellFolder;
-            int hr = Win32.SHBindToParent(fullPidls[0], ref iidShellFolder, out parentFolderPtr, out parentPidl);
-            if (hr == 0 && parentPidl != IntPtr.Zero)
-            {
-                result[0] = parentPidl;
-                // parentFolderPtr は使用しないので解放
-                if (parentFolderPtr != IntPtr.Zero)
-                {
-                    Marshal.Release(parentFolderPtr);
-                }
-                
-                // 残りのPIDLは ILFindLastID を使用（高速）
-                for (int i = 1; i < fullPidls.Length; i++)
-                {
-                    result[i] = Win32.ILFindLastID(fullPidls[i]);
-                }
-            }
-            else
-            {
-                // フォールバック: すべて ILFindLastID を使用
-                for (int i = 0; i < fullPidls.Length; i++)
-                {
-                    result[i] = Win32.ILFindLastID(fullPidls[i]);
-                }
-            }
-            return result;
-        }
 
         #endregion
 
