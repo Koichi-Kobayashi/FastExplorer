@@ -165,9 +165,15 @@ namespace FastExplorer.ViewModels.Windows
                         break; // 見つかったら早期終了
                     }
                 }
-                if (existingItem != null && existingItem.Content?.ToString() != favorite.Name)
+                // ToString()を呼び出す前に型チェック（パフォーマンス向上）
+                if (existingItem != null)
                 {
-                    existingItem.Content = favorite.Name;
+                    var currentContent = existingItem.Content;
+                    var currentName = currentContent is string str ? str : currentContent?.ToString();
+                    if (currentName != favorite.Name)
+                    {
+                        existingItem.Content = favorite.Name;
+                    }
                 }
             }
         }

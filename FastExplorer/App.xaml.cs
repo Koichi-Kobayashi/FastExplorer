@@ -473,7 +473,9 @@ namespace FastExplorer
             }
 
             // 子要素を再帰的に処理
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(element); i++)
+            // GetChildrenCount()を一度だけ呼び出してキャッシュ（パフォーマンス向上）
+            var childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(element);
+            for (int i = 0; i < childrenCount; i++)
             {
                 var child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
                 InvalidateResourcesRecursive(child);

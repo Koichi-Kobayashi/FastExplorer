@@ -20,6 +20,10 @@ namespace FastExplorer.ViewModels.Pages
     {
         private bool _isInitialized = false;
         private readonly WindowSettingsService _windowSettingsService;
+        
+        // リフレクション結果をキャッシュ（パフォーマンス向上）
+        private static readonly string ThemesDictionaryTypeName = "ThemesDictionary";
+        private static System.Reflection.PropertyInfo? _cachedThemeProperty;
 
         /// <summary>
         /// <see cref="SettingsViewModel"/>クラスの新しいインスタンスを初期化します
@@ -208,13 +212,25 @@ namespace FastExplorer.ViewModels.Pages
                 if (System.Windows.Application.Current.Resources is System.Windows.ResourceDictionary mainDictionary)
                 {
                     var mergedDictionaries = mainDictionary.MergedDictionaries;
-                    var themesDict = mergedDictionaries
-                        .OfType<System.Windows.ResourceDictionary>()
-                        .FirstOrDefault(rd => rd.GetType().Name == "ThemesDictionary");
+                    // LINQクエリを直接ループに置き換え（メモリ割り当てを削減）
+                    System.Windows.ResourceDictionary? themesDict = null;
+                    foreach (var dict in mergedDictionaries)
+                    {
+                        if (dict is System.Windows.ResourceDictionary rd && rd.GetType().Name == ThemesDictionaryTypeName)
+                        {
+                            themesDict = rd;
+                            break;
+                        }
+                    }
                     
                     if (themesDict != null)
                     {
-                        var themeProperty = themesDict.GetType().GetProperty("Theme");
+                        // リフレクション結果をキャッシュ（パフォーマンス向上）
+                        if (_cachedThemeProperty == null)
+                        {
+                            _cachedThemeProperty = themesDict.GetType().GetProperty("Theme");
+                        }
+                        var themeProperty = _cachedThemeProperty;
                         if (themeProperty != null)
                         {
                             var themeType = themeProperty.PropertyType;

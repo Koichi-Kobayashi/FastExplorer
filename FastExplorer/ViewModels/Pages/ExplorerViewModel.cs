@@ -387,25 +387,27 @@ namespace FastExplorer.ViewModels.Pages
                     else
                     {
                         // 大量の場合はバッチ更新（Skip/Takeを削減して直接インデックスアクセス）
-                        for (int i = 0; i < itemList.Count; i += batchSize)
+                        // 中間リストを作成せず、直接インデックスアクセスでメモリ割り当てを削減
+                        // itemList.Countを一度だけ取得してキャッシュ（パフォーマンス向上）
+                        var totalCount = itemList.Count;
+                        for (int i = 0; i < totalCount; i += batchSize)
                         {
                             if (cancellationToken.IsCancellationRequested)
                                 return;
 
-                            var endIndex = Math.Min(i + batchSize, itemList.Count);
-                            var batch = new List<FileSystemItem>(batchSize);
-                            for (int j = i; j < endIndex; j++)
-                            {
-                                batch.Add(itemList[j]);
-                            }
+                            var endIndex = Math.Min(i + batchSize, totalCount);
+                            // バッチの開始インデックスと終了インデックスをキャプチャ
+                            var startIdx = i;
+                            var endIdx = endIndex;
                             
                             await dispatcher.InvokeAsync(() =>
                             {
                                 if (!cancellationToken.IsCancellationRequested)
                                 {
-                                    foreach (var item in batch)
+                                    // 直接インデックスアクセスでメモリ割り当てを削減
+                                    for (int j = startIdx; j < endIdx; j++)
                                     {
-                                        Items.Add(item);
+                                        Items.Add(itemList[j]);
                                     }
                                 }
                             }, System.Windows.Threading.DispatcherPriority.Background);
