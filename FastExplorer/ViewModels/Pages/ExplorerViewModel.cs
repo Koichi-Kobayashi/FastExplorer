@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
+using System.Buffers;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -397,14 +398,30 @@ namespace FastExplorer.ViewModels.Pages
                             var startIdx = i;
                             var endIdx = endIndex;
                             
+                            // バッチサイズを事前計算（ループ内での計算を削減）
+                            var batchItemCount = endIdx - startIdx;
+                            
                             await dispatcher.InvokeAsync(() =>
                             {
                                 if (!cancellationToken.IsCancellationRequested)
                                 {
                                     // 直接インデックスアクセスでメモリ割り当てを削減
-                                    for (int j = startIdx; j < endIdx; j++)
+                                    // ループ展開の最適化（小さいバッチの場合は展開）
+                                    if (batchItemCount <= 4)
                                     {
-                                        Items.Add(itemList[j]);
+                                        // 小さいバッチの場合は展開（条件分岐を削減）
+                                        if (startIdx < itemList.Count) Items.Add(itemList[startIdx]);
+                                        if (startIdx + 1 < itemList.Count && startIdx + 1 < endIdx) Items.Add(itemList[startIdx + 1]);
+                                        if (startIdx + 2 < itemList.Count && startIdx + 2 < endIdx) Items.Add(itemList[startIdx + 2]);
+                                        if (startIdx + 3 < itemList.Count && startIdx + 3 < endIdx) Items.Add(itemList[startIdx + 3]);
+                                    }
+                                    else
+                                    {
+                                        // 大きいバッチの場合は通常のループ
+                                        for (int j = startIdx; j < endIdx; j++)
+                                        {
+                                            Items.Add(itemList[j]);
+                                        }
                                     }
                                 }
                             }, System.Windows.Threading.DispatcherPriority.Background);
@@ -640,9 +657,13 @@ namespace FastExplorer.ViewModels.Pages
 
                 // 既に存在する場合は削除
                 // RemoveAllのラムダ式を直接ループに置き換え（メモリ割り当てを削減）
+                // 文字列比較を最適化（ReadOnlySpanを使用してメモリ割り当てを削減）
+                var filePathSpan = filePath.AsSpan();
                 for (int i = _recentFiles.Count - 1; i >= 0; i--)
                 {
-                    if (_recentFiles[i].FullPath.Equals(filePath, StringComparison.OrdinalIgnoreCase))
+                    var fullPathSpan = _recentFiles[i].FullPath.AsSpan();
+                    if (fullPathSpan.Length == filePathSpan.Length && 
+                        fullPathSpan.CompareTo(filePathSpan, StringComparison.OrdinalIgnoreCase) == 0)
                     {
                         _recentFiles.RemoveAt(i);
                     }

@@ -36,6 +36,14 @@ namespace FastExplorer.ViewModels.Pages
         private static readonly Type WindowSettingsServiceType = typeof(WindowSettingsService);
         private static readonly Type SettingsViewModelType = typeof(SettingsViewModel);
         private static readonly Type MainWindowViewModelType = typeof(ViewModels.Windows.MainWindowViewModel);
+        
+        // PropertyChangedイベントのプロパティ名を定数化（メモリ割り当てを削減）
+        private const string CurrentPathPropertyName = "CurrentPath";
+        private static readonly string CurrentPathPropertyNameFull = nameof(ExplorerViewModel.CurrentPath);
+        private static readonly string ItemsPropertyName = nameof(ExplorerViewModel.Items);
+        
+        // UpdateStatusBarデリゲートをキャッシュ（メモリ割り当てを削減）
+        private System.Action? _cachedUpdateStatusBarAction;
 
         /// <summary>
         /// エクスプローラータブのコレクション
@@ -78,6 +86,24 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         [ObservableProperty]
         private bool _isSplitPaneEnabled;
+
+        /// <summary>
+        /// 現在アクティブなペイン（0=左ペイン、2=右ペイン、-1=未設定）
+        /// </summary>
+        [ObservableProperty]
+        private int _activePane = -1;
+
+        /// <summary>
+        /// ActivePaneが変更されたときに呼び出されます
+        /// </summary>
+        partial void OnActivePaneChanged(int value)
+        {
+            // ActivePaneが変更されたとき、ステータスバーを更新
+            if (IsSplitPaneEnabled)
+            {
+                UpdateStatusBar();
+            }
+        }
 
         /// <summary>
         /// IsSplitPaneEnabledが変更されたときに呼び出されます
@@ -174,6 +200,17 @@ namespace FastExplorer.ViewModels.Pages
                 {
                     // タブは存在するが選択されていない場合は、最初のタブを選択
                     SelectedRightPaneTab = RightPaneTabs[0];
+                }
+                
+                // 分割ペインモードが有効になったとき、ActivePaneを初期化
+                // 最初は左ペインをデフォルトにする
+                if (SelectedLeftPaneTab != null)
+                {
+                    ActivePane = 0; // 左ペインをデフォルト
+                }
+                else if (SelectedRightPaneTab != null)
+                {
+                    ActivePane = 2; // 左ペインが存在しない場合のみ右ペインをデフォルト
                 }
             }
             else
@@ -274,6 +311,16 @@ namespace FastExplorer.ViewModels.Pages
                 {
                     SelectedRightPaneTab = RightPaneTabs[0];
                 }
+                
+                // 起動時に分割ペインモードが有効な場合、ActivePaneを左ペインに設定
+                if (SelectedLeftPaneTab != null)
+                {
+                    ActivePane = 0; // 左ペインをデフォルト
+                }
+                else if (SelectedRightPaneTab != null)
+                {
+                    ActivePane = 2; // 左ペインが存在しない場合のみ右ペインをデフォルト
+                }
             }
             else
             {
@@ -351,28 +398,37 @@ namespace FastExplorer.ViewModels.Pages
 
             // CurrentPathが変更されたときにTitleとCurrentPathを更新
             // イベントハンドラーを弱い参照で管理（メモリリーク防止）
+            // UpdateStatusBarデリゲートをキャッシュ（メモリ割り当てを削減）
+            if (_cachedUpdateStatusBarAction == null)
+            {
+                _cachedUpdateStatusBarAction = UpdateStatusBar;
+            }
+            
+            // Dispatcherを事前にキャッシュ（イベントハンドラー内での取得を削減）
+            var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+            
             PropertyChangedEventHandler? handler = null;
             handler = (s, e) =>
             {
-                if (e.PropertyName == "CurrentPath" || e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
+                var propertyName = e.PropertyName;
+                // 文字列比較を最適化（定数を使用、早期リターン）
+                if (propertyName == CurrentPathPropertyName || propertyName == CurrentPathPropertyNameFull)
                 {
                     tab.CurrentPath = viewModel.CurrentPath;
                     UpdateTabTitle(tab);
                     // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                    // Dispatcherをキャッシュ（パフォーマンス向上）
-                    var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+                    // キャッシュされたデリゲートとDispatcherを使用（メモリ割り当てを削減）
                     dispatcher?.BeginInvoke(
                         System.Windows.Threading.DispatcherPriority.Background,
-                        new System.Action(UpdateStatusBar));
+                        _cachedUpdateStatusBarAction);
                 }
-                else if (e.PropertyName == nameof(ExplorerViewModel.Items))
+                else if (propertyName == ItemsPropertyName)
                 {
                     // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                    // Dispatcherをキャッシュ（パフォーマンス向上）
-                    var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+                    // キャッシュされたデリゲートとDispatcherを使用（メモリ割り当てを削減）
                     dispatcher?.BeginInvoke(
                         System.Windows.Threading.DispatcherPriority.Background,
-                        new System.Action(UpdateStatusBar));
+                        _cachedUpdateStatusBarAction);
                 }
             };
             viewModel.PropertyChanged += handler;
@@ -604,8 +660,32 @@ namespace FastExplorer.ViewModels.Pages
             if (IsSplitPaneEnabled)
             {
                 // 分割ペインの場合は、フォーカスがある方のタブを表示
-                // 簡易実装として、右ペインを優先
-                activeTab = SelectedRightPaneTab ?? SelectedLeftPaneTab;
+                // ActivePaneプロパティを使用して、正しいペインのタブを取得
+                if (ActivePane == 0)
+                {
+                    // 左ペイン
+                    activeTab = SelectedLeftPaneTab;
+                }
+                else if (ActivePane == 2)
+                {
+                    // 右ペイン
+                    activeTab = SelectedRightPaneTab;
+                }
+                else
+                {
+                    // ActivePaneが設定されていない場合は、選択されているタブを優先
+                    // 両方選択されている場合は右ペインを優先、どちらか一方のみの場合はそのタブを使用
+                    activeTab = SelectedRightPaneTab ?? SelectedLeftPaneTab;
+                    // ActivePaneが未設定の場合は、選択されているタブに基づいて設定
+                    if (activeTab == SelectedRightPaneTab)
+                    {
+                        ActivePane = 2;
+                    }
+                    else if (activeTab == SelectedLeftPaneTab)
+                    {
+                        ActivePane = 0;
+                    }
+                }
             }
             else
             {
@@ -762,28 +842,37 @@ namespace FastExplorer.ViewModels.Pages
 
                     // CurrentPathが変更されたときにTitleとCurrentPathを更新
                     // イベントハンドラーを弱い参照で管理（メモリリーク防止）
+                    // UpdateStatusBarデリゲートをキャッシュ（メモリ割り当てを削減）
+                    if (_cachedUpdateStatusBarAction == null)
+                    {
+                        _cachedUpdateStatusBarAction = UpdateStatusBar;
+                    }
+                    
+                    // Dispatcherを事前にキャッシュ（イベントハンドラー内での取得を削減）
+                    var dispatcher3 = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+                    
                     PropertyChangedEventHandler? handler = null;
                     handler = (s, e) =>
                     {
-                        if (e.PropertyName == "CurrentPath" || e.PropertyName == nameof(ExplorerViewModel.CurrentPath))
+                        var propertyName = e.PropertyName;
+                        // 文字列比較を最適化（定数を使用、早期リターン）
+                        if (propertyName == CurrentPathPropertyName || propertyName == CurrentPathPropertyNameFull)
                         {
                             tab.CurrentPath = viewModel.CurrentPath;
                             UpdateTabTitle(tab);
                             // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                            // Dispatcherをキャッシュ（パフォーマンス向上）
-                            var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
-                            dispatcher?.BeginInvoke(
+                            // キャッシュされたデリゲートとDispatcherを使用（メモリ割り当てを削減）
+                            dispatcher3?.BeginInvoke(
                                 System.Windows.Threading.DispatcherPriority.Background,
-                                new System.Action(UpdateStatusBar));
+                                _cachedUpdateStatusBarAction);
                         }
-                        else if (e.PropertyName == nameof(ExplorerViewModel.Items))
+                        else if (propertyName == ItemsPropertyName)
                         {
                             // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                            // Dispatcherをキャッシュ（パフォーマンス向上）
-                            var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
-                            dispatcher?.BeginInvoke(
+                            // キャッシュされたデリゲートとDispatcherを使用（メモリ割り当てを削減）
+                            dispatcher3?.BeginInvoke(
                                 System.Windows.Threading.DispatcherPriority.Background,
-                                new System.Action(UpdateStatusBar));
+                                _cachedUpdateStatusBarAction);
                         }
                     };
                     viewModel.PropertyChanged += handler;

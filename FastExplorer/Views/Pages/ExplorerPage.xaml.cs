@@ -72,11 +72,15 @@ namespace FastExplorer.Views.Pages
                 {
                     // 左ペイン
                     targetTab = ViewModel.SelectedLeftPaneTab;
+                    // ActivePaneを更新
+                    ViewModel.ActivePane = 0;
                 }
                 else if (pane == 2)
                 {
                     // 右ペイン
                     targetTab = ViewModel.SelectedRightPaneTab;
+                    // ActivePaneを更新
+                    ViewModel.ActivePane = 2;
                 }
                 else
                 {
@@ -141,6 +145,52 @@ namespace FastExplorer.Views.Pages
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// リストビューでフォーカスが取得されたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ルーティングイベント引数</param>
+        private void ListView_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (!ViewModel.IsSplitPaneEnabled)
+                return;
+
+            var listView = sender as System.Windows.Controls.ListView;
+            if (listView == null)
+                return;
+
+            // フォーカスが取得されたListViewがどのペインに属しているかを判定
+            var pane = GetPaneForElement(listView);
+            if (pane == 0 || pane == 2)
+            {
+                // ViewModelのActivePaneプロパティを更新
+                ViewModel.ActivePane = pane;
+            }
+        }
+
+        /// <summary>
+        /// リストビューでマウスボタンが押される前に呼び出されます（Previewイベント）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void ListView_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!ViewModel.IsSplitPaneEnabled)
+                return;
+
+            var listView = sender as System.Windows.Controls.ListView;
+            if (listView == null)
+                return;
+
+            // クリックされたListViewがどのペインに属しているかを判定
+            var pane = GetPaneForElement(listView);
+            if (pane == 0 || pane == 2)
+            {
+                // ViewModelのActivePaneプロパティを更新
+                ViewModel.ActivePane = pane;
+            }
         }
 
         /// <summary>
@@ -213,11 +263,15 @@ namespace FastExplorer.Views.Pages
                 {
                     // 左ペイン
                     targetTab = ViewModel.SelectedLeftPaneTab;
+                    // ActivePaneを更新
+                    ViewModel.ActivePane = 0;
                 }
                 else if (pane == 2)
                 {
                     // 右ペイン
                     targetTab = ViewModel.SelectedRightPaneTab;
+                    // ActivePaneを更新
+                    ViewModel.ActivePane = 2;
                 }
                 else
                 {

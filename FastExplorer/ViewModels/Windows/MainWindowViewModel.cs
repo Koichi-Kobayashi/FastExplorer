@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -162,12 +163,19 @@ namespace FastExplorer.ViewModels.Windows
             foreach (var favorite in currentFavoritesList)
             {
                 NavigationViewItem? existingItem = null;
+                // 文字列比較を最適化（ReadOnlySpanを使用してメモリ割り当てを削減）
+                var favoritePathSpan = favorite.Path.AsSpan();
                 foreach (var item in existingFavoriteItems)
                 {
-                    if (item.Tag is string tag && string.Equals(tag, favorite.Path, StringComparison.OrdinalIgnoreCase))
+                    if (item.Tag is string tag)
                     {
-                        existingItem = item;
-                        break; // 見つかったら早期終了
+                        var tagSpan = tag.AsSpan();
+                        if (tagSpan.Length == favoritePathSpan.Length && 
+                            tagSpan.CompareTo(favoritePathSpan, StringComparison.OrdinalIgnoreCase) == 0)
+                        {
+                            existingItem = item;
+                            break; // 見つかったら早期終了
+                        }
                     }
                 }
                 // ToString()を呼び出す前に型チェック（パフォーマンス向上）
