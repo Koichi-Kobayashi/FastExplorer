@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="FastExplorer.ShellContextMenu/FastExplorer.ShellContextMenu.csproj" Id="82d2781a-babf-47a5-99cb-733cc40e93dc" />
   <Project Path="FastExplorer/FastExplorer.csproj" />
 </Solution>

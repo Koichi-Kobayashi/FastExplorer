@@ -8,6 +8,7 @@ using FastExplorer.ViewModels.Pages;
 using FastExplorer.Services;
 using FastExplorer.Models;
 using FastExplorer.Helpers;
+using FastExplorer.ShellContextMenu;
 using Wpf.Ui.Abstractions.Controls;
 
 namespace FastExplorer.Views.Pages
@@ -741,7 +742,7 @@ namespace FastExplorer.Views.Pages
                     var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
 
                     // ShellContextMenuでOS標準メニューを表示
-                    var scm = new ShellContextMenu();
+                    var scm = new FastExplorer.ShellContextMenu.ShellContextMenuService();
                     scm.ShowContextMenu(new[] { filePath }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
                 }
             }
@@ -834,7 +835,7 @@ namespace FastExplorer.Views.Pages
                 var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
 
                 // ShellContextMenuでOS標準メニューを表示
-                var scm = new ShellContextMenu();
+                var scm = new FastExplorer.ShellContextMenu.ShellContextMenuService();
                 scm.ShowContextMenu(new[] { path }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
             }
         }
@@ -887,7 +888,7 @@ namespace FastExplorer.Views.Pages
                     var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
 
                     // ShellContextMenuでOS標準メニューを表示
-                    var scm = new ShellContextMenu();
+                    var scm = new FastExplorer.ShellContextMenu.ShellContextMenuService();
                     scm.ShowContextMenu(new[] { path }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
                 }
             }

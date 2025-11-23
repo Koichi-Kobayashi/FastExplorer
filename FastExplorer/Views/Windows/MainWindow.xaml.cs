@@ -4,8 +4,11 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using System.Linq;
+using System.Windows.Interop;
 using FastExplorer.Services;
 using FastExplorer.ViewModels.Windows;
+using FastExplorer.Helpers;
+using FastExplorer.ShellContextMenu;
 using Wpf.Ui;
 using Wpf.Ui.Abstractions;
 using Wpf.Ui.Appearance;
@@ -20,6 +23,7 @@ namespace FastExplorer.Views.Windows
     {
         private readonly WindowSettingsService _windowSettingsService;
         private readonly INavigationService _navigationService;
+        private HwndSource? _hwndSource;
         
         // リフレクション結果をキャッシュ（パフォーマンス向上）
         private static PropertyInfo? _cachedInvokedItemContainerProperty;
@@ -691,6 +695,60 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">キーイベント引数</param>
+        /// <summary>
+        /// ソース初期化時にメッセージフックを追加
+        /// </summary>
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            _hwndSource = (HwndSource)PresentationSource.FromVisual(this);
+            if (_hwndSource != null)
+            {
+                _hwndSource.AddHook(WndProc);
+            }
+        }
+
+        /// <summary>
+        /// ウィンドウメッセージを処理（IContextMenu3のメッセージフック用）
+        /// </summary>
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            // メニューが表示中の場合のみ、メニュー関連のメッセージを処理
+            if (!FastExplorer.ShellContextMenu.ShellContextMenuService.IsMenuShowing)
+            {
+                // メニューが表示されていない場合は、すべてのメッセージを通常処理に任せる
+                handled = false;
+                return IntPtr.Zero;
+            }
+
+            // メニュー関連のメッセージのみを処理
+            const int WM_INITMENUPOPUP = 0x0117;
+            const int WM_DRAWITEM = 0x002B;
+            const int WM_MEASUREITEM = 0x002C;
+            const int WM_MENUCHAR = 0x0120;
+            
+            if (msg == WM_INITMENUPOPUP ||
+                msg == WM_DRAWITEM ||
+                msg == WM_MEASUREITEM ||
+                msg == WM_MENUCHAR)
+            {
+                // ProcessWindowMessageを呼び出す（メニューが表示中の場合のみ処理される）
+                bool wasHandled = false;
+                IntPtr result = FastExplorer.ShellContextMenu.ShellContextMenuService.ProcessWindowMessage(hwnd, msg, wParam, lParam, ref wasHandled);
+                
+                // ProcessWindowMessageがメッセージを処理した場合のみhandledをtrueにする
+                if (wasHandled)
+                {
+                    handled = true;
+                    return result;
+                }
+            }
+            
+            // それ以外のメッセージは処理しない（handledはfalseのまま）
+            handled = false;
+            return IntPtr.Zero;
+        }
+
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
             // バックスペースキーが押された場合、戻るボタンと同じ動作をする

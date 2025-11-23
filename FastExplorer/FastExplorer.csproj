@@ -39,4 +39,8 @@
     <Resource Include="Assets\wpfui-icon-1024.png" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\FastExplorer.ShellContextMenu\FastExplorer.ShellContextMenu.csproj" />
+  </ItemGroup>
+
 </Project>
