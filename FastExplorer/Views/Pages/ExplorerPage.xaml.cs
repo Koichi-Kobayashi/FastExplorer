@@ -97,6 +97,30 @@ namespace FastExplorer.Views.Pages
             if (targetTab == null)
                 return;
 
+            // クリックされた位置がListViewItem上かどうかを確認（ビジュアルツリー走査を避けるため、OriginalSourceを使用）
+            bool isOnItem = false;
+            if (e.OriginalSource is DependencyObject source)
+            {
+                DependencyObject? current = source;
+                while (current != null && current != listView)
+                {
+                    if (current is ListViewItem)
+                    {
+                        isOnItem = true;
+                        break;
+                    }
+                    current = VisualTreeHelper.GetParent(current);
+                }
+            }
+
+            // 空領域（アイテムがない場所）をダブルクリックした場合は親フォルダーに移動
+            if (!isOnItem)
+            {
+                targetTab.ViewModel.NavigateToParentCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
+
             var selectedItem = targetTab.ViewModel.SelectedItem;
             
             // ディレクトリの場合は、新しいディレクトリに移動した後にスクロール位置を0に戻す
