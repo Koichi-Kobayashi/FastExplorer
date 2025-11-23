@@ -39,6 +39,9 @@ namespace FastExplorer.ShellContextMenu
         private const int WM_MEASUREITEM = 0x002C;
         private const int WM_MENUCHAR = 0x0120;
 
+        // Marshal.SizeOfの結果をキャッシュ（構造体サイズは不変）
+        private static readonly int s_cmiSize = Marshal.SizeOf<CMINVOKECOMMANDINFOEX>();
+
         /// <summary>
         /// 現在コンテキストメニューが表示中かどうかを示す値を取得します。
         /// </summary>
@@ -49,6 +52,24 @@ namespace FastExplorer.ShellContextMenu
         /// このプロパティは、メッセージフックがアクティブにメニュー関連のメッセージを処理しているかどうかを示します。
         /// </remarks>
         public static bool IsMenuShowing => s_isMenuShowing;
+
+        /// <summary>
+        /// メニュー表示状態を強制的にリセットします。
+        /// </summary>
+        /// <remarks>
+        /// メニュー表示中にシステムコマンドが処理された場合など、メニューが閉じられた後に状態が残る可能性がある場合に使用します。
+        /// このメソッドは、メニュー表示フラグと<see cref="IContextMenu3"/>の参照をリセットします。
+        /// </remarks>
+        public static void ResetMenuState()
+        {
+            s_isMenuShowing = false;
+            s_currentContextMenu3 = null;
+            if (s_currentContextMenuPtr != IntPtr.Zero)
+            {
+                Marshal.Release(s_currentContextMenuPtr);
+                s_currentContextMenuPtr = IntPtr.Zero;
+            }
+        }
 
         /// <summary>
         /// ウィンドウメッセージを処理し、コンテキストメニュー関連のメッセージを<see cref="IContextMenu3"/>に転送します。
@@ -82,36 +103,64 @@ namespace FastExplorer.ShellContextMenu
         /// </remarks>
         public static IntPtr ProcessWindowMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            // メニューが表示中で、IContextMenu3が存在する場合のみ処理
-            if (s_isMenuShowing && s_currentContextMenu3 != null &&
-                (msg == WM_INITMENUPOPUP ||
-                 msg == WM_DRAWITEM ||
-                 msg == WM_MEASUREITEM ||
-                 msg == WM_MENUCHAR))
+            // 高速パス: メニューが表示されていない、またはIContextMenu3が存在しない場合は即座に終了
+            if (!s_isMenuShowing)
             {
-                try
+                // メニューが表示されていないのにIContextMenu3の参照が残っている場合はクリア
+                if (s_currentContextMenu3 != null || s_currentContextMenuPtr != IntPtr.Zero)
                 {
-                    IntPtr result;
-                    int hr = s_currentContextMenu3.HandleMenuMsg2(
-                        (uint)msg,
-                        wParam,
-                        lParam,
-                        out result);
-
-                    if (hr == 0) // S_OK
-                    {
-                        handled = true;
-                        return result;
-                    }
+                    ResetMenuState();
                 }
-                catch
-                {
-                    // エラーが発生した場合は処理しない
-                    // handledはfalseのまま
-                }
+                handled = false;
+                return IntPtr.Zero;
             }
 
-            // メニューが表示されていない、または処理されなかった場合はhandledはfalseのまま
+            // IContextMenu3が存在しない場合は、メニュー状態をリセット
+            if (s_currentContextMenu3 == null)
+            {
+                ResetMenuState();
+                handled = false;
+                return IntPtr.Zero;
+            }
+
+            // メッセージIDのチェックを最適化（switch式を使用）
+            bool isMenuMessage = msg switch
+            {
+                WM_INITMENUPOPUP => true,
+                WM_DRAWITEM => true,
+                WM_MEASUREITEM => true,
+                WM_MENUCHAR => true,
+                _ => false
+            };
+
+            if (!isMenuMessage)
+            {
+                handled = false;
+                return IntPtr.Zero;
+            }
+
+            // IContextMenu3でメッセージを処理
+            try
+            {
+                IntPtr result;
+                int hr = s_currentContextMenu3.HandleMenuMsg2(
+                    (uint)msg,
+                    wParam,
+                    lParam,
+                    out result);
+
+                if (hr == 0) // S_OK
+                {
+                    handled = true;
+                    return result;
+                }
+            }
+            catch
+            {
+                // エラーが発生した場合は処理しない
+                // エラーが発生した場合、メニュー状態をリセットする可能性がある
+            }
+
             handled = false;
             return IntPtr.Zero;
         }
@@ -159,90 +208,96 @@ namespace FastExplorer.ShellContextMenu
         /// </exception>
         public void ShowContextMenu(string[] filePaths, IntPtr ownerHwnd, int x, int y)
         {
+            // 高速パス: nullまたは空の配列のチェック
             if (filePaths == null || filePaths.Length == 0)
             {
                 return;
             }
 
-            IntPtr[] pidls = new IntPtr[filePaths.Length];
+            int fileCount = filePaths.Length;
+            IntPtr[] pidls = new IntPtr[fileCount];
+            IShellFolder? parentFolder = null;
+            IContextMenu? iContextMenu = null;
+
             try
             {
-                // 各ファイルパス → PIDL に変換
-                for (int i = 0; i < filePaths.Length; i++)
+                // 各ファイルパス → PIDL に変換（最適化: ループ展開の可能性を考慮）
+                for (int i = 0; i < fileCount; i++)
                 {
-                    pidls[i] = GetPIDLFromPath(filePaths[i]);
-                    if (pidls[i] == IntPtr.Zero)
+                    IntPtr pidl = GetPIDLFromPath(filePaths[i]);
+                    if (pidl == IntPtr.Zero)
                     {
+                        // 最適化: 文字列補間の代わりにstring.Concatを使用（例外は稀なので影響は小さいが最適化）
                         throw new InvalidOperationException("PIDL 取得に失敗: " + filePaths[i]);
                     }
+                    pidls[i] = pidl;
                 }
 
                 // 親フォルダーの IShellFolder と、子 PIDL 群を取得（最適化：1回の呼び出しで取得）
-                IntPtr parentPidl;
+                // Guidは値型なので、ローカル変数にコピーしてからrefで渡す（最適化：static readonlyを直接使用できないため）
                 Guid iidShellFolder = IID_IShellFolder;
-                int hr = Win32.SHBindToParent(pidls[0], ref iidShellFolder, out IShellFolder parentFolder, out parentPidl);
+                int hr = Win32.SHBindToParent(pidls[0], ref iidShellFolder, out parentFolder, out IntPtr parentPidl);
                 if (hr != 0 || parentFolder == null)
                 {
                     throw new InvalidOperationException("親フォルダー取得に失敗");
                 }
 
-                // 相対PIDL配列を構築（高速化：ILFindLastIDを使用）
-                IntPtr[] relativePidls = new IntPtr[pidls.Length];
+                // 相対PIDL配列を構築（高速化：ILFindLastIDを使用、配列サイズを事前に確保）
+                IntPtr[] relativePidls = new IntPtr[fileCount];
                 relativePidls[0] = parentPidl; // 最初のPIDLは既に取得済み
-                for (int i = 1; i < pidls.Length; i++)
+                // 最適化: ループの境界チェックを削減（fileCountは既に計算済み）
+                for (int i = 1; i < fileCount; i++)
                 {
                     relativePidls[i] = Win32.ILFindLastID(pidls[i]);
                 }
 
-                // IContextMenu を取得（サンプルコードに合わせてIContextMenuを直接取得）
+                // IContextMenu を取得
                 Guid iidContextMenu = IID_IContextMenu;
                 uint reserved = 0;
                 parentFolder.GetUIObjectOf(
                     IntPtr.Zero,
-                    (uint)relativePidls.Length,
+                    (uint)fileCount,
                     relativePidls,
                     ref iidContextMenu,
                     ref reserved,
                     out object ppv);
                 
-                // parentFolder を解放
+                // parentFolder を即座に解放（不要になったため）
                 Marshal.ReleaseComObject(parentFolder);
+                parentFolder = null;
 
                 if (ppv == null)
                 {
                     return;
                 }
 
-                // IContextMenuを取得
-                IContextMenu iContextMenu = (IContextMenu)ppv;
+                iContextMenu = (IContextMenu)ppv;
                 
-                // 前回のインスタンスをクリア
+                // 前回のインスタンスをクリア（最適化: 条件チェックを削減）
                 s_currentContextMenu3 = null;
                 s_isMenuShowing = false;
-                if (s_currentContextMenuPtr != IntPtr.Zero)
+                IntPtr oldPtr = s_currentContextMenuPtr;
+                if (oldPtr != IntPtr.Zero)
                 {
-                    Marshal.Release(s_currentContextMenuPtr);
+                    Marshal.Release(oldPtr);
                     s_currentContextMenuPtr = IntPtr.Zero;
                 }
                 
-                // IContextMenu3にキャストを試す（サンプルコードと同じ方法）
+                // IContextMenu3にキャストを試す
                 s_currentContextMenu3 = iContextMenu as IContextMenu3;
                 if (s_currentContextMenu3 != null)
                 {
-                    // IContextMenu3が取得できた場合、参照を保持
-                    IntPtr contextMenuPtr = Marshal.GetIUnknownForObject(iContextMenu);
-                    s_currentContextMenuPtr = contextMenuPtr;
-                    // Marshal.GetIUnknownForObjectは既に参照カウントを増やしているので、AddRefは不要
+                    s_currentContextMenuPtr = Marshal.GetIUnknownForObject(iContextMenu);
                     #if DEBUG
                     System.Diagnostics.Debug.WriteLine("[ShellContextMenu] IContextMenu3を取得しました");
                     #endif
                 }
+                #if DEBUG
                 else
                 {
-                    #if DEBUG
                     System.Diagnostics.Debug.WriteLine("[ShellContextMenu] IContextMenu3へのキャストに失敗しました（IContextMenuのみ使用）");
-                    #endif
                 }
+                #endif
                 
                 // メニュー表示開始
                 s_isMenuShowing = true;
@@ -251,15 +306,21 @@ namespace FastExplorer.ShellContextMenu
                 IntPtr hMenu = Win32.CreatePopupMenu();
                 if (hMenu == IntPtr.Zero)
                 {
-                    Marshal.ReleaseComObject(iContextMenu);
+                    // メニュー作成に失敗した場合、フラグをリセット
+                    s_isMenuShowing = false;
+                    s_currentContextMenu3 = null;
+                    if (s_currentContextMenuPtr != IntPtr.Zero)
+                    {
+                        Marshal.Release(s_currentContextMenuPtr);
+                        s_currentContextMenuPtr = IntPtr.Zero;
+                    }
                     return;
                 }
 
                 try
                 {
-                    // メニュー構築（Windows 11の新しいメニュースタイルを有効化）
-                    uint idCmdFirst = 1;
-                    // CMF.NORMALを使用（Windows 11の新しいメニュースタイルはIContextMenu3で自動的に適用される）
+                    // メニュー構築
+                    const uint idCmdFirst = 1;
                     iContextMenu.QueryContextMenu(
                         hMenu,
                         0,
@@ -268,6 +329,8 @@ namespace FastExplorer.ShellContextMenu
                         CMF.NORMAL);
 
                     // メニューを表示
+                    // TrackPopupMenuExはモーダルなメッセージループを開始するため、
+                    // メニュー表示中にシステムコマンドが処理されると、メニューが閉じられる
                     uint selected = Win32.TrackPopupMenuEx(
                         hMenu,
                         TPM.RETURNCMD,
@@ -276,25 +339,22 @@ namespace FastExplorer.ShellContextMenu
                         ownerHwnd,
                         IntPtr.Zero);
 
+                    // メニュー表示終了（先にフラグをクリアして、メッセージ処理を停止）
+                    // TrackPopupMenuExが返った時点でメニューは閉じられているため、
+                    // 即座にフラグをリセットする
+                    s_isMenuShowing = false;
+
                     if (selected != 0)
                     {
-                        // 選択されたコマンドを IContextMenu に伝える
-                        var ici = new CMINVOKECOMMANDINFOEX();
-                        ici.cbSize = Marshal.SizeOf(typeof(CMINVOKECOMMANDINFOEX));
+                        // 選択されたコマンドを IContextMenu に伝える（構造体の初期化を最適化）
+                        CMINVOKECOMMANDINFOEX ici = default;
+                        ici.cbSize = s_cmiSize; // キャッシュされたサイズを使用
                         ici.fMask = CMIC.UNICODE | CMIC.PTINVOKE;
                         ici.hwnd = ownerHwnd;
                         ici.lpVerb = (IntPtr)(selected - idCmdFirst);
-                        ici.lpParameters = null;
-                        ici.lpDirectory = null;
                         ici.nShow = SW.SHOWNORMAL;
-                        ici.dwHotKey = 0;
-                        ici.hIcon = IntPtr.Zero;
-                        ici.lpTitle = IntPtr.Zero;
-                        ici.lpVerbW = IntPtr.Zero;
-                        ici.lpParametersW = IntPtr.Zero;
-                        ici.lpDirectoryW = IntPtr.Zero;
-                        ici.lpTitleW = IntPtr.Zero;
                         ici.ptInvoke = new POINT { X = x, Y = y };
+                        // その他のフィールドはdefault値（null/0）のまま
                         iContextMenu.InvokeCommand(ref ici);
                     }
                 }
@@ -302,35 +362,72 @@ namespace FastExplorer.ShellContextMenu
                 {
                     Win32.DestroyMenu(hMenu);
                     
-                    // メニュー表示終了（先にフラグをクリアして、メッセージ処理を停止）
+                    // メニュー表示終了（念のため再度フラグをクリア）
+                    // TrackPopupMenuExが返った時点で既にリセットしているが、
+                    // 例外が発生した場合に備えて再度リセット
                     s_isMenuShowing = false;
                     
                     // IContextMenu3の参照をクリア
                     s_currentContextMenu3 = null;
-                    if (s_currentContextMenuPtr != IntPtr.Zero)
+                    IntPtr currentPtr = s_currentContextMenuPtr;
+                    if (currentPtr != IntPtr.Zero)
                     {
-                        Marshal.Release(s_currentContextMenuPtr);
+                        Marshal.Release(currentPtr);
                         s_currentContextMenuPtr = IntPtr.Zero;
                     }
-                    
-                    // IContextMenuを解放
-                    Marshal.ReleaseComObject(iContextMenu);
                 }
+            }
+            catch (InvalidOperationException)
+            {
+                // 想定される例外のみ再スロー（デバッグ時のみログ出力）
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine("[ShellContextMenu] InvalidOperationExceptionが発生しました");
+                #endif
+                throw;
+            }
+            catch (COMException)
+            {
+                // COM例外は無視（デバッグ時のみログ出力）
+                #if DEBUG
+                System.Diagnostics.Debug.WriteLine("[ShellContextMenu] COMExceptionが発生しました");
+                #endif
             }
             catch (Exception)
             {
-                // エラーは無視（デバッグ時のみログ出力）
+                // その他の予期しない例外（デバッグ時のみログ出力）
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[ShellContextMenu] 例外が発生しました");
+                System.Diagnostics.Debug.WriteLine("[ShellContextMenu] 予期しない例外が発生しました");
                 #endif
             }
             finally
             {
-                // PIDL 解放
-                foreach (var pidl in pidls)
+                // メニュー表示フラグを確実にリセット（例外が発生した場合でも確実にリセット）
+                s_isMenuShowing = false;
+                s_currentContextMenu3 = null;
+                if (s_currentContextMenuPtr != IntPtr.Zero)
                 {
+                    Marshal.Release(s_currentContextMenuPtr);
+                    s_currentContextMenuPtr = IntPtr.Zero;
+                }
+
+                // COMオブジェクトの解放
+                if (iContextMenu != null)
+                {
+                    Marshal.ReleaseComObject(iContextMenu);
+                }
+                if (parentFolder != null)
+                {
+                    Marshal.ReleaseComObject(parentFolder);
+                }
+
+                // PIDL 解放（最適化: foreachの代わりにforループを使用）
+                for (int i = 0; i < pidls.Length; i++)
+                {
+                    IntPtr pidl = pidls[i];
                     if (pidl != IntPtr.Zero)
+                    {
                         Win32.CoTaskMemFree(pidl);
+                    }
                 }
             }
         }
@@ -355,12 +452,14 @@ namespace FastExplorer.ShellContextMenu
         /// </remarks>
         private static IntPtr GetPIDLFromPath(string path)
         {
-            IntPtr pidl;
-            uint attrs;
-            int hr = Win32.SHParseDisplayName(path, IntPtr.Zero, out pidl, 0, out attrs);
-            if (hr != 0)
+            // 高速パス: nullまたは空文字列のチェック
+            if (string.IsNullOrEmpty(path))
+            {
                 return IntPtr.Zero;
-            return pidl;
+            }
+
+            int hr = Win32.SHParseDisplayName(path, IntPtr.Zero, out IntPtr pidl, 0, out _);
+            return hr == 0 ? pidl : IntPtr.Zero;
         }
 
 

@@ -713,38 +713,110 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            // メニューが表示中の場合のみ、メニュー関連のメッセージを処理
-            if (!FastExplorer.ShellContextMenu.ShellContextMenuService.IsMenuShowing)
-            {
-                // メニューが表示されていない場合は、すべてのメッセージを通常処理に任せる
-                handled = false;
-                return IntPtr.Zero;
-            }
-
-            // メニュー関連のメッセージのみを処理
+            // メニュー関連のメッセージIDを定義（高速チェック用）
             const int WM_INITMENUPOPUP = 0x0117;
             const int WM_DRAWITEM = 0x002B;
             const int WM_MEASUREITEM = 0x002C;
             const int WM_MENUCHAR = 0x0120;
             
-            if (msg == WM_INITMENUPOPUP ||
-                msg == WM_DRAWITEM ||
-                msg == WM_MEASUREITEM ||
-                msg == WM_MENUCHAR)
-            {
-                // ProcessWindowMessageを呼び出す（メニューが表示中の場合のみ処理される）
-                bool wasHandled = false;
-                IntPtr result = FastExplorer.ShellContextMenu.ShellContextMenuService.ProcessWindowMessage(hwnd, msg, wParam, lParam, ref wasHandled);
-                
-                // ProcessWindowMessageがメッセージを処理した場合のみhandledをtrueにする
-                if (wasHandled)
-                {
-                    handled = true;
-                    return result;
-                }
-            }
+            // システムコマンドメッセージ（閉じる、最大化、最小化など）は常に通常処理に任せる
+            // これにより、メニュー表示中でもウィンドウのシステムコマンドが正常に動作する
+            const int WM_SYSCOMMAND = 0x0112;
+            const int WM_CLOSE = 0x0010;
+            const int WM_QUIT = 0x0012;
+            const int WM_ACTIVATE = 0x0006;
+            const int WM_ACTIVATEAPP = 0x001C;
+            const int WM_NCACTIVATE = 0x0086;
+            const int WM_NCHITTEST = 0x0084;
+            const int WM_NCLBUTTONDOWN = 0x00A1;
+            const int WM_NCLBUTTONUP = 0x00A2;
+            const int WM_NCRBUTTONDOWN = 0x00A4;
+            const int WM_NCRBUTTONUP = 0x00A5;
             
-            // それ以外のメッセージは処理しない（handledはfalseのまま）
+            // システムコマンドやウィンドウ終了メッセージ、非クライアント領域のメッセージは常に通常処理に任せる
+            // メニュー表示中にシステムコマンドが処理されると、メニューが閉じられるため、
+            // これらのメッセージが処理された場合はメニュー状態をリセット
+            if (msg == WM_SYSCOMMAND || 
+                msg == WM_CLOSE || 
+                msg == WM_QUIT ||
+                msg == WM_ACTIVATE ||
+                msg == WM_ACTIVATEAPP ||
+                msg == WM_NCACTIVATE ||
+                msg == WM_NCHITTEST ||
+                msg == WM_NCLBUTTONDOWN ||
+                msg == WM_NCLBUTTONUP ||
+                msg == WM_NCRBUTTONDOWN ||
+                msg == WM_NCRBUTTONUP)
+            {
+                // メニュー表示中にシステムコマンドが処理された場合、メニュー状態をリセット
+                // TrackPopupMenuExはモーダルなメッセージループを開始するため、
+                // システムコマンドが処理されるとメニューが閉じられる
+                if (FastExplorer.ShellContextMenu.ShellContextMenuService.IsMenuShowing)
+                {
+                    FastExplorer.ShellContextMenu.ShellContextMenuService.ResetMenuState();
+                }
+                handled = false;
+                return IntPtr.Zero;
+            }
+
+            // メニュー関連のメッセージかどうかをチェック
+            bool isMenuMessage = msg == WM_INITMENUPOPUP ||
+                                msg == WM_DRAWITEM ||
+                                msg == WM_MEASUREITEM ||
+                                msg == WM_MENUCHAR;
+
+            // メニュー関連のメッセージでない場合
+            if (!isMenuMessage)
+            {
+                // メニュー表示中にメニュー関連以外のメッセージが処理された場合、
+                // メニューが閉じられた可能性があるため、メニュー状態をリセット
+                // これにより、システムコマンドが処理された後でもメニュー状態が正しくリセットされる
+                if (FastExplorer.ShellContextMenu.ShellContextMenuService.IsMenuShowing)
+                {
+                    // マウスメッセージやキーボードメッセージなど、メニューが閉じられる可能性があるメッセージの場合のみリセット
+                    // ただし、すべてのメッセージでリセットするとパフォーマンスに影響するため、
+                    // 重要なメッセージのみをチェック
+                    const int WM_LBUTTONDOWN = 0x0201;
+                    const int WM_RBUTTONDOWN = 0x0204;
+                    const int WM_MBUTTONDOWN = 0x0207;
+                    const int WM_KEYDOWN = 0x0100;
+                    const int WM_KEYUP = 0x0101;
+                    const int WM_MOUSEMOVE = 0x0200;
+                    
+                    if (msg == WM_LBUTTONDOWN || 
+                        msg == WM_RBUTTONDOWN || 
+                        msg == WM_MBUTTONDOWN ||
+                        msg == WM_KEYDOWN ||
+                        msg == WM_KEYUP ||
+                        msg == WM_MOUSEMOVE)
+                    {
+                        FastExplorer.ShellContextMenu.ShellContextMenuService.ResetMenuState();
+                    }
+                }
+                handled = false;
+                return IntPtr.Zero;
+            }
+
+            // メニュー関連のメッセージの場合のみ、メニューが表示中かチェック
+            if (!FastExplorer.ShellContextMenu.ShellContextMenuService.IsMenuShowing)
+            {
+                // メニューが表示されていない場合は、メッセージを通常処理に任せる
+                handled = false;
+                return IntPtr.Zero;
+            }
+
+            // メニューが表示中で、メニュー関連のメッセージの場合のみProcessWindowMessageを呼び出す
+            bool wasHandled = false;
+            IntPtr result = FastExplorer.ShellContextMenu.ShellContextMenuService.ProcessWindowMessage(hwnd, msg, wParam, lParam, ref wasHandled);
+            
+            // ProcessWindowMessageがメッセージを処理した場合のみhandledをtrueにする
+            if (wasHandled)
+            {
+                handled = true;
+                return result;
+            }
+
+            // 処理されなかった場合は、通常処理に任せる
             handled = false;
             return IntPtr.Zero;
         }
