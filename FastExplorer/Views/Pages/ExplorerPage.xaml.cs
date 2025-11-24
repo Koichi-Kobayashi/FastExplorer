@@ -1920,10 +1920,11 @@ namespace FastExplorer.Views.Pages
                 }
 
                 // タブの並び替えを実行
+                System.Windows.Controls.TabControl? tabControl = null;
                 if (ViewModel.IsSplitPaneEnabled)
                 {
                     // 分割ペインモードの場合、どのペインに属しているかを判定
-                    var tabControl = FindAncestor<System.Windows.Controls.TabControl>(targetTabItem);
+                    tabControl = FindAncestor<System.Windows.Controls.TabControl>(targetTabItem);
                     if (tabControl != null)
                     {
                         var column = Grid.GetColumn(tabControl);
@@ -1932,27 +1933,66 @@ namespace FastExplorer.Views.Pages
                             // 左ペイン
                             ViewModel.ReorderTab(draggedTab, targetTab, ViewModel.LeftPaneTabs);
                             // ドロップしたタブを選択状態にする
-                            ViewModel.SelectedLeftPaneTab = targetTab;
+                            ViewModel.SelectedLeftPaneTab = draggedTab;
                         }
                         else if (column == 2)
                         {
                             // 右ペイン
                             ViewModel.ReorderTab(draggedTab, targetTab, ViewModel.RightPaneTabs);
                             // ドロップしたタブを選択状態にする
-                            ViewModel.SelectedRightPaneTab = targetTab;
+                            ViewModel.SelectedRightPaneTab = draggedTab;
                         }
                     }
                 }
                 else
                 {
                     // 通常モード
+                    tabControl = FindAncestor<System.Windows.Controls.TabControl>(targetTabItem);
                     ViewModel.ReorderTab(draggedTab, targetTab, ViewModel.Tabs);
                     // ドロップしたタブを選択状態にする
-                    ViewModel.SelectedTab = targetTab;
+                    ViewModel.SelectedTab = draggedTab;
+                }
+
+                // ドラッグしたタブ（draggedTab）にフォーカスを設定
+                if (tabControl != null)
+                {
+                    Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        // TabControl内でdraggedTabに対応するTabItemを検索
+                        var draggedTabItem = FindTabItemByDataContext(tabControl, draggedTab);
+                        if (draggedTabItem != null)
+                        {
+                            draggedTabItem.Focus();
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Input);
                 }
 
                 e.Handled = true;
             }
+        }
+
+        /// <summary>
+        /// TabControl内で指定されたDataContextに対応するTabItemを検索します
+        /// </summary>
+        /// <param name="tabControl">TabControl</param>
+        /// <param name="dataContext">検索するDataContext</param>
+        /// <returns>見つかったTabItem、見つからない場合はnull</returns>
+        private System.Windows.Controls.TabItem? FindTabItemByDataContext(System.Windows.Controls.TabControl tabControl, object dataContext)
+        {
+            if (tabControl == null || dataContext == null)
+                return null;
+
+            // TabControlのItemsを走査して、DataContextが一致するTabItemを検索
+            foreach (var item in tabControl.Items)
+            {
+                if (item is System.Windows.Controls.TabItem tabItem && tabItem.DataContext == dataContext)
+                {
+                    return tabItem;
+                }
+            }
+
+            // ビジュアルツリーを走査して検索
+            return FindChild<System.Windows.Controls.TabItem>(tabControl, ti => ti.DataContext == dataContext);
         }
     }
 }
