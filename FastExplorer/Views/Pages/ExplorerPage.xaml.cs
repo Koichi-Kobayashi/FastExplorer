@@ -1612,72 +1612,53 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">ルーティングイベント引数</param>
         private void CopyPathButton_Click(object sender, RoutedEventArgs e)
         {
+            // ボタンのDataContextから直接タブを取得（最適化：親要素を辿る前にボタン自体のDataContextを確認）
             Models.ExplorerTab? tab = null;
-
-            // ボタンのDataContextから直接タブを取得
-            // ボタンはExplorerTabContentTemplate内にあるため、親要素を辿ってExplorerTabのDataContextを取得
-            if (sender is DependencyObject source)
+            
+            if (sender is FrameworkElement buttonElement)
             {
-                DependencyObject? current = source;
-                while (current != null)
+                // まずボタン自体のDataContextを確認
+                tab = buttonElement.DataContext as Models.ExplorerTab;
+                
+                // DataContextが見つからない場合、親要素を辿ってExplorerTabのDataContextを取得
+                if (tab == null)
                 {
-                    if (current is FrameworkElement element && element.DataContext is Models.ExplorerTab explorerTab)
+                    var current = VisualTreeHelper.GetParent(buttonElement);
+                    while (current != null)
                     {
-                        tab = explorerTab;
-                        break;
+                        if (current is FrameworkElement element && element.DataContext is Models.ExplorerTab explorerTab)
+                        {
+                            tab = explorerTab;
+                            break;
+                        }
+                        current = VisualTreeHelper.GetParent(current);
                     }
-                    current = VisualTreeHelper.GetParent(current);
                 }
             }
 
-            // DataContextから取得できない場合は、選択されているタブを使用
-            if (tab == null)
+            // DataContextから取得できない場合は、選択されているタブを使用（フォールバック）
+            tab ??= ViewModel.IsSplitPaneEnabled
+                ? (ViewModel.ActivePane == 0 ? ViewModel.SelectedLeftPaneTab
+                   : ViewModel.ActivePane == 2 ? ViewModel.SelectedRightPaneTab
+                   : ViewModel.SelectedLeftPaneTab ?? ViewModel.SelectedRightPaneTab)
+                : ViewModel.SelectedTab;
+
+            // パスを取得してクリップボードにコピー
+            var path = tab?.ViewModel?.CurrentPath;
+            if (string.IsNullOrEmpty(path))
             {
-                if (ViewModel.IsSplitPaneEnabled)
-                {
-                    // 分割ペインモードの場合、アクティブなペインのタブを取得
-                    // ActivePane: 0=左ペイン, 2=右ペイン, -1=未設定
-                    if (ViewModel.ActivePane == 0)
-                    {
-                        tab = ViewModel.SelectedLeftPaneTab;
-                    }
-                    else if (ViewModel.ActivePane == 2)
-                    {
-                        tab = ViewModel.SelectedRightPaneTab;
-                    }
-                    else
-                    {
-                        // ActivePaneが未設定の場合は左ペインを優先
-                        tab = ViewModel.SelectedLeftPaneTab ?? ViewModel.SelectedRightPaneTab;
-                    }
-                }
-                else
-                {
-                    // 通常モードの場合
-                    tab = ViewModel.SelectedTab;
-                }
+                path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             }
 
-            if (tab != null)
+            if (!string.IsNullOrEmpty(path))
             {
-                // タブのパスを取得
-                var path = tab.ViewModel?.CurrentPath;
-                if (string.IsNullOrEmpty(path))
+                try
                 {
-                    // パスが空の場合はホームディレクトリを使用
-                    path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    System.Windows.Clipboard.SetText(path);
                 }
-
-                if (!string.IsNullOrEmpty(path))
+                catch
                 {
-                    try
-                    {
-                        System.Windows.Clipboard.SetText(path);
-                    }
-                    catch
-                    {
-                        // クリップボードへのコピーに失敗した場合は何もしない
-                    }
+                    // クリップボードへのコピーに失敗した場合は何もしない
                 }
             }
         }
