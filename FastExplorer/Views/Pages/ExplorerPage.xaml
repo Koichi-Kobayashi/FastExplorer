@@ -324,7 +324,6 @@
                             </ui:Button>
                             <ItemsControl
                                 VerticalAlignment="Center"
-                                DataContext="{Binding}"
                                 ItemsSource="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -674,16 +673,22 @@
                                         x:Name="PART_ButtonScrollLeft"
                                         Width="0"
                                         Height="0"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}"
                                         IsTabStop="False"
-                                        Visibility="Collapsed" />
+                                        Visibility="Collapsed">
+                                        <RepeatButton.Content>
+                                            <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
+                                        </RepeatButton.Content>
+                                    </RepeatButton>
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}"
                                         IsTabStop="False"
-                                        Visibility="Collapsed" />
+                                        Visibility="Collapsed">
+                                        <RepeatButton.Content>
+                                            <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
+                                        </RepeatButton.Content>
+                                    </RepeatButton>
                                     <ui:Button
                                         Width="32"
                                         Height="32"
@@ -722,6 +727,11 @@
                         <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
                         <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
                         <Setter Property="BorderThickness" Value="1,1,1,0" />
+                        <Setter Property="AllowDrop" Value="True" />
+                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
+                        <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
+                        <EventSetter Event="Drop" Handler="TabItem_Drop" />
+                        <EventSetter Event="DragOver" Handler="TabItem_DragOver" />
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="TabItem">
@@ -852,16 +862,22 @@
                                         x:Name="PART_ButtonScrollLeft"
                                         Width="0"
                                         Height="0"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}"
                                         IsTabStop="False"
-                                        Visibility="Collapsed" />
+                                        Visibility="Collapsed">
+                                        <RepeatButton.Content>
+                                            <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
+                                        </RepeatButton.Content>
+                                    </RepeatButton>
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}"
                                         IsTabStop="False"
-                                        Visibility="Collapsed" />
+                                        Visibility="Collapsed">
+                                        <RepeatButton.Content>
+                                            <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
+                                        </RepeatButton.Content>
+                                    </RepeatButton>
                                     <ui:Button
                                         Width="32"
                                         Height="32"
@@ -900,6 +916,11 @@
                         <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
                         <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
                         <Setter Property="BorderThickness" Value="1,1,1,0" />
+                        <Setter Property="AllowDrop" Value="True" />
+                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
+                        <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
+                        <EventSetter Event="Drop" Handler="TabItem_Drop" />
+                        <EventSetter Event="DragOver" Handler="TabItem_DragOver" />
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="TabItem">
@@ -1070,6 +1091,11 @@
                     <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
                     <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
                     <Setter Property="BorderThickness" Value="1,1,1,0" />
+                    <Setter Property="AllowDrop" Value="True" />
+                    <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
+                    <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
+                    <EventSetter Event="Drop" Handler="TabItem_Drop" />
+                    <EventSetter Event="DragOver" Handler="TabItem_DragOver" />
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="TabItem">
@@ -1218,7 +1244,7 @@
                                                         Padding="4,2"
                                                         Background="Transparent"
                                                         BorderThickness="0"
-                                                        Command="{Binding ViewModel.NavigateToPathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        Command="{Binding DataContext.ViewModel.NavigateToPathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                         CommandParameter="{Binding Path}"
                                                         Cursor="Hand"
                                                         ToolTip="{Binding Path}">

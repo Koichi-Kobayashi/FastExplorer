@@ -523,6 +523,33 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
+        /// タブの並び順を変更します
+        /// </summary>
+        /// <param name="draggedTab">ドラッグされたタブ</param>
+        /// <param name="targetTab">ドロップ先のタブ</param>
+        /// <param name="tabs">タブのコレクション</param>
+        public void ReorderTab(ExplorerTab draggedTab, ExplorerTab targetTab, ObservableCollection<ExplorerTab> tabs)
+        {
+            if (draggedTab == null || targetTab == null || tabs == null)
+                return;
+
+            var draggedIndex = tabs.IndexOf(draggedTab);
+            var targetIndex = tabs.IndexOf(targetTab);
+
+            if (draggedIndex == -1 || targetIndex == -1 || draggedIndex == targetIndex)
+                return;
+
+            // タブを移動
+            tabs.RemoveAt(draggedIndex);
+            
+            // 新しい位置を計算（削除後のインデックスを考慮）
+            // 後ろから前に移動する場合、targetIndexはそのまま
+            // 前から後ろに移動する場合、targetIndexは1減る（削除された要素の分）
+            var newIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+            tabs.Insert(newIndex, draggedTab);
+        }
+
+        /// <summary>
         /// タブのタイトルを現在のパスに基づいて更新します
         /// </summary>
         /// <param name="tab">タイトルを更新するタブ</param>
