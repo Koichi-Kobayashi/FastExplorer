@@ -34,6 +34,126 @@ namespace FastExplorer.Views.Pages
             DataContext = this;
 
             InitializeComponent();
+
+            // ActivePaneの変更を監視して、ListViewの背景色を更新
+            ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+            Loaded += ExplorerPage_Loaded;
+        }
+
+        /// <summary>
+        /// ページが読み込まれたときに呼び出されます
+        /// </summary>
+        private void ExplorerPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            // 初期状態の背景色を更新
+            UpdateListViewBackgroundColors();
+        }
+
+        /// <summary>
+        /// ViewModelのプロパティが変更されたときに呼び出されます
+        /// </summary>
+        private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ExplorerPageViewModel.ActivePane) || 
+                e.PropertyName == nameof(ExplorerPageViewModel.IsSplitPaneEnabled))
+            {
+                UpdateListViewBackgroundColors();
+            }
+        }
+
+        /// <summary>
+        /// 左右のペインのListViewの背景色を更新します
+        /// </summary>
+        private void UpdateListViewBackgroundColors()
+        {
+            if (!ViewModel.IsSplitPaneEnabled)
+                return;
+
+            // 左右のペインのListViewを検索
+            var leftListView = FindListViewInPane(0);
+            var rightListView = FindListViewInPane(2);
+
+            // フォーカスがないペインの背景色を変更（テーマに応じた色を使用）
+            Brush? unfocusedBackground = null;
+            try
+            {
+                // アクセントカラーの薄いバージョンを使用
+                var accentBrush = FindResource("AccentFillColorDefaultBrush") as SolidColorBrush;
+                if (accentBrush != null)
+                {
+                    var accentColor = accentBrush.Color;
+                    unfocusedBackground = new SolidColorBrush(Color.FromArgb(30, accentColor.R, accentColor.G, accentColor.B));
+                }
+                else
+                {
+                    // Brushリソースが見つからない場合はデフォルトの色を使用
+                    unfocusedBackground = new SolidColorBrush(Color.FromArgb(20, 0, 120, 215)); // 薄い青
+                }
+            }
+            catch
+            {
+                // リソースが見つからない場合はデフォルトの色を使用
+                unfocusedBackground = new SolidColorBrush(Color.FromArgb(20, 0, 120, 215)); // 薄い青
+            }
+
+            // フォーカスがあるペインは透明（薄い色）
+            var focusedBackground = new SolidColorBrush(Colors.Transparent);
+
+            if (leftListView != null)
+            {
+                leftListView.Background = ViewModel.ActivePane == 0 ? focusedBackground : unfocusedBackground;
+            }
+
+            if (rightListView != null)
+            {
+                rightListView.Background = ViewModel.ActivePane == 2 ? focusedBackground : unfocusedBackground;
+            }
+        }
+
+        /// <summary>
+        /// 指定されたペイン内のListViewを検索します
+        /// </summary>
+        /// <param name="pane">ペイン番号（0=左、2=右）</param>
+        /// <returns>ListView、見つからない場合はnull</returns>
+        private System.Windows.Controls.ListView? FindListViewInPane(int pane)
+        {
+            // 分割ペインのTabControlを検索（Grid.Columnで判定）
+            var tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc => 
+            {
+                var column = Grid.GetColumn(tc);
+                return column == pane;
+            });
+
+            if (tabControl == null)
+                return null;
+
+            // TabControl内のListViewを検索
+            return FindChild<System.Windows.Controls.ListView>(tabControl, null);
+        }
+
+        /// <summary>
+        /// 指定された型の子要素を検索します
+        /// </summary>
+        private T? FindChild<T>(DependencyObject parent, Func<T, bool>? predicate) where T : DependencyObject
+        {
+            if (parent == null)
+                return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                
+                if (child is T t && (predicate == null || predicate(t)))
+                {
+                    return t;
+                }
+
+                var result = FindChild<T>(child, predicate);
+                if (result != null)
+                    return result;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -238,6 +358,8 @@ namespace FastExplorer.Views.Pages
             {
                 // ViewModelのActivePaneプロパティを更新
                 ViewModel.ActivePane = pane;
+                // 背景色を更新
+                UpdateListViewBackgroundColors();
             }
         }
 
@@ -261,6 +383,8 @@ namespace FastExplorer.Views.Pages
             {
                 // ViewModelのActivePaneプロパティを更新
                 ViewModel.ActivePane = pane;
+                // 背景色を更新
+                UpdateListViewBackgroundColors();
             }
         }
 
