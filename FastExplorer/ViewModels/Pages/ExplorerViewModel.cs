@@ -361,8 +361,9 @@ namespace FastExplorer.ViewModels.Pages
                     if (cancellationToken.IsCancellationRequested)
                         return;
 
-                    // UIスレッドでバッチ更新（200件ずつ追加してUIの応答性を保ちつつ、更新回数を削減）
-                    const int batchSize = 200;
+                    // UIスレッドでバッチ更新（500件ずつ追加してUIの応答性を保ちつつ、更新回数を削減）
+                    // バッチサイズを200から500に増やすことで、Dispatcher呼び出し回数を削減（高速化）
+                    const int batchSize = 500;
                     // Dispatcherをキャッシュ（パフォーマンス向上）
                     if (_cachedDispatcher == null)
                     {
@@ -394,9 +395,11 @@ namespace FastExplorer.ViewModels.Pages
                                 else
                                 {
                                     // 大きいリストの場合は通常のループ
+                                    // プロパティアクセスをキャッシュして高速化
+                                    var items = Items;
                                     foreach (var item in itemList)
                                     {
-                                        Items.Add(item);
+                                        items.Add(item);
                                     }
                                 }
                             }
@@ -427,20 +430,24 @@ namespace FastExplorer.ViewModels.Pages
                                 {
                                     // 直接インデックスアクセスでメモリ割り当てを削減
                                     // ループ展開の最適化（小さいバッチの場合は展開）
+                                    // endIdxは既にMath.Minで計算されているため、endIdx <= itemList.Countが保証されている
+                                    // そのため、itemList.Countのチェックは不要（条件分岐を削減して高速化）
                                     if (batchItemCount <= 4)
                                     {
                                         // 小さいバッチの場合は展開（条件分岐を削減）
-                                        if (startIdx < itemList.Count) Items.Add(itemList[startIdx]);
-                                        if (startIdx + 1 < itemList.Count && startIdx + 1 < endIdx) Items.Add(itemList[startIdx + 1]);
-                                        if (startIdx + 2 < itemList.Count && startIdx + 2 < endIdx) Items.Add(itemList[startIdx + 2]);
-                                        if (startIdx + 3 < itemList.Count && startIdx + 3 < endIdx) Items.Add(itemList[startIdx + 3]);
+                                        if (startIdx < endIdx) Items.Add(itemList[startIdx]);
+                                        if (startIdx + 1 < endIdx) Items.Add(itemList[startIdx + 1]);
+                                        if (startIdx + 2 < endIdx) Items.Add(itemList[startIdx + 2]);
+                                        if (startIdx + 3 < endIdx) Items.Add(itemList[startIdx + 3]);
                                     }
                                     else
                                     {
                                         // 大きいバッチの場合は通常のループ
+                                        // ループ変数をキャッシュしてプロパティアクセスを削減
+                                        var items = Items;
                                         for (int j = startIdx; j < endIdx; j++)
                                         {
-                                            Items.Add(itemList[j]);
+                                            items.Add(itemList[j]);
                                         }
                                     }
                                 }
@@ -534,7 +541,8 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private void LoadPinnedFolders()
         {
-            PinnedFolders.Clear();
+            var pinnedFolders = PinnedFolders;
+            pinnedFolders.Clear();
             if (_favoriteService == null)
                 return;
 
@@ -548,21 +556,30 @@ namespace FastExplorer.ViewModels.Pages
             const string Videos = "ビデオ";
             const string RecycleBin = "ごみ箱";
             
+            // ReadOnlySpanを事前に作成（ループ内での作成を削減）
+            var desktopSpan = Desktop.AsSpan();
+            var downloadsSpan = Downloads.AsSpan();
+            var documentsSpan = Documents.AsSpan();
+            var picturesSpan = Pictures.AsSpan();
+            var musicSpan = Music.AsSpan();
+            var videosSpan = Videos.AsSpan();
+            var recycleBinSpan = RecycleBin.AsSpan();
+            
             foreach (var favorite in favorites)
             {
                 // 標準的なWindowsフォルダのみをピン留めとして表示
                 // ReadOnlySpan<char>を使用してメモリ割り当てを削減（高速化）
                 var name = favorite.Name;
                 var nameSpan = name.AsSpan();
-                if (nameSpan.SequenceEqual(Desktop.AsSpan()) ||
-                    nameSpan.SequenceEqual(Downloads.AsSpan()) ||
-                    nameSpan.SequenceEqual(Documents.AsSpan()) ||
-                    nameSpan.SequenceEqual(Pictures.AsSpan()) ||
-                    nameSpan.SequenceEqual(Music.AsSpan()) ||
-                    nameSpan.SequenceEqual(Videos.AsSpan()) ||
-                    nameSpan.SequenceEqual(RecycleBin.AsSpan()))
+                if (nameSpan.SequenceEqual(desktopSpan) ||
+                    nameSpan.SequenceEqual(downloadsSpan) ||
+                    nameSpan.SequenceEqual(documentsSpan) ||
+                    nameSpan.SequenceEqual(picturesSpan) ||
+                    nameSpan.SequenceEqual(musicSpan) ||
+                    nameSpan.SequenceEqual(videosSpan) ||
+                    nameSpan.SequenceEqual(recycleBinSpan))
                 {
-                    PinnedFolders.Add(favorite);
+                    pinnedFolders.Add(favorite);
                 }
             }
         }
@@ -601,19 +618,25 @@ namespace FastExplorer.ViewModels.Pages
                                 // そのため、Task.Run内で実行してUIスレッドをブロックしない
                                 if (driveInfo.IsReady)
                                 {
+                                    // プロパティアクセスをキャッシュ（高速化）
+                                    var volumeLabel = driveInfo.VolumeLabel;
+                                    var rootDirectory = driveInfo.RootDirectory;
+                                    var totalSize = driveInfo.TotalSize;
+                                    var freeSpace = driveInfo.AvailableFreeSpace;
+                                    
                                     // 文字列操作を最適化（ZString.Concatを使用してボクシングを回避）
                                     var driveLetter = drive.TrimEnd('\\');
-                                    var driveName = string.IsNullOrEmpty(driveInfo.VolumeLabel)
+                                    var driveName = string.IsNullOrEmpty(volumeLabel)
                                         ? ZString.Concat("ローカルディスク (", driveLetter, ")")
-                                        : ZString.Concat(driveInfo.VolumeLabel, " (", driveLetter, ")");
+                                        : ZString.Concat(volumeLabel, " (", driveLetter, ")");
                                     
                                     return new DriveInfoModel
                                     {
                                         Name = driveName,
-                                        Path = driveInfo.RootDirectory.FullName,
-                                        VolumeLabel = driveInfo.VolumeLabel,
-                                        TotalSize = driveInfo.TotalSize,
-                                        FreeSpace = driveInfo.AvailableFreeSpace
+                                        Path = rootDirectory.FullName,
+                                        VolumeLabel = volumeLabel,
+                                        TotalSize = totalSize,
+                                        FreeSpace = freeSpace
                                     };
                                 }
                                 return null;
@@ -637,11 +660,13 @@ namespace FastExplorer.ViewModels.Pages
                 }
 
                 // UIスレッドで一括追加
+                // プロパティアクセスをキャッシュ（高速化）
                 await dispatcher.InvokeAsync(() =>
                 {
+                    var drives = Drives;
                     foreach (var model in driveModels)
                     {
-                        Drives.Add(model);
+                        drives.Add(model);
                     }
                 });
             }
@@ -656,17 +681,19 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private void LoadRecentFiles()
         {
-            RecentFilesList.Clear();
+            var recentFilesList = RecentFilesList;
+            recentFilesList.Clear();
             // 簡易実装：最近アクセスしたファイルを保持
             // 実際の実装では、Windowsのジャンプリストやファイルアクセス履歴を使用
             // LINQのTake()を直接ループに置き換え（メモリ割り当てを削減）
-            var count = Math.Min(_recentFiles.Count, 10);
+            var recentFilesCount = _recentFiles.Count;
+            var count = Math.Min(recentFilesCount, 10);
             for (int i = 0; i < count; i++)
             {
                 var file = _recentFiles[i];
                 if (File.Exists(file.FullPath) || Directory.Exists(file.FullPath))
                 {
-                    RecentFilesList.Add(file);
+                    recentFilesList.Add(file);
                 }
             }
         }
@@ -695,10 +722,13 @@ namespace FastExplorer.ViewModels.Pages
                 // RemoveAllのラムダ式を直接ループに置き換え（メモリ割り当てを削減）
                 // 文字列比較を最適化（ReadOnlySpanを使用してメモリ割り当てを削減）
                 var filePathSpan = filePath.AsSpan();
+                var filePathLength = filePathSpan.Length;
                 for (int i = _recentFiles.Count - 1; i >= 0; i--)
                 {
-                    var fullPathSpan = _recentFiles[i].FullPath.AsSpan();
-                    if (fullPathSpan.Length == filePathSpan.Length && 
+                    var fullPath = _recentFiles[i].FullPath;
+                    var fullPathSpan = fullPath.AsSpan();
+                    // 長さチェックを先に行う（高速化）
+                    if (fullPathSpan.Length == filePathLength && 
                         fullPathSpan.CompareTo(filePathSpan, StringComparison.OrdinalIgnoreCase) == 0)
                     {
                         _recentFiles.RemoveAt(i);

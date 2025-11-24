@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -149,24 +150,55 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
-        /// DependencyObjectからScrollViewerを取得します
+        /// DependencyObjectからScrollViewerを取得します（キャッシュ付き）
         /// </summary>
         /// <param name="element">要素</param>
         /// <returns>ScrollViewer、見つからない場合はnull</returns>
-        private static System.Windows.Controls.ScrollViewer? GetScrollViewer(System.Windows.DependencyObject element)
+        private System.Windows.Controls.ScrollViewer? GetScrollViewer(System.Windows.DependencyObject element)
         {
             if (element == null)
                 return null;
 
+            // ListViewの場合はキャッシュを確認
+            System.Windows.Controls.ListView? listView = null;
+            if (element is System.Windows.Controls.ListView lv)
+            {
+                listView = lv;
+                if (_scrollViewerCache.TryGetValue(listView, out var cached))
+                {
+                    return cached;
+                }
+            }
+
             if (element is System.Windows.Controls.ScrollViewer scrollViewer)
+            {
+                // ListViewの場合はキャッシュに保存
+                if (listView != null)
+                {
+                    _scrollViewerCache[listView] = scrollViewer;
+                }
                 return scrollViewer;
+            }
 
             for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(element); i++)
             {
                 var child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
                 var result = GetScrollViewer(child);
                 if (result != null)
+                {
+                    // ListViewの場合はキャッシュに保存
+                    if (listView != null)
+                    {
+                        _scrollViewerCache[listView] = result;
+                    }
                     return result;
+                }
+            }
+
+            // ListViewの場合はnullをキャッシュに保存（再走査を避ける）
+            if (listView != null)
+            {
+                _scrollViewerCache[listView] = null;
             }
 
             return null;
@@ -439,7 +471,7 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
-        /// 要素がどのペインに属しているかを取得します（分割ペインモードの場合）
+        /// 要素がどのペインに属しているかを取得します（分割ペインモードの場合、キャッシュ付き）
         /// </summary>
         /// <param name="element">要素</param>
         /// <returns>左ペインの場合は0、右ペインの場合は2、判定できない場合は-1</returns>
@@ -447,6 +479,12 @@ namespace FastExplorer.Views.Pages
         {
             if (element == null || !ViewModel.IsSplitPaneEnabled)
                 return -1;
+            
+            // キャッシュを確認
+            if (_paneCache.TryGetValue(element, out var cachedPane))
+            {
+                return cachedPane;
+            }
             
             // 親要素をたどって、Grid.Column="0"（左ペイン）またはGrid.Column="2"（右ペイン）を探す
             var current = element;
@@ -459,6 +497,8 @@ namespace FastExplorer.Views.Pages
                     var column = System.Windows.Controls.Grid.GetColumn(tabControl);
                     if (column == 0 || column == 2)
                     {
+                        // キャッシュに保存
+                        _paneCache[element] = column;
                         return column;
                     }
                 }
@@ -466,6 +506,8 @@ namespace FastExplorer.Views.Pages
                 current = VisualTreeHelper.GetParent(current) as FrameworkElement;
             }
             
+            // 見つからなかった場合もキャッシュに保存（再走査を避ける）
+            _paneCache[element] = -1;
             return -1;
         }
 
@@ -528,6 +570,10 @@ namespace FastExplorer.Views.Pages
         private Point _dragStartPoint;
         private bool _isDragging = false;
         private FileSystemItem? _draggedItem = null;
+
+        // ビジュアルツリー走査の結果をキャッシュ（パフォーマンス向上）
+        private readonly Dictionary<FrameworkElement, int> _paneCache = new();
+        private readonly Dictionary<System.Windows.Controls.ListView, System.Windows.Controls.ScrollViewer?> _scrollViewerCache = new();
 
         /// <summary>
         /// ListViewItemでマウスが押されたときに呼び出されます（ドラッグ開始の検出）
@@ -657,14 +703,20 @@ namespace FastExplorer.Views.Pages
             // ドロップ先がフォルダーの場合のみ移動
             if (dropTarget is FileSystemItem targetItem && targetItem.IsDirectory)
             {
-                // 同じフォルダーへの移動は無視
-                if (string.Equals(draggedItem.FullPath, targetItem.FullPath, StringComparison.OrdinalIgnoreCase))
+                // 同じフォルダーへの移動は無視（ReadOnlySpanを使用してメモリ割り当てを削減）
+                var draggedPath = draggedItem.FullPath.AsSpan();
+                var targetPath = targetItem.FullPath.AsSpan();
+                if (draggedPath.CompareTo(targetPath, StringComparison.OrdinalIgnoreCase) == 0)
                     return;
 
                 // 親フォルダーへの移動も無視（無限ループを防ぐ）
                 var parentPath = System.IO.Path.GetDirectoryName(draggedItem.FullPath);
-                if (string.Equals(parentPath, targetItem.FullPath, StringComparison.OrdinalIgnoreCase))
-                    return;
+                if (parentPath != null)
+                {
+                    var parentPathSpan = parentPath.AsSpan();
+                    if (parentPathSpan.CompareTo(targetPath, StringComparison.OrdinalIgnoreCase) == 0)
+                        return;
+                }
 
                 // FileSystemServiceを取得して移動を実行
                 var fileSystemService = App.Services.GetService(typeof(FileSystemService)) as FileSystemService;

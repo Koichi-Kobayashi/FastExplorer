@@ -19,8 +19,9 @@ namespace FastExplorer.Services
                 return Enumerable.Empty<FileSystemItem>();
 
             // リストの容量を事前に推定（平均的なディレクトリサイズを想定）
-            // 実際の数がわからないため、初期容量を32に設定（必要に応じて拡張される）
-            var items = new List<FileSystemItem>(32);
+            // 実際の数がわからないため、初期容量を256に設定（必要に応じて拡張される）
+            // 32から256に増やすことで、メモリ再割り当てを削減（高速化）
+            var items = new List<FileSystemItem>(256);
 
             try
             {
@@ -39,20 +40,33 @@ namespace FastExplorer.Services
                         var isDirectory = (info.Attributes & FileAttributes.Directory) == FileAttributes.Directory;
                         long size = 0;
                         
-                        if (!isDirectory && info is FileInfo fileInfo)
+                        // 型チェックを最適化（is演算子とキャストを1回に統合）
+                        if (!isDirectory)
                         {
-                            size = fileInfo.Length;
+                            // FileInfoとしてキャストしてLengthを取得（型チェックを削減）
+                            var fileInfo = info as FileInfo;
+                            if (fileInfo != null)
+                            {
+                                size = fileInfo.Length;
+                            }
                         }
+                        
+                        // プロパティアクセスをキャッシュ（高速化）
+                        var name = info.Name;
+                        var fullPath = info.FullName;
+                        var extension = isDirectory ? string.Empty : info.Extension;
+                        var lastModified = info.LastWriteTime;
+                        var attributes = info.Attributes;
                         
                         items.Add(new FileSystemItem
                         {
-                            Name = info.Name,
-                            FullPath = info.FullName,
-                            Extension = isDirectory ? string.Empty : info.Extension,
+                            Name = name,
+                            FullPath = fullPath,
+                            Extension = extension,
                             Size = size,
-                            LastModified = info.LastWriteTime,
+                            LastModified = lastModified,
                             IsDirectory = isDirectory,
-                            Attributes = info.Attributes
+                            Attributes = attributes
                         });
                     }
                     catch (UnauthorizedAccessException)
@@ -78,15 +92,20 @@ namespace FastExplorer.Services
                 return Enumerable.Empty<FileSystemItem>();
 
             // ソートを最適化：Array.Sortを使用してメモリ割り当てを削減
+            // 比較関数を最適化：ディレクトリの比較を高速化（boolの比較を直接行う）
             items.Sort((x, y) =>
             {
-                // ディレクトリを先に
-                var dirCompare = y.IsDirectory.CompareTo(x.IsDirectory);
-                if (dirCompare != 0)
-                    return dirCompare;
+                // ディレクトリを先に（boolの比較を直接行うことで高速化）
+                if (x.IsDirectory != y.IsDirectory)
+                {
+                    return y.IsDirectory ? 1 : -1;
+                }
                 
                 // 名前でソート（大文字小文字を区別しない）
-                return string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase);
+                // ReadOnlySpan<char>を使用してメモリ割り当てを削減
+                var xNameSpan = x.Name.AsSpan();
+                var yNameSpan = y.Name.AsSpan();
+                return xNameSpan.CompareTo(yNameSpan, StringComparison.OrdinalIgnoreCase);
             });
 
             return items;
