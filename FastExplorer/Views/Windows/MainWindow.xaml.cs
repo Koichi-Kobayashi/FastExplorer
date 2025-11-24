@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -24,6 +25,7 @@ namespace FastExplorer.Views.Windows
         private readonly WindowSettingsService _windowSettingsService;
         private readonly INavigationService _navigationService;
         private HwndSource? _hwndSource;
+        private HwndSourceHook? _wndProcHook; // メッセージフックの参照を保持
         
         // リフレクション結果をキャッシュ（パフォーマンス向上）
         private static PropertyInfo? _cachedInvokedItemContainerProperty;
@@ -704,7 +706,30 @@ namespace FastExplorer.Views.Windows
             _hwndSource = (HwndSource)PresentationSource.FromVisual(this);
             if (_hwndSource != null)
             {
-                _hwndSource.AddHook(WndProc);
+                _wndProcHook = WndProc;
+                _hwndSource.AddHook(_wndProcHook);
+            }
+        }
+
+        /// <summary>
+        /// メッセージフックを一時的に無効化します（WindowChromeの処理を妨げないようにするため）
+        /// </summary>
+        public void DisableMessageHook()
+        {
+            if (_hwndSource != null && _wndProcHook != null)
+            {
+                _hwndSource.RemoveHook(_wndProcHook);
+            }
+        }
+
+        /// <summary>
+        /// メッセージフックを再有効化します
+        /// </summary>
+        public void EnableMessageHook()
+        {
+            if (_hwndSource != null && _wndProcHook != null)
+            {
+                _hwndSource.AddHook(_wndProcHook);
             }
         }
 
@@ -719,80 +744,48 @@ namespace FastExplorer.Views.Windows
             const int WM_MEASUREITEM = 0x002C;
             const int WM_MENUCHAR = 0x0120;
             
-            // システムコマンドメッセージ（閉じる、最大化、最小化など）は常に通常処理に任せる
-            // これにより、メニュー表示中でもウィンドウのシステムコマンドが正常に動作する
-            const int WM_SYSCOMMAND = 0x0112;
-            const int WM_CLOSE = 0x0010;
-            const int WM_QUIT = 0x0012;
-            const int WM_ACTIVATE = 0x0006;
-            const int WM_ACTIVATEAPP = 0x001C;
-            const int WM_NCACTIVATE = 0x0086;
-            const int WM_NCHITTEST = 0x0084;
-            const int WM_NCLBUTTONDOWN = 0x00A1;
-            const int WM_NCLBUTTONUP = 0x00A2;
-            const int WM_NCRBUTTONDOWN = 0x00A4;
-            const int WM_NCRBUTTONUP = 0x00A5;
-            
-            // システムコマンドやウィンドウ終了メッセージ、非クライアント領域のメッセージは常に通常処理に任せる
-            // メニュー表示中にシステムコマンドが処理されると、メニューが閉じられるため、
-            // これらのメッセージが処理された場合はメニュー状態をリセット
-            if (msg == WM_SYSCOMMAND || 
-                msg == WM_CLOSE || 
-                msg == WM_QUIT ||
-                msg == WM_ACTIVATE ||
-                msg == WM_ACTIVATEAPP ||
-                msg == WM_NCACTIVATE ||
-                msg == WM_NCHITTEST ||
-                msg == WM_NCLBUTTONDOWN ||
-                msg == WM_NCLBUTTONUP ||
-                msg == WM_NCRBUTTONDOWN ||
-                msg == WM_NCRBUTTONUP)
+            // 重要: WindowChromeが非クライアント領域のメッセージを処理するため、
+            // これらのメッセージはメッセージフックで処理せず、完全にスキップする
+            // メッセージフックが呼ばれるだけで、WindowChromeの処理に影響を与える可能性があるため、
+            // これらのメッセージは即座にスキップする
+            // 特に、WM_NCHITTESTはWindowChromeが頻繁に呼び出すメッセージのため、
+            // メッセージフックで処理するとWindowChromeの処理が妨げられる可能性がある
+            // メッセージIDを直接チェックして、高速にスキップする
+            // メニュー表示中でも、非クライアント領域のメッセージはWindowChromeに完全に委譲する
+            switch (msg)
             {
-                // メニュー表示中にシステムコマンドが処理された場合、メニュー状態をリセット
-                // TrackPopupMenuExはモーダルなメッセージループを開始するため、
-                // システムコマンドが処理されるとメニューが閉じられる
-                if (FastExplorer.ShellContextMenu.ShellContextMenuService.IsMenuShowing)
-                {
-                    FastExplorer.ShellContextMenu.ShellContextMenuService.ResetMenuState();
-                }
-                handled = false;
-                return IntPtr.Zero;
+                // 非クライアント領域のメッセージを即座にスキップ
+                // これらのメッセージはWindowChromeが処理する必要があるため、
+                // メッセージフックで何も処理せず、即座に返す
+                case 0x0084: // WM_NCHITTEST - WindowChromeが頻繁に呼び出す（マウス移動時に毎回呼ばれる）
+                case 0x00A1: // WM_NCLBUTTONDOWN
+                case 0x00A2: // WM_NCLBUTTONUP
+                case 0x00A4: // WM_NCRBUTTONDOWN
+                case 0x00A5: // WM_NCRBUTTONUP
+                case 0x00A0: // WM_NCMOUSEMOVE
+                case 0x02A2: // WM_NCMOUSELEAVE
+                case 0x0086: // WM_NCACTIVATE
+                case 0x0112: // WM_SYSCOMMAND
+                case 0x0010: // WM_CLOSE
+                case 0x0012: // WM_QUIT
+                case 0x0006: // WM_ACTIVATE
+                case 0x001C: // WM_ACTIVATEAPP
+                    // 重要: handledをfalseにして、WindowChromeに処理を委譲する
+                    // メッセージフックで何も処理せず、即座に返すことで、WindowChromeの処理を妨げない
+                    // メニュー表示中でも、これらのメッセージはWindowChromeに完全に委譲する
+                    handled = false;
+                    return IntPtr.Zero;
             }
 
             // メニュー関連のメッセージかどうかをチェック
-            bool isMenuMessage = msg == WM_INITMENUPOPUP ||
-                                msg == WM_DRAWITEM ||
-                                msg == WM_MEASUREITEM ||
-                                msg == WM_MENUCHAR;
-
-            // メニュー関連のメッセージでない場合
-            if (!isMenuMessage)
+            // メニュー関連のメッセージのみを処理し、それ以外は即座にスキップする
+            if (msg != WM_INITMENUPOPUP && 
+                msg != WM_DRAWITEM && 
+                msg != WM_MEASUREITEM && 
+                msg != WM_MENUCHAR)
             {
-                // メニュー表示中にメニュー関連以外のメッセージが処理された場合、
-                // メニューが閉じられた可能性があるため、メニュー状態をリセット
-                // これにより、システムコマンドが処理された後でもメニュー状態が正しくリセットされる
-                if (FastExplorer.ShellContextMenu.ShellContextMenuService.IsMenuShowing)
-                {
-                    // マウスメッセージやキーボードメッセージなど、メニューが閉じられる可能性があるメッセージの場合のみリセット
-                    // ただし、すべてのメッセージでリセットするとパフォーマンスに影響するため、
-                    // 重要なメッセージのみをチェック
-                    const int WM_LBUTTONDOWN = 0x0201;
-                    const int WM_RBUTTONDOWN = 0x0204;
-                    const int WM_MBUTTONDOWN = 0x0207;
-                    const int WM_KEYDOWN = 0x0100;
-                    const int WM_KEYUP = 0x0101;
-                    const int WM_MOUSEMOVE = 0x0200;
-                    
-                    if (msg == WM_LBUTTONDOWN || 
-                        msg == WM_RBUTTONDOWN || 
-                        msg == WM_MBUTTONDOWN ||
-                        msg == WM_KEYDOWN ||
-                        msg == WM_KEYUP ||
-                        msg == WM_MOUSEMOVE)
-                    {
-                        FastExplorer.ShellContextMenu.ShellContextMenuService.ResetMenuState();
-                    }
-                }
+                // メニュー関連のメッセージでない場合は、メッセージフックで処理しない
+                // WindowChromeやその他のWPFの処理に委譲する
                 handled = false;
                 return IntPtr.Zero;
             }

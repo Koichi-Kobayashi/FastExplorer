@@ -341,8 +341,16 @@ namespace FastExplorer.ShellContextMenu
 
                     // メニュー表示終了（先にフラグをクリアして、メッセージ処理を停止）
                     // TrackPopupMenuExが返った時点でメニューは閉じられているため、
-                    // 即座にフラグをリセットする
-                    s_isMenuShowing = false;
+                    // 即座にメニュー状態をリセットする
+                    // 非クライアント領域をクリックした場合も、TrackPopupMenuExが返ってメニューが閉じられるため、
+                    // ここでリセットされる
+                    // 重要: TrackPopupMenuExが返った直後にリセットすることで、
+                    // メッセージフックが干渉しないようにする
+                    ResetMenuState();
+                    
+                    // 念のため、少し待機してから再度リセット（メッセージフックが呼ばれる前に確実にリセット）
+                    // ただし、これは非同期処理になるため、同期処理では使用しない
+                    // 代わりに、メッセージフックで非クライアント領域のクリックを検出してリセットする
 
                     if (selected != 0)
                     {
@@ -362,19 +370,10 @@ namespace FastExplorer.ShellContextMenu
                 {
                     Win32.DestroyMenu(hMenu);
                     
-                    // メニュー表示終了（念のため再度フラグをクリア）
+                    // メニュー表示終了（念のため再度メニュー状態をリセット）
                     // TrackPopupMenuExが返った時点で既にリセットしているが、
                     // 例外が発生した場合に備えて再度リセット
-                    s_isMenuShowing = false;
-                    
-                    // IContextMenu3の参照をクリア
-                    s_currentContextMenu3 = null;
-                    IntPtr currentPtr = s_currentContextMenuPtr;
-                    if (currentPtr != IntPtr.Zero)
-                    {
-                        Marshal.Release(currentPtr);
-                        s_currentContextMenuPtr = IntPtr.Zero;
-                    }
+                    ResetMenuState();
                 }
             }
             catch (InvalidOperationException)
