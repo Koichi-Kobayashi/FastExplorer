@@ -1606,6 +1606,83 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
+        /// パスコピーボタンがクリックされたときに呼び出されます（現在のタブのパスをクリップボードにコピー）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ルーティングイベント引数</param>
+        private void CopyPathButton_Click(object sender, RoutedEventArgs e)
+        {
+            Models.ExplorerTab? tab = null;
+
+            // ボタンのDataContextから直接タブを取得
+            // ボタンはExplorerTabContentTemplate内にあるため、親要素を辿ってExplorerTabのDataContextを取得
+            if (sender is DependencyObject source)
+            {
+                DependencyObject? current = source;
+                while (current != null)
+                {
+                    if (current is FrameworkElement element && element.DataContext is Models.ExplorerTab explorerTab)
+                    {
+                        tab = explorerTab;
+                        break;
+                    }
+                    current = VisualTreeHelper.GetParent(current);
+                }
+            }
+
+            // DataContextから取得できない場合は、選択されているタブを使用
+            if (tab == null)
+            {
+                if (ViewModel.IsSplitPaneEnabled)
+                {
+                    // 分割ペインモードの場合、アクティブなペインのタブを取得
+                    // ActivePane: 0=左ペイン, 2=右ペイン, -1=未設定
+                    if (ViewModel.ActivePane == 0)
+                    {
+                        tab = ViewModel.SelectedLeftPaneTab;
+                    }
+                    else if (ViewModel.ActivePane == 2)
+                    {
+                        tab = ViewModel.SelectedRightPaneTab;
+                    }
+                    else
+                    {
+                        // ActivePaneが未設定の場合は左ペインを優先
+                        tab = ViewModel.SelectedLeftPaneTab ?? ViewModel.SelectedRightPaneTab;
+                    }
+                }
+                else
+                {
+                    // 通常モードの場合
+                    tab = ViewModel.SelectedTab;
+                }
+            }
+
+            if (tab != null)
+            {
+                // タブのパスを取得
+                var path = tab.ViewModel?.CurrentPath;
+                if (string.IsNullOrEmpty(path))
+                {
+                    // パスが空の場合はホームディレクトリを使用
+                    path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                }
+
+                if (!string.IsNullOrEmpty(path))
+                {
+                    try
+                    {
+                        System.Windows.Clipboard.SetText(path);
+                    }
+                    catch
+                    {
+                        // クリップボードへのコピーに失敗した場合は何もしない
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// タブのButtonがクリックされたときに呼び出されます（タブのパスをクリップボードにコピー）
         /// </summary>
         /// <param name="sender">イベントの送信元</param>

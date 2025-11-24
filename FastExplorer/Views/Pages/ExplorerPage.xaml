@@ -373,6 +373,7 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
@@ -414,12 +415,24 @@
 
                         <ui:Button
                             Grid.Column="3"
+                            Margin="0,0,4,0"
                             Appearance="Secondary"
                             Command="{Binding DataContext.ViewModel.ToggleSplitPaneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             Style="{StaticResource HoverableButtonStyle}"
                             ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="ArrowExportRtl24" />
+                            </ui:Button.Icon>
+                        </ui:Button>
+
+                        <ui:Button
+                            Grid.Column="4"
+                            Appearance="Secondary"
+                            Click="CopyPathButton_Click"
+                            Style="{StaticResource HoverableButtonStyle}"
+                            ToolTip="パスをクリップボードにコピー">
+                            <ui:Button.Icon>
+                                <ui:SymbolIcon Symbol="Copy24" />
                             </ui:Button.Icon>
                         </ui:Button>
                     </Grid>
@@ -748,30 +761,21 @@
                 </TabControl.Resources>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid Background="Transparent">
+                        <Grid Background="Transparent" MouseRightButtonUp="TabArea_MouseRightButtonUp">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <Button
+                            <TextBlock
                                 Grid.Column="0"
                                 Margin="0,0,8,0"
-                                Padding="4,2"
-                                Style="{StaticResource BreadcrumbButtonStyle}"
-                                Cursor="Hand"
-                                Click="TabArea_ButtonClick"
-                                MouseRightButtonUp="TabArea_MouseRightButtonUp">
-                                <Button.ToolTip>
-                                    <StackPanel MaxWidth="500">
-                                        <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" />
-                                        <TextBlock Text="クリックでパスをコピー" FontStyle="Italic" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Button.ToolTip>
-                                <TextBlock
-                                    VerticalAlignment="Center"
-                                    Text="{Binding Title, Mode=OneWay}"
-                                    TextTrimming="CharacterEllipsis" />
-                            </Button>
+                                VerticalAlignment="Center"
+                                Text="{Binding Title, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis">
+                                <TextBlock.ToolTip>
+                                    <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
+                                </TextBlock.ToolTip>
+                            </TextBlock>
                             <Button
                                 Grid.Column="1"
                                 Width="18"
@@ -935,30 +939,21 @@
                 </TabControl.Resources>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid Background="Transparent">
+                        <Grid Background="Transparent" MouseRightButtonUp="TabArea_MouseRightButtonUp">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <Button
+                            <TextBlock
                                 Grid.Column="0"
                                 Margin="0,0,8,0"
-                                Padding="4,2"
-                                Style="{StaticResource BreadcrumbButtonStyle}"
-                                Cursor="Hand"
-                                Click="TabArea_ButtonClick"
-                                MouseRightButtonUp="TabArea_MouseRightButtonUp">
-                                <Button.ToolTip>
-                                    <StackPanel MaxWidth="500">
-                                        <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" />
-                                        <TextBlock Text="クリックでパスをコピー" FontStyle="Italic" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Button.ToolTip>
-                                <TextBlock
-                                    VerticalAlignment="Center"
-                                    Text="{Binding Title, Mode=OneWay}"
-                                    TextTrimming="CharacterEllipsis" />
-                            </Button>
+                                VerticalAlignment="Center"
+                                Text="{Binding Title, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis">
+                                <TextBlock.ToolTip>
+                                    <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
+                                </TextBlock.ToolTip>
+                            </TextBlock>
                             <Button
                                 Grid.Column="1"
                                 Width="18"
@@ -1114,30 +1109,21 @@
             </TabControl.Resources>
             <TabControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                    <Grid Background="Transparent">
+                    <Grid Background="Transparent" MouseRightButtonUp="TabArea_MouseRightButtonUp">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Button
+                        <TextBlock
                             Grid.Column="0"
                             Margin="0,0,8,0"
-                            Padding="4,2"
-                            Style="{StaticResource BreadcrumbButtonStyle}"
-                            Cursor="Hand"
-                            Click="TabArea_ButtonClick"
-                            MouseRightButtonUp="TabArea_MouseRightButtonUp">
-                            <Button.ToolTip>
-                                <StackPanel MaxWidth="500">
-                                    <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" />
-                                    <TextBlock Text="クリックでパスをコピー" FontStyle="Italic" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
-                                </StackPanel>
-                            </Button.ToolTip>
-                            <TextBlock
-                                VerticalAlignment="Center"
-                                Text="{Binding Title, Mode=OneWay}"
-                                TextTrimming="CharacterEllipsis" />
-                        </Button>
+                            VerticalAlignment="Center"
+                            Text="{Binding Title, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis">
+                            <TextBlock.ToolTip>
+                                <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
+                            </TextBlock.ToolTip>
+                        </TextBlock>
                         <Button
                             Grid.Column="1"
                             Width="18"
@@ -1271,6 +1257,7 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
@@ -1312,12 +1299,24 @@
 
                                 <ui:Button
                                     Grid.Column="3"
+                                    Margin="0,0,4,0"
                                     Appearance="Secondary"
                                     Command="{Binding DataContext.ViewModel.ToggleSplitPaneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     Style="{StaticResource HoverableButtonStyle}"
                                     ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}">
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="SplitVertical24" />
+                                    </ui:Button.Icon>
+                                </ui:Button>
+
+                                <ui:Button
+                                    Grid.Column="4"
+                                    Appearance="Secondary"
+                                    Click="CopyPathButton_Click"
+                                    Style="{StaticResource HoverableButtonStyle}"
+                                    ToolTip="パスをクリップボードにコピー">
+                                    <ui:Button.Icon>
+                                        <ui:SymbolIcon Symbol="Copy24" />
                                     </ui:Button.Icon>
                                 </ui:Button>
                             </Grid>
