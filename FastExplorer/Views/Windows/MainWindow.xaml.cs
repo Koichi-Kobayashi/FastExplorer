@@ -122,9 +122,6 @@ namespace FastExplorer.Views.Windows
                     {
                         nav.Background = secondaryBrush;
                     }
-                    // ステータスバーも直接設定（XAMLで定義されているためnullチェック不要）
-                    StatusBar.Background = mainBrush;
-                    StatusBarText.Foreground = statusBarTextBrush;
 
                     // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
                     // ContentRenderedイベントで実行（確実にExplorerPageが読み込まれた後）

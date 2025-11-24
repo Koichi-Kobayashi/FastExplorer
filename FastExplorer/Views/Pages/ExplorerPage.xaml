@@ -264,6 +264,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!--  パスインジケーター（ブレッドクラム）  -->
@@ -523,6 +524,31 @@
                             Text="読み込み中..." />
                     </StackPanel>
                 </Grid>
+
+                <!--  ステータスバー  -->
+                <Border
+                    Grid.Row="3"
+                    Background="{DynamicResource StatusBarBackgroundBrush}"
+                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="0,1,0,0">
+                    <Grid Margin="12,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!--  中央: パスと項目数  -->
+                        <TextBlock
+                            Grid.Column="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="{DynamicResource StatusBarTextBrush}"
+                            Text="{Binding ViewModel.StatusBarText, Mode=OneWay, FallbackValue='準備完了'}"
+                            TextOptions.TextFormattingMode="Display"
+                            TextOptions.TextRenderingMode="ClearType" />
+                    </Grid>
+                </Border>
             </Grid>
         </DataTemplate>
         <!--  RepeatButtonのContentをSymbolRegular値に設定するスタイル  -->
@@ -1049,6 +1075,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <!--  パスインジケーター（ブレッドクラム）  -->
@@ -1321,6 +1348,31 @@
                                     Text="読み込み中..." />
                             </StackPanel>
                         </Grid>
+
+                        <!--  ステータスバー  -->
+                        <Border
+                            Grid.Row="3"
+                            Background="{DynamicResource StatusBarBackgroundBrush}"
+                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                            BorderThickness="0,1,0,0">
+                            <Grid Margin="12,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!--  中央: パスと項目数  -->
+                                <TextBlock
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource StatusBarTextBrush}"
+                                    Text="{Binding ViewModel.StatusBarText, Mode=OneWay, FallbackValue='準備完了'}"
+                                    TextOptions.TextFormattingMode="Display"
+                                    TextOptions.TextRenderingMode="ClearType" />
+                            </Grid>
+                        </Border>
                     </Grid>
                 </DataTemplate>
             </TabControl.ContentTemplate>

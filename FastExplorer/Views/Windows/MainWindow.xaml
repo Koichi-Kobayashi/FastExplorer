@@ -29,7 +29,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <ui:NavigationView
             x:Name="RootNavigation"
@@ -58,7 +57,7 @@
         <ContentPresenter
             x:Name="RootContentDialog"
             Grid.Row="0"
-            Grid.RowSpan="3" />
+            Grid.RowSpan="2" />
 
         <ui:TitleBar
             x:Name="TitleBar"
@@ -69,43 +68,5 @@
                 <ui:ImageIcon Source="pack://application:,,,/Assets/wpfui-icon-256.png" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
-
-        <!--  ステータスバー  -->
-        <Border
-            x:Name="StatusBar"
-            Grid.Row="2"
-            Background="{DynamicResource AccentFillColorDefaultBrush}"
-            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-            BorderThickness="0,1,0,0">
-            <Grid Margin="12,6">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <!--  中央: パスと項目数  -->
-                <TextBlock
-                    x:Name="StatusBarText"
-                    Grid.Column="1"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Foreground="{DynamicResource StatusBarTextBrush}"
-                    Text="{Binding ViewModel.StatusBarText, Mode=OneWay, FallbackValue=''}"
-                    TextOptions.TextFormattingMode="Display"
-                    TextOptions.TextRenderingMode="ClearType" />
-
-                <!--  右側: ヘルプ  -->
-                <ui:Button
-                    Grid.Column="2"
-                    Padding="4"
-                    Appearance="Secondary"
-                    ToolTip="ヘルプ">
-                    <ui:Button.Icon>
-                        <ui:SymbolIcon Symbol="QuestionCircle24" />
-                    </ui:Button.Icon>
-                </ui:Button>
-            </Grid>
-        </Border>
     </Grid>
 </ui:FluentWindow>

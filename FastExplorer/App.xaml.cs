@@ -275,6 +275,9 @@ namespace FastExplorer
                     var controlSecondaryBrush = new SolidColorBrush(controlSecondaryColor);
                     mainDictionary["ControlFillColorSecondaryBrush"] = controlSecondaryBrush;
 
+                    // ステータスバーの背景色を更新（ペインの一部として表示、ControlFillColorDefaultBrushと同じ色）
+                    mainDictionary["StatusBarBackgroundBrush"] = secondaryBrush;
+
                     // ステータスバーの文字色を背景色に応じて設定（輝度計算を最適化）
                     var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) * 0.00392156862745098; // 1/255を事前計算
                     var statusBarTextColor = luminance > 0.5 ? Colors.Black : Colors.White;

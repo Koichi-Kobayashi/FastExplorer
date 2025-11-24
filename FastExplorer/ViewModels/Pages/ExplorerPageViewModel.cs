@@ -656,104 +656,78 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private void UpdateStatusBarInternal()
         {
-            // MainWindowViewModelをキャッシュから取得（なければ取得してキャッシュ）
-            // nullチェックを最適化（パターンマッチング）
-            if (_cachedMainWindowViewModel is null)
-            {
-                _cachedMainWindowViewModel = App.Services.GetService(MainWindowViewModelType) as ViewModels.Windows.MainWindowViewModel;
-            }
-            
-            if (_cachedMainWindowViewModel is null)
-                return;
+            // 文字列リテラルを定数化（メモリ割り当てを削減）
+            const string PathPrefix = "パス: ";
+            const string HomeText = "ホーム ";
+            const string ItemSuffix = "個の項目";
 
             // プロパティアクセスを一度だけ取得してキャッシュ（パフォーマンス向上）
             var isSplitPaneEnabled = IsSplitPaneEnabled;
-            ExplorerTab? activeTab = null;
             
+            // 分割ペインの場合は、左右のペインそれぞれのステータスバーを更新
             if (isSplitPaneEnabled)
             {
-                // 分割ペインの場合は、フォーカスがある方のタブを表示
-                // ActivePaneプロパティを使用して、正しいペインのタブを取得
-                // switch式で高速化（条件分岐を最適化）
-                var activePane = ActivePane;
-                activeTab = activePane switch
-                {
-                    ActivePaneLeft => SelectedLeftPaneTab,
-                    ActivePaneRight => SelectedRightPaneTab,
-                    _ => null
-                };
+                // 左ペインのステータスバーを更新
+                UpdateTabStatusBar(SelectedLeftPaneTab, PathPrefix, HomeText, ItemSuffix);
                 
-                // ActivePaneが設定されていない場合は、選択されているタブを優先
-                if (activeTab == null)
-                {
-                    // 両方選択されている場合は右ペインを優先、どちらか一方のみの場合はそのタブを使用
-                    var rightTab = SelectedRightPaneTab;
-                    var leftTab = SelectedLeftPaneTab;
-                    activeTab = rightTab ?? leftTab;
-                    
-                    // ActivePaneが未設定の場合は、選択されているタブに基づいて設定
-                    if (activeTab == rightTab)
-                    {
-                        ActivePane = ActivePaneRight;
-                    }
-                    else if (activeTab == leftTab)
-                    {
-                        ActivePane = ActivePaneLeft;
-                    }
-                }
+                // 右ペインのステータスバーを更新
+                UpdateTabStatusBar(SelectedRightPaneTab, PathPrefix, HomeText, ItemSuffix);
             }
             else
             {
-                activeTab = SelectedTab;
+                // 通常モードの場合は、選択されているタブのステータスバーを更新
+                UpdateTabStatusBar(SelectedTab, PathPrefix, HomeText, ItemSuffix);
             }
+        }
 
+        /// <summary>
+        /// 指定されたタブのステータスバーを更新します
+        /// </summary>
+        /// <param name="tab">更新するタブ</param>
+        /// <param name="pathPrefix">パスプレフィックス</param>
+        /// <param name="homeText">ホームテキスト</param>
+        /// <param name="itemSuffix">項目サフィックス</param>
+        private void UpdateTabStatusBar(ExplorerTab? tab, string pathPrefix, string homeText, string itemSuffix)
+        {
             // nullチェックを最適化（パターンマッチング）
-            if (activeTab is not null)
+            if (tab is not null)
             {
                 // タブのタイトルも更新
-                UpdateTabTitle(activeTab);
+                UpdateTabTitle(tab);
             }
 
             // nullチェックを最適化（パターンマッチング）
-            if (activeTab?.ViewModel is not null)
+            if (tab?.ViewModel is not null)
             {
                 // ViewModelのプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                var viewModel = activeTab.ViewModel;
+                var viewModel = tab.ViewModel;
                 var path = viewModel.CurrentPath;
                 var itemCount = viewModel.Items.Count;
                 
                 // 文字列補間を最適化（ZString.Concat/Formatを使用してメモリ割り当てを削減）
-                // 文字列リテラルを定数化（メモリ割り当てを削減）
-                const string PathPrefix = "パス: ";
-                const string HomeText = "ホーム ";
-                const string ItemSuffix = "個の項目";
-                
                 string statusText;
                 if (string.IsNullOrEmpty(path))
                 {
                     // ZString.Concatを使用（ボクシングを回避）
-                    statusText = ZString.Concat(PathPrefix, HomeText, itemCount, ItemSuffix);
+                    statusText = ZString.Concat(pathPrefix, homeText, itemCount, itemSuffix);
                 }
                 else
                 {
                     // ZString.Concatを使用（ボクシングを回避）
-                    statusText = ZString.Concat(PathPrefix, path, " ", itemCount, ItemSuffix);
+                    statusText = ZString.Concat(pathPrefix, path, " ", itemCount, itemSuffix);
                 }
                 
                 // 値が変更された場合のみ更新（不要なPropertyChangedイベントを削減）
                 // StatusBarTextプロパティを一度だけ取得（パフォーマンス向上）
-                var currentStatusText = _cachedMainWindowViewModel.StatusBarText;
+                var currentStatusText = viewModel.StatusBarText;
                 if (currentStatusText != statusText)
                 {
-                    _cachedMainWindowViewModel.StatusBarText = statusText;
+                    viewModel.StatusBarText = statusText;
                 }
             }
-            else
+            else if (tab is not null && tab.ViewModel is null)
             {
-                if (_cachedMainWindowViewModel.StatusBarText != ReadyStatus)
-                {
-                    _cachedMainWindowViewModel.StatusBarText = ReadyStatus;
-                }
+                // タブは存在するがViewModelがnullの場合は何もしない（初期化待ち）
             }
         }
 

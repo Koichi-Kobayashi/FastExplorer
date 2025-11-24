@@ -351,20 +351,7 @@ namespace FastExplorer.ViewModels.Pages
                                 navigationView.Background = secondaryBrush;
                             }
 
-                            // ステータスバーの背景色とテキスト色を直接更新
-                            // StatusBarはBorderで、x:Name="StatusBar"が設定されている
-                            var statusBar = FindVisualChildByName<System.Windows.Controls.Border>(window, "StatusBar");
-                            if (statusBar != null)
-                            {
-                                statusBar.Background = mainBrush;
-                            }
-                            
-                            // StatusBarTextはTextBlockで、x:Name="StatusBarText"が設定されている
-                            var statusBarText = FindVisualChildByName<System.Windows.Controls.TextBlock>(window, "StatusBarText");
-                            if (statusBarText != null)
-                            {
-                                statusBarText.Foreground = statusBarTextBrush;
-                            }
+                            // ステータスバーは各タブに移動したため、MainWindowからの参照は不要
 
                             // ウィンドウのリソースを無効化
                             if (window is System.Windows.FrameworkElement fe)

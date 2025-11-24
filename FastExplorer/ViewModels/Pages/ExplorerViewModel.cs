@@ -81,6 +81,12 @@ namespace FastExplorer.ViewModels.Pages
         private bool _isHomePage = true;
 
         /// <summary>
+        /// ステータスバーに表示するテキスト
+        /// </summary>
+        [ObservableProperty]
+        private string _statusBarText = "準備完了";
+
+        /// <summary>
         /// <see cref="ExplorerViewModel"/>クラスの新しいインスタンスを初期化します
         /// </summary>
         /// <param name="fileSystemService">ファイルシステムサービス</param>

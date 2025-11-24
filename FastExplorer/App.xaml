@@ -36,6 +36,9 @@
             <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FCFCFC" />
             <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#F0F0F0" />
 
+            <!--  ステータスバーの背景色（ペインの一部として表示）  -->
+            <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#EFFAFB" />
+
             <!--  ステータスバーのテキスト色（背景色に応じて動的に更新される）  -->
             <SolidColorBrush x:Key="StatusBarTextBrush" Color="#FFFFFF" />
 
