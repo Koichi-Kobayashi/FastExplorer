@@ -1253,6 +1253,7 @@
                             MouseDoubleClick="ListView_MouseDoubleClick"
                             MouseDown="ListView_MouseButtonDown"
                             PreviewMouseDown="ListView_PreviewMouseDown"
+                            MouseRightButtonUp="ListView_MouseRightButtonUp"
                             DragOver="ListView_DragOver"
                             Drop="ListView_Drop"
                             AllowDrop="True"
@@ -1272,6 +1273,7 @@
                                 <Style TargetType="ListViewItem" BasedOn="{StaticResource FileListViewItemStyle}">
                                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
                                     <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
+                                    <EventSetter Event="MouseRightButtonUp" Handler="ListViewItem_MouseRightButtonUp" />
                                 </Style>
                             </ListView.Resources>
                             <ListView.View>
