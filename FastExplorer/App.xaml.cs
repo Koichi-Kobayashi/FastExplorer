@@ -284,6 +284,21 @@ namespace FastExplorer
                     var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
                     mainDictionary["StatusBarTextBrush"] = statusBarTextBrush;
 
+                    // 分割ペイン用の背景色を更新（選択されたテーマカラーのThirdColorCodeを使用）
+                    Color unfocusedPaneColor;
+                    if (!string.IsNullOrEmpty(settings.ThemeThirdColorCode))
+                    {
+                        // ThirdColorCodeが設定されている場合はそれを使用
+                        unfocusedPaneColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeThirdColorCode);
+                    }
+                    else
+                    {
+                        // フォールバック：ThemeColorの計算メソッドを使用して薄い色を生成
+                        unfocusedPaneColor = Models.ThemeColor.CalculateLightColor(mainColor);
+                    }
+                    var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
+                    mainDictionary["UnfocusedPaneBackgroundBrush"] = unfocusedPaneBrush;
+
                     // 起動時はウィンドウがまだ作成されていない可能性があるため、
                     // ウィンドウの背景色更新はMainWindowのコンストラクタとLoadedイベントで行う
                     // ここではリソースのみ更新（ちらつきを防ぐため、ウィンドウ更新処理は削除）
@@ -398,6 +413,49 @@ namespace FastExplorer
                         var newBrush = new SolidColorBrush(newColor);
                         mainDictionary["IconBrush"] = newBrush;
                         resourceChanged = true;
+                    }
+                    catch
+                    {
+                        // エラーが発生した場合は無視
+                    }
+
+                    // 分割ペイン用の背景色を更新（テーマ切り替え時、現在のテーマカラーに基づいて計算）
+                    try
+                    {
+                        // 現在のテーマカラーを取得（保存されたThirdColorCodeを使用）
+                        try
+                        {
+                            var windowSettingsService = Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
+                            if (windowSettingsService != null)
+                            {
+                                var currentSettings = windowSettingsService.GetSettings();
+                                if (!string.IsNullOrEmpty(currentSettings.ThemeThirdColorCode))
+                                {
+                                    // ThirdColorCodeが設定されている場合はそれを使用
+                                    var unfocusedPaneColor = Helpers.FastColorConverter.ParseHexColor(currentSettings.ThemeThirdColorCode);
+                                    var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
+                                    mainDictionary["UnfocusedPaneBackgroundBrush"] = unfocusedPaneBrush;
+                                    resourceChanged = true;
+                                }
+                                else
+                                {
+                                    // フォールバック：ThemeColorの計算メソッドを使用して現在のテーマカラーから計算
+                                    var currentMainBrush = mainDictionary["ApplicationBackgroundBrush"] as SolidColorBrush;
+                                    if (currentMainBrush != null)
+                                    {
+                                        var mainColor = currentMainBrush.Color;
+                                        var unfocusedPaneColor = Models.ThemeColor.CalculateLightColor(mainColor);
+                                        var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
+                                        mainDictionary["UnfocusedPaneBackgroundBrush"] = unfocusedPaneBrush;
+                                        resourceChanged = true;
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // エラーが発生した場合は無視
+                        }
                     }
                     catch
                     {

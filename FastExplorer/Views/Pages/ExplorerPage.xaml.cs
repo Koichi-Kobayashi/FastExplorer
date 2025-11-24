@@ -24,6 +24,12 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         public ExplorerPageViewModel ViewModel { get; }
 
+        // パフォーマンス最適化用のキャッシュ
+        private System.Windows.Controls.ListView? _cachedLeftListView;
+        private System.Windows.Controls.ListView? _cachedRightListView;
+        private Brush? _cachedFocusedBackground;
+        private Brush? _cachedUnfocusedBackground;
+
         /// <summary>
         /// <see cref="ExplorerPage"/>クラスの新しいインスタンスを初期化します
         /// </summary>
@@ -45,8 +51,16 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         private void ExplorerPage_Loaded(object sender, RoutedEventArgs e)
         {
-            // 初期状態の背景色を更新
-            UpdateListViewBackgroundColors();
+            // 初期状態の背景色を更新（UI構築完了後に実行、複数回実行して確実に適用）
+            Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                UpdateListViewBackgroundColors();
+                // さらに少し遅延して再実行（ListViewが見つからない場合に備える）
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    UpdateListViewBackgroundColors();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         /// <summary>
@@ -54,60 +68,248 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(ExplorerPageViewModel.ActivePane) || 
-                e.PropertyName == nameof(ExplorerPageViewModel.IsSplitPaneEnabled))
+            if (e.PropertyName == nameof(ExplorerPageViewModel.ActivePane))
             {
+                // ActivePaneが変更された場合のみ更新
                 UpdateListViewBackgroundColors();
             }
+            else if (e.PropertyName == nameof(ExplorerPageViewModel.IsSplitPaneEnabled))
+            {
+                // 分割ペインの有効/無効が変更された場合はキャッシュをクリア
+                _cachedLeftListView = null;
+                _cachedRightListView = null;
+                // UI構築完了後に背景色を更新（分割ペイン切り替え時）
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    UpdateListViewBackgroundColors();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }
         }
+
 
         /// <summary>
         /// 左右のペインのListViewの背景色を更新します
         /// </summary>
         private void UpdateListViewBackgroundColors()
         {
-            if (!ViewModel.IsSplitPaneEnabled)
-                return;
 
-            // 左右のペインのListViewを検索
-            var leftListView = FindListViewInPane(0);
-            var rightListView = FindListViewInPane(2);
-
-            // フォーカスがないペインの背景色を変更（テーマに応じた色を使用）
-            Brush? unfocusedBackground = null;
+            // フォーカスがないペインの背景色をThirdColorCodeから取得（常に最新の値を取得）
             try
             {
-                // アクセントカラーの薄いバージョンを使用
-                var accentBrush = FindResource("AccentFillColorDefaultBrush") as SolidColorBrush;
-                if (accentBrush != null)
+                var windowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
+                if (windowSettingsService != null)
                 {
-                    var accentColor = accentBrush.Color;
-                    unfocusedBackground = new SolidColorBrush(Color.FromArgb(30, accentColor.R, accentColor.G, accentColor.B));
+                    var settings = windowSettingsService.GetSettings();
+                    if (!string.IsNullOrEmpty(settings.ThemeThirdColorCode))
+                    {
+                        // ThirdColorCodeが設定されている場合はそれを使用
+                        var thirdColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeThirdColorCode);
+                        var thirdColorBrush = new SolidColorBrush(thirdColor);
+                        thirdColorBrush.Freeze();
+                        _cachedUnfocusedBackground = thirdColorBrush;
+                    }
+                    else
+                    {
+                        // ThirdColorCodeが設定されていない場合はUnfocusedPaneBackgroundBrushリソースを使用
+                        var unfocusedBackground = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
+                        if (unfocusedBackground != null)
+                        {
+                            _cachedUnfocusedBackground = unfocusedBackground;
+                        }
+                        else
+                        {
+                            // リソースが見つからない場合は#FEEBEBを使用
+                            var defaultBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xEB, 0xEB));
+                            defaultBrush.Freeze();
+                            _cachedUnfocusedBackground = defaultBrush;
+                        }
+                    }
                 }
                 else
                 {
-                    // Brushリソースが見つからない場合はデフォルトの色を使用
-                    unfocusedBackground = new SolidColorBrush(Color.FromArgb(20, 0, 120, 215)); // 薄い青
+                    // WindowSettingsServiceが取得できない場合はUnfocusedPaneBackgroundBrushリソースを使用
+                    var unfocusedBackground = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
+                    if (unfocusedBackground != null)
+                    {
+                        _cachedUnfocusedBackground = unfocusedBackground;
+                    }
+                    else
+                    {
+                        // リソースが見つからない場合は#FEEBEBを使用
+                        var defaultBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xEB, 0xEB));
+                        defaultBrush.Freeze();
+                        _cachedUnfocusedBackground = defaultBrush;
+                    }
                 }
             }
             catch
             {
-                // リソースが見つからない場合はデフォルトの色を使用
-                unfocusedBackground = new SolidColorBrush(Color.FromArgb(20, 0, 120, 215)); // 薄い青
+                // エラーが発生した場合は既存のキャッシュを使用、またはデフォルト値
+                if (_cachedUnfocusedBackground == null)
+                {
+                    var defaultBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xEB, 0xEB));
+                    defaultBrush.Freeze();
+                    _cachedUnfocusedBackground = defaultBrush;
+                }
             }
 
-            // フォーカスがあるペインは透明（薄い色）
-            var focusedBackground = new SolidColorBrush(Colors.Transparent);
-
-            if (leftListView != null)
+            // フォーカスがあるペインの背景色をSecondaryColorCodeから取得（常に最新の値を取得）
+            try
             {
-                leftListView.Background = ViewModel.ActivePane == 0 ? focusedBackground : unfocusedBackground;
+                var windowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
+                if (windowSettingsService != null)
+                {
+                    var settings = windowSettingsService.GetSettings();
+                    if (!string.IsNullOrEmpty(settings.ThemeSecondaryColorCode))
+                    {
+                        // SecondaryColorCodeが設定されている場合はそれを使用
+                        var secondaryColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeSecondaryColorCode);
+                        var secondaryColorBrush = new SolidColorBrush(secondaryColor);
+                        secondaryColorBrush.Freeze();
+                        _cachedFocusedBackground = secondaryColorBrush;
+                    }
+                    else
+                    {
+                        // SecondaryColorCodeが設定されていない場合はControlFillColorDefaultBrushリソースを使用
+                        var controlFillBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
+                        if (controlFillBrush != null)
+                        {
+                            _cachedFocusedBackground = controlFillBrush;
+                        }
+                        else
+                        {
+                            // リソースが見つからない場合はデフォルトの色を使用
+                            var defaultBrush = new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)); // 薄いグレー
+                            defaultBrush.Freeze();
+                            _cachedFocusedBackground = defaultBrush;
+                        }
+                    }
+                }
+                else
+                {
+                    // WindowSettingsServiceが取得できない場合はControlFillColorDefaultBrushリソースを使用
+                    var controlFillBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
+                    if (controlFillBrush != null)
+                    {
+                        _cachedFocusedBackground = controlFillBrush;
+                    }
+                    else
+                    {
+                        // リソースが見つからない場合はデフォルトの色を使用
+                        var defaultBrush = new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)); // 薄いグレー
+                        defaultBrush.Freeze();
+                        _cachedFocusedBackground = defaultBrush;
+                    }
+                }
+            }
+            catch
+            {
+                // エラーが発生した場合は既存のキャッシュを使用、またはデフォルト値
+                if (_cachedFocusedBackground == null)
+                {
+                    var defaultBrush = new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)); // 薄いグレー
+                    defaultBrush.Freeze();
+                    _cachedFocusedBackground = defaultBrush;
+                }
             }
 
-            if (rightListView != null)
+            if (ViewModel.IsSplitPaneEnabled)
             {
-                rightListView.Background = ViewModel.ActivePane == 2 ? focusedBackground : unfocusedBackground;
+                // 分割ペインモードの場合
+                // ListViewの参照を取得またはキャッシュから取得
+                if (_cachedLeftListView == null)
+                {
+                    _cachedLeftListView = FindListViewInPane(0);
+                }
+                if (_cachedRightListView == null)
+                {
+                    _cachedRightListView = FindListViewInPane(2);
+                }
+
+                // キャッシュが無効な場合（ListViewが見つからない場合）は再検索
+                if (_cachedLeftListView == null)
+                {
+                    _cachedLeftListView = FindListViewInPane(0);
+                }
+                if (_cachedRightListView == null)
+                {
+                    _cachedRightListView = FindListViewInPane(2);
+                }
+
+                // 背景色を更新
+                // ActivePaneが-1（未設定）の場合は、左ペインをフォーカスあり（SecondaryColorCode）、右ペインをフォーカスなし（ThirdColorCode）にする
+                var activePane = ViewModel.ActivePane;
+                if (activePane == -1)
+                {
+                    // 起動時や分割直後など、ActivePaneが未設定の場合は左ペインをフォーカスありにする
+                    activePane = 0;
+                }
+
+                // 左ペインの背景色を更新
+                // 右にフォーカスがある場合（activePane == 2）は左をThirdColorCodeに、左にフォーカスがある場合（activePane == 0）は左をSecondaryColorCodeに
+                if (_cachedLeftListView != null)
+                {
+                    var targetBackground = activePane == 0 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
+                    // 背景色を強制的に更新（Brushの比較が参照比較の可能性があるため）
+                    _cachedLeftListView.Background = targetBackground;
+                }
+
+                // 右ペインの背景色を更新
+                // 左にフォーカスがある場合（activePane == 0）は右をThirdColorCodeに、右にフォーカスがある場合（activePane == 2）は右をSecondaryColorCodeに
+                if (_cachedRightListView != null)
+                {
+                    var targetBackground = activePane == 2 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
+                    // 背景色を強制的に更新（Brushの比較が参照比較の可能性があるため）
+                    _cachedRightListView.Background = targetBackground;
+                }
             }
+            else
+            {
+                // 単一ペインモードの場合、ListViewの背景色をSecondaryColorCodeに設定
+                // 通常モードのTabControl内のListViewを検索
+                var singlePaneListView = FindListViewInSinglePane();
+                if (singlePaneListView != null)
+                {
+                    // SecondaryColorCodeを取得（既に_cachedFocusedBackgroundに設定されている）
+                    // 背景色を強制的に更新
+                    singlePaneListView.Background = _cachedFocusedBackground;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 単一ペインモードのListViewを検索します
+        /// </summary>
+        /// <returns>ListView、見つからない場合はnull</returns>
+        private System.Windows.Controls.ListView? FindListViewInSinglePane()
+        {
+            // 通常モードのTabControlを検索
+            var tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc =>
+            {
+                // 分割ペインのTabControlではないことを確認（Grid.Columnが設定されていない）
+                var column = Grid.GetColumn(tc);
+                return column == 0 && !ViewModel.IsSplitPaneEnabled; // 通常モードのTabControl
+            });
+
+            if (tabControl == null)
+            {
+                // より広範囲に検索（Grid.Columnが設定されていないTabControlを探す）
+                tabControl = FindChild<System.Windows.Controls.TabControl>(this, null);
+                if (tabControl != null)
+                {
+                    // 分割ペインのTabControlでないことを確認
+                    var column = Grid.GetColumn(tabControl);
+                    if (column != 0 && column != 2)
+                    {
+                        // TabControl内のListViewを検索
+                        return FindChild<System.Windows.Controls.ListView>(tabControl, null);
+                    }
+                }
+                return null;
+            }
+
+            // TabControl内のListViewを検索
+            return FindChild<System.Windows.Controls.ListView>(tabControl, null);
         }
 
         /// <summary>
@@ -356,10 +558,8 @@ namespace FastExplorer.Views.Pages
             var pane = GetPaneForElement(listView);
             if (pane == 0 || pane == 2)
             {
-                // ViewModelのActivePaneプロパティを更新
+                // ViewModelのActivePaneプロパティを更新（これによりPropertyChangedが発火し、背景色が更新される）
                 ViewModel.ActivePane = pane;
-                // 背景色を更新
-                UpdateListViewBackgroundColors();
             }
         }
 
@@ -381,10 +581,8 @@ namespace FastExplorer.Views.Pages
             var pane = GetPaneForElement(listView);
             if (pane == 0 || pane == 2)
             {
-                // ViewModelのActivePaneプロパティを更新
+                // ViewModelのActivePaneプロパティを更新（これによりPropertyChangedが発火し、背景色が更新される）
                 ViewModel.ActivePane = pane;
-                // 背景色を更新
-                UpdateListViewBackgroundColors();
             }
         }
 

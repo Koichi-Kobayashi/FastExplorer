@@ -43,6 +43,9 @@
             <!--  ステータスバーのテキスト色（背景色に応じて動的に更新される）  -->
             <SolidColorBrush x:Key="StatusBarTextBrush" Color="#FFFFFF" />
 
+            <!--  分割ペイン用の背景色（テーマカラーに応じて動的に更新される）  -->
+            <SolidColorBrush x:Key="UnfocusedPaneBackgroundBrush" Color="#FEEBEB" />
+
             <!--  FluentIconスタイル  -->
             <Style x:Key="FluentIcon" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="Segoe Fluent Icons" />

@@ -136,6 +136,11 @@ namespace FastExplorer.Services
         public string? ThemeSecondaryColorCode { get; set; }
 
         /// <summary>
+        /// 選択されたテーマカラーのサードカラーコードを取得または設定します（分割ペイン用の背景色）
+        /// </summary>
+        public string? ThemeThirdColorCode { get; set; }
+
+        /// <summary>
         /// 保存されたタブのパスのリストを取得または設定します
         /// </summary>
         public List<string> TabPaths { get; set; } = new();
