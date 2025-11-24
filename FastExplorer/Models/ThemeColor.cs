@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Windows.Media;
 
 namespace FastExplorer.Models
@@ -37,6 +39,9 @@ namespace FastExplorer.Models
         /// </summary>
         public Brush Color { get; set; } = new SolidColorBrush(Colors.White);
 
+        // パフォーマンス最適化：定義済みテーマカラーのキャッシュ
+        private static ThemeColor[]? _cachedDefaultThemeColors;
+
         /// <summary>
         /// テーマカラーから薄い色を計算します（白とのブレンド）
         /// </summary>
@@ -52,33 +57,60 @@ namespace FastExplorer.Models
         }
 
         /// <summary>
-        /// 定義済みのテーマカラーのリストを取得します
+        /// 定義済みのテーマカラーのリストを取得します（キャッシュ付き）
         /// </summary>
-        /// <returns>テーマカラーのリスト</returns>
-        public static IReadOnlyList<ThemeColor> GetDefaultThemeColors()
+        /// <returns>テーマカラーの配列</returns>
+        public static ThemeColor[] GetDefaultThemeColors()
         {
-            return new[]
+            // キャッシュが存在する場合はそれを返す
+            if (_cachedDefaultThemeColors != null)
             {
-                new ThemeColor { Name = "既定", NameEn = "Default", ColorCode = "#F5F5F5", SecondaryColorCode = "#FCFCFC", ThirdColorCode = "#F5F5F5", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F5F5")) },
-                new ThemeColor { Name = "イエロー ゴールド", NameEn = "Yellow Gold", ColorCode = "#FCEECA", SecondaryColorCode = "#FEFAEF", ThirdColorCode = "#FEF9E8", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FCEECA")) },
-                new ThemeColor { Name = "オレンジ ブライト", NameEn = "Orange Bright", ColorCode = "#FADDCC", SecondaryColorCode = "#FEF5F0", ThirdColorCode = "#FEF0E5", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FADDCC")) },
-                new ThemeColor { Name = "ブリック レッド", NameEn = "Brick Red", ColorCode = "#F3D4D5", SecondaryColorCode = "#FBF2F2", ThirdColorCode = "#FEEBEB", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3D4D5")) },
-                new ThemeColor { Name = "モダン レッド", NameEn = "Modern Red", ColorCode = "#FCD7D7", SecondaryColorCode = "#FEF3F3", ThirdColorCode = "#FEEBEB", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FCD7D7")) },
-                new ThemeColor { Name = "レッド", NameEn = "Red", ColorCode = "#F8CADC", SecondaryColorCode = "#FDEFF5", ThirdColorCode = "#FEEBEB", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8CADC")) },
-                new ThemeColor { Name = "ローズ ブライト", NameEn = "Rose Bright", ColorCode = "#F8CADC", SecondaryColorCode = "#FDEFF5", ThirdColorCode = "#FEEBEB", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8CADC")) },
-                new ThemeColor { Name = "ブルー", NameEn = "Blue", ColorCode = "#CAE2F4", SecondaryColorCode = "#EFF6FC", ThirdColorCode = "#E8F2FA", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CAE2F4")) },
-                new ThemeColor { Name = "アイリス パステル", NameEn = "Iris Pastel", ColorCode = "#E4DEEE", SecondaryColorCode = "#F7F5FA", ThirdColorCode = "#F2EEF7", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E4DEEE")) },
-                new ThemeColor { Name = "バイオレット レッド ライト", NameEn = "Violet Red Light", ColorCode = "#EDD8F0", SecondaryColorCode = "#FAF3FB", ThirdColorCode = "#F5EBF7", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EDD8F0")) },
-                new ThemeColor { Name = "クール ブルー ブライト", NameEn = "Cool Blue Bright", ColorCode = "#CAE8EF", SecondaryColorCode = "#EFF8FA", ThirdColorCode = "#E8F4F8", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CAE8EF")) },
-                new ThemeColor { Name = "シーフォーム", NameEn = "Seafoam", ColorCode = "#CAEEF0", SecondaryColorCode = "#EFFAFB", ThirdColorCode = "#E8F7F8", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CAEEF0")) },
-                new ThemeColor { Name = "ミント ライト", NameEn = "Mint Light", ColorCode = "#CAEDE7", SecondaryColorCode = "#EFFAF8", ThirdColorCode = "#E8F6F3", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CAEDE7")) },
-                new ThemeColor { Name = "グレー", NameEn = "Gray", ColorCode = "#E2E1E1", SecondaryColorCode = "#F6F6F6", ThirdColorCode = "#F0F0F0", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E1E1")) },
-                new ThemeColor { Name = "グリーン", NameEn = "Green", ColorCode = "#CDE2CD", SecondaryColorCode = "#F0F6F0", ThirdColorCode = "#E8F2E8", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CDE2CD")) },
-                new ThemeColor { Name = "オーバーキャスト", NameEn = "Overcast", ColorCode = "#E1E1E1", SecondaryColorCode = "#F6F6F6", ThirdColorCode = "#F0F0F0", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E1E1E1")) },
-                new ThemeColor { Name = "ストーム", NameEn = "Storm", ColorCode = "#D9D9D8", SecondaryColorCode = "#F4F4F3", ThirdColorCode = "#EDEDEC", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D9D9D8")) },
-                new ThemeColor { Name = "ブルー グレー", NameEn = "Blue Gray", ColorCode = "#DFE2E3", SecondaryColorCode = "#F5F6F7", ThirdColorCode = "#F0F1F2", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DFE2E3")) },
-                new ThemeColor { Name = "グレー ダーク", NameEn = "Gray Dark", ColorCode = "#D9DADB", SecondaryColorCode = "#F4F4F4", ThirdColorCode = "#EDEDED", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D9DADB")) },
-                new ThemeColor { Name = "カモフラージュ", NameEn = "Camouflage", ColorCode = "#E3E1DD", SecondaryColorCode = "#F7F6F5", ThirdColorCode = "#F2F1EF", Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3E1DD")) }
+                return _cachedDefaultThemeColors;
+            }
+
+            // 初回のみ配列を作成してキャッシュ
+            _cachedDefaultThemeColors = new[]
+            {
+                CreateThemeColor("既定", "Default", "#F5F5F5", "#FCFCFC", "#F5F5F5"),
+                CreateThemeColor("イエロー ゴールド", "Yellow Gold", "#FCEECA", "#FEFAEF", "#FEF9E8"),
+                CreateThemeColor("オレンジ ブライト", "Orange Bright", "#FADDCC", "#FEF5F0", "#FEF0E5"),
+                CreateThemeColor("ブリック レッド", "Brick Red", "#F3D4D5", "#FBF2F2", "#FEEBEB"),
+                CreateThemeColor("モダン レッド", "Modern Red", "#FCD7D7", "#FEF3F3", "#FEEBEB"),
+                CreateThemeColor("レッド", "Red", "#F8CADC", "#FDEFF5", "#FEEBEB"),
+                CreateThemeColor("ローズ ブライト", "Rose Bright", "#F8CADC", "#FDEFF5", "#FEEBEB"),
+                CreateThemeColor("ブルー", "Blue", "#CAE2F4", "#EFF6FC", "#E8F2FA"),
+                CreateThemeColor("アイリス パステル", "Iris Pastel", "#E4DEEE", "#F7F5FA", "#F2EEF7"),
+                CreateThemeColor("バイオレット レッド ライト", "Violet Red Light", "#EDD8F0", "#FAF3FB", "#F5EBF7"),
+                CreateThemeColor("クール ブルー ブライト", "Cool Blue Bright", "#CAE8EF", "#EFF8FA", "#E8F4F8"),
+                CreateThemeColor("シーフォーム", "Seafoam", "#CAEEF0", "#EFFAFB", "#E8F7F8"),
+                CreateThemeColor("ミント ライト", "Mint Light", "#CAEDE7", "#EFFAF8", "#E8F6F3"),
+                CreateThemeColor("グレー", "Gray", "#E2E1E1", "#F6F6F6", "#F0F0F0"),
+                CreateThemeColor("グリーン", "Green", "#CDE2CD", "#F0F6F0", "#E8F2E8"),
+                CreateThemeColor("オーバーキャスト", "Overcast", "#E1E1E1", "#F6F6F6", "#F0F0F0"),
+                CreateThemeColor("ストーム", "Storm", "#D9D9D8", "#F4F4F3", "#EDEDEC"),
+                CreateThemeColor("ブルー グレー", "Blue Gray", "#DFE2E3", "#F5F6F7", "#F0F1F2"),
+                CreateThemeColor("グレー ダーク", "Gray Dark", "#D9DADB", "#F4F4F4", "#EDEDED"),
+                CreateThemeColor("カモフラージュ", "Camouflage", "#E3E1DD", "#F7F6F5", "#F2F1EF")
+                };
+
+            return _cachedDefaultThemeColors;
+        }
+
+        /// <summary>
+        /// テーマカラーを作成します（ヘルパーメソッド）
+        /// </summary>
+        private static ThemeColor CreateThemeColor(string name, string nameEn, string colorCode, string secondaryColorCode, string thirdColorCode)
+        {
+            // FastColorConverterを使用して高速化（ColorConverter.ConvertFromStringより高速）
+            var color = Helpers.FastColorConverter.ParseHexColor(colorCode);
+            return new ThemeColor
+            {
+                Name = name,
+                NameEn = nameEn,
+                ColorCode = colorCode,
+                SecondaryColorCode = secondaryColorCode,
+                ThirdColorCode = thirdColorCode,
+                Color = new SolidColorBrush(color)
             };
         }
     }
