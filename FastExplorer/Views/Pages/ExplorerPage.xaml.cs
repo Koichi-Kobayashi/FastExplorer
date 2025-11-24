@@ -1606,29 +1606,34 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
-        /// タブエリアでマウス左ボタンが押されたときに呼び出されます（タブのパスをコピー）
+        /// タブのButtonがクリックされたときに呼び出されます（タブのパスをクリップボードにコピー）
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
-        /// <param name="e">マウスボタンイベント引数</param>
-        private void TabArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        /// <param name="e">ルーティングイベント引数</param>
+        private void TabArea_ButtonClick(object sender, RoutedEventArgs e)
         {
             // 閉じるボタン上でクリックされた場合は処理しない
-            if (e.OriginalSource is DependencyObject source)
+            if (sender is Button button && button.Tag?.ToString() == "CloseButton")
             {
-                DependencyObject? current = source;
-                while (current != null)
-                {
-                    if (current is Button)
-                    {
-                        // 閉じるボタン上でクリックされた場合は処理しない
-                        return;
-                    }
-                    current = VisualTreeHelper.GetParent(current);
-                }
+                return;
             }
 
             // タブのDataContextを取得（パターンマッチングを使用）
-            if (sender is FrameworkElement { DataContext: Models.ExplorerTab tab })
+            Models.ExplorerTab? tab = null;
+            if (sender is FrameworkElement element)
+            {
+                // DataContextを直接取得（DataTemplate内のButtonはDataContextを継承している）
+                tab = element.DataContext as Models.ExplorerTab;
+                
+                // DataContextが取得できない場合は、親要素を探す
+                if (tab == null)
+                {
+                    var parent = VisualTreeHelper.GetParent(element) as FrameworkElement;
+                    tab = parent?.DataContext as Models.ExplorerTab;
+                }
+            }
+
+            if (tab != null)
             {
                 // タブのパスを取得（プロパティアクセスをキャッシュ）
                 var path = tab.ViewModel?.CurrentPath;
@@ -1665,7 +1670,7 @@ namespace FastExplorer.Views.Pages
                 DependencyObject? current = source;
                 while (current != null)
                 {
-                    if (current is Button)
+                    if (current is Button button && button.Tag?.ToString() == "CloseButton")
                     {
                         // 閉じるボタン上でクリックされた場合は処理しない
                         return;
@@ -1678,7 +1683,21 @@ namespace FastExplorer.Views.Pages
             e.Handled = true;
 
             // タブのDataContextを取得
-            if (sender is FrameworkElement element && element.DataContext is Models.ExplorerTab tab)
+            Models.ExplorerTab? tab = null;
+            if (sender is FrameworkElement element)
+            {
+                // DataContextを直接取得（DataTemplate内のButtonはDataContextを継承している）
+                tab = element.DataContext as Models.ExplorerTab;
+                
+                // DataContextが取得できない場合は、親要素を探す
+                if (tab == null)
+                {
+                    var parent = VisualTreeHelper.GetParent(element) as FrameworkElement;
+                    tab = parent?.DataContext as Models.ExplorerTab;
+                }
+            }
+
+            if (tab != null)
             {
                 // タブのパスを取得
                 var path = tab.ViewModel?.CurrentPath;
