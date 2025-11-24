@@ -2,15 +2,15 @@
     x:Class="FastExplorer.Views.Pages.ExplorerPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:FastExplorer.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:FastExplorer.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:FastExplorer.Models"
     xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:uiControls="clr-namespace:Wpf.Ui.Controls;assembly=Wpf.Ui"
-    xmlns:sys="clr-namespace:System;assembly=mscorlib"
-    xmlns:controls="clr-namespace:FastExplorer.Controls"
     d:DataContext="{d:DesignInstance local:ExplorerPage,
                                      IsDesignTimeCreatable=False}"
     d:DesignHeight="450"
@@ -18,8 +18,8 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-    UseLayoutRounding="True"
     SnapsToDevicePixels="True"
+    UseLayoutRounding="True"
     mc:Ignorable="d">
     <UserControl.Resources>
         <!--  ListView用の共通スタイル（重複を削減）  -->
@@ -57,7 +57,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <!--  共通のBorderスタイル（ホバー効果付き）  -->
         <Style x:Key="InteractiveBorderStyle" TargetType="Border">
             <Style.Triggers>
@@ -68,7 +68,7 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        
+
         <!--  最近使用したファイル用のBorderスタイル  -->
         <Style x:Key="RecentFileBorderStyle" TargetType="Border">
             <Style.Triggers>
@@ -79,7 +79,7 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        
+
         <!--  ピン留めフォルダーのDataTemplate  -->
         <DataTemplate x:Key="PinnedFolderTemplate" DataType="{x:Type models:FavoriteItem}">
             <Border
@@ -110,7 +110,7 @@
                 </StackPanel>
             </Border>
         </DataTemplate>
-        
+
         <!--  ドライブのDataTemplate  -->
         <DataTemplate x:Key="DriveTemplate" DataType="{x:Type models:DriveInfoModel}">
             <Border
@@ -130,13 +130,13 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock
-                        FontFamily="Segoe Fluent Icons"
-                        FontSize="32"
                         Width="32"
                         Height="32"
                         Margin="0,0,10,0"
-                        VerticalAlignment="Center"
                         HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontFamily="Segoe Fluent Icons"
+                        FontSize="32"
                         Foreground="{DynamicResource IconBrush}"
                         Text="&#xEDA2;" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -160,10 +160,13 @@
                 </Grid>
             </Border>
         </DataTemplate>
-        
+
         <!--  GridViewColumn用のCellTemplate（重複を削減）  -->
         <DataTemplate x:Key="FileNameCellTemplate" DataType="{x:Type models:FileSystemItem}">
-            <StackPanel VerticalAlignment="Center" Orientation="Horizontal" UseLayoutRounding="True">
+            <StackPanel
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                UseLayoutRounding="True">
                 <ui:SymbolIcon
                     Width="20"
                     Height="20"
@@ -173,9 +176,9 @@
                 <TextBlock
                     VerticalAlignment="Center"
                     Text="{Binding Name, Mode=OneWay, FallbackValue=''}"
-                    TextTrimming="CharacterEllipsis"
                     TextOptions.TextFormattingMode="Display"
-                    TextOptions.TextRenderingMode="ClearType" />
+                    TextOptions.TextRenderingMode="ClearType"
+                    TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="FileSizeCellTemplate" DataType="{x:Type models:FileSystemItem}">
@@ -183,29 +186,32 @@
                 Padding="8,0"
                 HorizontalAlignment="Right"
                 Text="{Binding FormattedSize, Mode=OneWay, FallbackValue=''}"
-                TextTrimming="CharacterEllipsis"
                 TextOptions.TextFormattingMode="Display"
-                TextOptions.TextRenderingMode="ClearType" />
+                TextOptions.TextRenderingMode="ClearType"
+                TextTrimming="CharacterEllipsis" />
         </DataTemplate>
         <DataTemplate x:Key="FileExtensionCellTemplate" DataType="{x:Type models:FileSystemItem}">
             <TextBlock
                 Padding="8,0"
                 Text="{Binding Extension, Mode=OneWay, FallbackValue=''}"
-                TextTrimming="CharacterEllipsis"
                 TextOptions.TextFormattingMode="Display"
-                TextOptions.TextRenderingMode="ClearType" />
+                TextOptions.TextRenderingMode="ClearType"
+                TextTrimming="CharacterEllipsis" />
         </DataTemplate>
         <DataTemplate x:Key="FileDateCellTemplate" DataType="{x:Type models:FileSystemItem}">
             <TextBlock
                 Padding="8,0"
                 Text="{Binding FormattedDate, Mode=OneWay, FallbackValue=''}"
-                TextTrimming="CharacterEllipsis"
                 TextOptions.TextFormattingMode="Display"
-                TextOptions.TextRenderingMode="ClearType" />
+                TextOptions.TextRenderingMode="ClearType"
+                TextTrimming="CharacterEllipsis" />
         </DataTemplate>
-        
+
         <!--  共通のButtonスタイル（ホバー効果付き）  -->
-        <Style x:Key="HoverableButtonStyle" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+        <Style
+            x:Key="HoverableButtonStyle"
+            BasedOn="{StaticResource {x:Type ui:Button}}"
+            TargetType="ui:Button">
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
@@ -215,7 +221,7 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        
+
         <!--  最近使用したファイルのDataTemplate  -->
         <DataTemplate x:Key="RecentFileTemplate" DataType="{x:Type models:FileSystemItem}">
             <Border
@@ -251,7 +257,7 @@
                 </Grid>
             </Border>
         </DataTemplate>
-        
+
         <DataTemplate x:Key="ExplorerTabContentTemplate" DataType="{x:Type models:ExplorerTab}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -275,8 +281,8 @@
                                 Appearance="Secondary"
                                 Command="{Binding ViewModel.NavigateToPathCommand, Mode=OneWay}"
                                 CommandParameter=""
-                                ToolTip="ホーム"
-                                Style="{StaticResource HoverableButtonStyle}">
+                                Style="{StaticResource HoverableButtonStyle}"
+                                ToolTip="ホーム">
                                 <ui:Button.Icon>
                                     <ui:SymbolIcon Symbol="Home24" />
                                 </ui:Button.Icon>
@@ -315,8 +321,8 @@
                             Margin="0,0,4,0"
                             Appearance="Secondary"
                             Command="{Binding ViewModel.NavigateToParentCommand, Mode=OneWay}"
-                            ToolTip="戻る"
-                            Style="{StaticResource HoverableButtonStyle}">
+                            Style="{StaticResource HoverableButtonStyle}"
+                            ToolTip="戻る">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="ArrowLeft24" />
                             </ui:Button.Icon>
@@ -327,8 +333,8 @@
                             Margin="0,0,4,0"
                             Appearance="Secondary"
                             Command="{Binding ViewModel.RefreshCommand, Mode=OneWay}"
-                            ToolTip="更新"
-                            Style="{StaticResource HoverableButtonStyle}">
+                            Style="{StaticResource HoverableButtonStyle}"
+                            ToolTip="更新">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="ArrowClockwise24" />
                             </ui:Button.Icon>
@@ -339,8 +345,8 @@
                             Margin="0,0,4,0"
                             Appearance="Secondary"
                             Command="{Binding DataContext.ViewModel.AddCurrentPathToFavoritesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            ToolTip="お気に入りに追加"
-                            Style="{StaticResource HoverableButtonStyle}">
+                            Style="{StaticResource HoverableButtonStyle}"
+                            ToolTip="お気に入りに追加">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="Star24" />
                             </ui:Button.Icon>
@@ -350,10 +356,10 @@
                             Grid.Column="3"
                             Appearance="Secondary"
                             Command="{Binding DataContext.ViewModel.ToggleSplitPaneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}"
-                            Style="{StaticResource HoverableButtonStyle}">
+                            Style="{StaticResource HoverableButtonStyle}"
+                            ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}">
                             <ui:Button.Icon>
-                                <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                <ui:SymbolIcon Symbol="ArrowExportRtl24" />
                             </ui:Button.Icon>
                         </ui:Button>
                     </Grid>
@@ -449,41 +455,53 @@
                 <ListView
                     x:Name="FileListView"
                     Grid.Row="2"
+                    AllowDrop="True"
                     Background="Transparent"
+                    DragOver="ListView_DragOver"
+                    Drop="ListView_Drop"
                     Focusable="True"
-                    ItemsSource="{Binding ViewModel.Items, Mode=OneWay}"
                     GotFocus="ListView_GotFocus"
+                    ItemsSource="{Binding ViewModel.Items, Mode=OneWay}"
                     KeyDown="ListView_KeyDown"
                     MouseDoubleClick="ListView_MouseDoubleClick"
                     MouseDown="ListView_MouseButtonDown"
-                    PreviewMouseDown="ListView_PreviewMouseDown"
                     MouseRightButtonUp="ListView_MouseRightButtonUp"
-                    DragOver="ListView_DragOver"
-                    Drop="ListView_Drop"
-                    AllowDrop="True"
-                    VirtualizingStackPanel.IsVirtualizing="True"
-                    VirtualizingStackPanel.VirtualizationMode="Recycling"
-                    VirtualizingStackPanel.CacheLength="0,1000"
+                    PreviewMouseDown="ListView_PreviewMouseDown"
+                    RenderOptions.ClearTypeHint="Enabled"
                     ScrollViewer.CanContentScroll="False"
                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                     SelectedItem="{Binding ViewModel.SelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                     SelectionMode="Single"
                     UseLayoutRounding="True"
-                    RenderOptions.ClearTypeHint="Enabled"
+                    VirtualizingStackPanel.CacheLength="0,1000"
+                    VirtualizingStackPanel.IsVirtualizing="True"
+                    VirtualizingStackPanel.VirtualizationMode="Recycling"
                     Visibility="{Binding ViewModel.IsHomePage, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                     <ListView.Resources>
-                        <Style TargetType="GridViewColumnHeader" BasedOn="{StaticResource FileListViewGridViewColumnHeaderStyle}" />
-                        <Style TargetType="ListViewItem" BasedOn="{StaticResource FileListViewItemStyle}">
+                        <Style BasedOn="{StaticResource FileListViewGridViewColumnHeaderStyle}" TargetType="GridViewColumnHeader" />
+                        <Style BasedOn="{StaticResource FileListViewItemStyle}" TargetType="ListViewItem">
                             <EventSetter Event="MouseRightButtonUp" Handler="ListViewItem_MouseRightButtonUp" />
                         </Style>
                     </ListView.Resources>
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Width="350" Header="名前" CellTemplate="{StaticResource FileNameCellTemplate}" />
-                            <GridViewColumn Width="120" Header="サイズ" CellTemplate="{StaticResource FileSizeCellTemplate}" />
-                            <GridViewColumn Width="180" Header="種類" CellTemplate="{StaticResource FileExtensionCellTemplate}" />
-                            <GridViewColumn Width="200" Header="更新日時" CellTemplate="{StaticResource FileDateCellTemplate}" />
+                            <GridViewColumn
+                                Width="350"
+                                CellTemplate="{StaticResource FileNameCellTemplate}"
+                                Header="名前" />
+                            <GridViewColumn
+                                Width="120"
+                                CellTemplate="{StaticResource FileSizeCellTemplate}"
+                                Header="サイズ" />
+                            <GridViewColumn
+                                Width="180"
+                                CellTemplate="{StaticResource FileExtensionCellTemplate}"
+                                Header="種類" />
+                            <GridViewColumn
+                                Width="200"
+                                CellTemplate="{StaticResource FileDateCellTemplate}"
+                                Header="更新日時" />
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -507,9 +525,9 @@
                 </Grid>
             </Grid>
         </DataTemplate>
-        <!-- RepeatButtonのContentをSymbolRegular値に設定するスタイル -->
-        <Style TargetType="RepeatButton" x:Key="ScrollButtonStyle">
-            <!-- Contentは各RepeatButtonで個別に設定 -->
+        <!--  RepeatButtonのContentをSymbolRegular値に設定するスタイル  -->
+        <Style x:Key="ScrollButtonStyle" TargetType="RepeatButton">
+            <!--  Contentは各RepeatButtonで個別に設定  -->
         </Style>
     </UserControl.Resources>
 
@@ -547,31 +565,27 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel
-                                    Grid.Column="0"
-                                    Orientation="Horizontal">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal">
                                     <TabPanel
                                         x:Name="HeaderPanel"
                                         Grid.IsSharedSizeScope="True"
                                         IsItemsHost="True"
                                         KeyboardNavigation.TabIndex="1" />
-                                    <!-- スクロールボタンを非表示にする（エラー回避のため） -->
+                                    <!--  スクロールボタンを非表示にする（エラー回避のため）  -->
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollLeft"
                                         Width="0"
                                         Height="0"
-                                        Visibility="Collapsed"
+                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}"
                                         IsTabStop="False"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}">
-                                    </RepeatButton>
+                                        Visibility="Collapsed" />
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
-                                        Visibility="Collapsed"
+                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}"
                                         IsTabStop="False"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}">
-                                    </RepeatButton>
+                                        Visibility="Collapsed" />
                                     <ui:Button
                                         Width="32"
                                         Height="32"
@@ -692,7 +706,7 @@
                 </TabControl.ItemTemplate>
                 <TabControl.ContentTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <ContentControl ContentTemplate="{StaticResource ExplorerTabContentTemplate}" Content="{Binding}" />
+                        <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ExplorerTabContentTemplate}" />
                     </DataTemplate>
                 </TabControl.ContentTemplate>
             </TabControl>
@@ -724,31 +738,27 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel
-                                    Grid.Column="0"
-                                    Orientation="Horizontal">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal">
                                     <TabPanel
                                         x:Name="HeaderPanel"
                                         Grid.IsSharedSizeScope="True"
                                         IsItemsHost="True"
                                         KeyboardNavigation.TabIndex="1" />
-                                    <!-- スクロールボタンを非表示にする（エラー回避のため） -->
+                                    <!--  スクロールボタンを非表示にする（エラー回避のため）  -->
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollLeft"
                                         Width="0"
                                         Height="0"
-                                        Visibility="Collapsed"
+                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}"
                                         IsTabStop="False"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}">
-                                    </RepeatButton>
+                                        Visibility="Collapsed" />
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
-                                        Visibility="Collapsed"
+                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}"
                                         IsTabStop="False"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}">
-                                    </RepeatButton>
+                                        Visibility="Collapsed" />
                                     <ui:Button
                                         Width="32"
                                         Height="32"
@@ -869,7 +879,7 @@
                 </TabControl.ItemTemplate>
                 <TabControl.ContentTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <ContentControl ContentTemplate="{StaticResource ExplorerTabContentTemplate}" Content="{Binding}" />
+                        <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ExplorerTabContentTemplate}" />
                     </DataTemplate>
                 </TabControl.ContentTemplate>
             </TabControl>
@@ -893,31 +903,27 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <StackPanel
-                                Grid.Column="0"
-                                Orientation="Horizontal">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
                                 <TabPanel
                                     x:Name="HeaderPanel"
                                     Grid.IsSharedSizeScope="True"
                                     IsItemsHost="True"
                                     KeyboardNavigation.TabIndex="1" />
-                                <!-- スクロールボタンを非表示にする（エラー回避のため） -->
+                                <!--  スクロールボタンを非表示にする（エラー回避のため）  -->
                                 <RepeatButton
                                     x:Name="PART_ButtonScrollLeft"
                                     Width="0"
                                     Height="0"
-                                    Visibility="Collapsed"
+                                    Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}"
                                     IsTabStop="False"
-                                    Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}">
-                                </RepeatButton>
+                                    Visibility="Collapsed" />
                                 <RepeatButton
                                     x:Name="PART_ButtonScrollRight"
                                     Width="0"
                                     Height="0"
-                                    Visibility="Collapsed"
+                                    Content="{x:Static uiControls:SymbolRegular.ChevronRight24}"
                                     IsTabStop="False"
-                                    Content="{x:Static uiControls:SymbolRegular.ChevronRight24}">
-                                </RepeatButton>
+                                    Visibility="Collapsed" />
                                 <ui:Button
                                     Width="32"
                                     Height="32"
@@ -967,9 +973,9 @@
                                     CornerRadius="4,4,0,0">
                                     <ContentPresenter
                                         Margin="{TemplateBinding Padding}"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            ContentSource="Header" />
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        ContentSource="Header" />
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
@@ -1111,8 +1117,8 @@
                                     Margin="0,0,4,0"
                                     Appearance="Secondary"
                                     Command="{Binding ViewModel.NavigateToParentCommand, Mode=OneWay}"
-                                    ToolTip="戻る"
-                                    Style="{StaticResource HoverableButtonStyle}">
+                                    Style="{StaticResource HoverableButtonStyle}"
+                                    ToolTip="戻る">
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="ArrowLeft24" />
                                     </ui:Button.Icon>
@@ -1123,8 +1129,8 @@
                                     Margin="0,0,4,0"
                                     Appearance="Secondary"
                                     Command="{Binding ViewModel.RefreshCommand, Mode=OneWay}"
-                                    ToolTip="更新"
-                                    Style="{StaticResource HoverableButtonStyle}">
+                                    Style="{StaticResource HoverableButtonStyle}"
+                                    ToolTip="更新">
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="ArrowClockwise24" />
                                     </ui:Button.Icon>
@@ -1135,8 +1141,8 @@
                                     Margin="0,0,4,0"
                                     Appearance="Secondary"
                                     Command="{Binding DataContext.ViewModel.AddCurrentPathToFavoritesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    ToolTip="お気に入りに追加"
-                                    Style="{StaticResource HoverableButtonStyle}">
+                                    Style="{StaticResource HoverableButtonStyle}"
+                                    ToolTip="お気に入りに追加">
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="Star24" />
                                     </ui:Button.Icon>
@@ -1146,10 +1152,10 @@
                                     Grid.Column="3"
                                     Appearance="Secondary"
                                     Command="{Binding DataContext.ViewModel.ToggleSplitPaneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}"
-                                    Style="{StaticResource HoverableButtonStyle}">
+                                    Style="{StaticResource HoverableButtonStyle}"
+                                    ToolTip="{Binding DataContext.ViewModel.IsSplitPaneEnabled, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToSplitPaneMenuTextConverter}}">
                                     <ui:Button.Icon>
-                                        <ui:SymbolIcon Symbol="SplitHorizontal24" />
+                                        <ui:SymbolIcon Symbol="SplitVertical24" />
                                     </ui:Button.Icon>
                                 </ui:Button>
                             </Grid>
@@ -1245,32 +1251,32 @@
                         <ListView
                             x:Name="FileListView"
                             Grid.Row="2"
+                            AllowDrop="True"
                             Background="Transparent"
+                            DragOver="ListView_DragOver"
+                            Drop="ListView_Drop"
                             Focusable="True"
-                            ItemsSource="{Binding ViewModel.Items, Mode=OneWay}"
                             GotFocus="ListView_GotFocus"
+                            ItemsSource="{Binding ViewModel.Items, Mode=OneWay}"
                             KeyDown="ListView_KeyDown"
                             MouseDoubleClick="ListView_MouseDoubleClick"
                             MouseDown="ListView_MouseButtonDown"
-                            PreviewMouseDown="ListView_PreviewMouseDown"
                             MouseRightButtonUp="ListView_MouseRightButtonUp"
-                            DragOver="ListView_DragOver"
-                            Drop="ListView_Drop"
-                            AllowDrop="True"
-                            VirtualizingStackPanel.IsVirtualizing="True"
-                            VirtualizingStackPanel.VirtualizationMode="Recycling"
-                            VirtualizingStackPanel.CacheLength="0,1000"
+                            PreviewMouseDown="ListView_PreviewMouseDown"
+                            RenderOptions.ClearTypeHint="Enabled"
                             ScrollViewer.CanContentScroll="False"
                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                             SelectedItem="{Binding ViewModel.SelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                             SelectionMode="Single"
                             UseLayoutRounding="True"
-                            RenderOptions.ClearTypeHint="Enabled"
+                            VirtualizingStackPanel.CacheLength="0,1000"
+                            VirtualizingStackPanel.IsVirtualizing="True"
+                            VirtualizingStackPanel.VirtualizationMode="Recycling"
                             Visibility="{Binding ViewModel.IsHomePage, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                             <ListView.Resources>
-                                <Style TargetType="GridViewColumnHeader" BasedOn="{StaticResource FileListViewGridViewColumnHeaderStyle}" />
-                                <Style TargetType="ListViewItem" BasedOn="{StaticResource FileListViewItemStyle}">
+                                <Style BasedOn="{StaticResource FileListViewGridViewColumnHeaderStyle}" TargetType="GridViewColumnHeader" />
+                                <Style BasedOn="{StaticResource FileListViewItemStyle}" TargetType="ListViewItem">
                                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
                                     <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
                                     <EventSetter Event="MouseRightButtonUp" Handler="ListViewItem_MouseRightButtonUp" />
@@ -1278,10 +1284,22 @@
                             </ListView.Resources>
                             <ListView.View>
                                 <GridView>
-                                    <GridViewColumn Width="350" Header="名前" CellTemplate="{StaticResource FileNameCellTemplate}" />
-                                    <GridViewColumn Width="120" Header="サイズ" CellTemplate="{StaticResource FileSizeCellTemplate}" />
-                                    <GridViewColumn Width="180" Header="種類" CellTemplate="{StaticResource FileExtensionCellTemplate}" />
-                                    <GridViewColumn Width="200" Header="更新日時" CellTemplate="{StaticResource FileDateCellTemplate}" />
+                                    <GridViewColumn
+                                        Width="350"
+                                        CellTemplate="{StaticResource FileNameCellTemplate}"
+                                        Header="名前" />
+                                    <GridViewColumn
+                                        Width="120"
+                                        CellTemplate="{StaticResource FileSizeCellTemplate}"
+                                        Header="サイズ" />
+                                    <GridViewColumn
+                                        Width="180"
+                                        CellTemplate="{StaticResource FileExtensionCellTemplate}"
+                                        Header="種類" />
+                                    <GridViewColumn
+                                        Width="200"
+                                        CellTemplate="{StaticResource FileDateCellTemplate}"
+                                        Header="更新日時" />
                                 </GridView>
                             </ListView.View>
                         </ListView>
