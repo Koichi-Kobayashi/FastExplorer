@@ -674,21 +674,15 @@
                                         Width="0"
                                         Height="0"
                                         IsTabStop="False"
-                                        Visibility="Collapsed">
-                                        <RepeatButton.Content>
-                                            <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
-                                        </RepeatButton.Content>
-                                    </RepeatButton>
+                                        Visibility="Collapsed"
+                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
                                         IsTabStop="False"
-                                        Visibility="Collapsed">
-                                        <RepeatButton.Content>
-                                            <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
-                                        </RepeatButton.Content>
-                                    </RepeatButton>
+                                        Visibility="Collapsed"
+                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
                                     <ui:Button
                                         Width="32"
                                         Height="32"
@@ -863,21 +857,15 @@
                                         Width="0"
                                         Height="0"
                                         IsTabStop="False"
-                                        Visibility="Collapsed">
-                                        <RepeatButton.Content>
-                                            <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
-                                        </RepeatButton.Content>
-                                    </RepeatButton>
+                                        Visibility="Collapsed"
+                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
                                     <RepeatButton
                                         x:Name="PART_ButtonScrollRight"
                                         Width="0"
                                         Height="0"
                                         IsTabStop="False"
-                                        Visibility="Collapsed">
-                                        <RepeatButton.Content>
-                                            <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
-                                        </RepeatButton.Content>
-                                    </RepeatButton>
+                                        Visibility="Collapsed"
+                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
                                     <ui:Button
                                         Width="32"
                                         Height="32"
@@ -1043,16 +1031,22 @@
                                     x:Name="PART_ButtonScrollLeft"
                                     Width="0"
                                     Height="0"
-                                    Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}"
                                     IsTabStop="False"
-                                    Visibility="Collapsed" />
+                                    Visibility="Collapsed">
+                                    <RepeatButton.Content>
+                                        <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
+                                    </RepeatButton.Content>
+                                </RepeatButton>
                                 <RepeatButton
                                     x:Name="PART_ButtonScrollRight"
                                     Width="0"
                                     Height="0"
-                                    Content="{x:Static uiControls:SymbolRegular.ChevronRight24}"
                                     IsTabStop="False"
-                                    Visibility="Collapsed" />
+                                    Visibility="Collapsed">
+                                    <RepeatButton.Content>
+                                        <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
+                                    </RepeatButton.Content>
+                                </RepeatButton>
                                 <ui:Button
                                     Width="32"
                                     Height="32"
