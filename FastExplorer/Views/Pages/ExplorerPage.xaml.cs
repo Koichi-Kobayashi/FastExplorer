@@ -1284,6 +1284,53 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
+        /// タブエリアでマウス左ボタンが押されたときに呼び出されます（タブのパスをコピー）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void TabArea_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // 閉じるボタン上でクリックされた場合は処理しない
+            if (e.OriginalSource is DependencyObject source)
+            {
+                DependencyObject? current = source;
+                while (current != null)
+                {
+                    if (current is Button)
+                    {
+                        // 閉じるボタン上でクリックされた場合は処理しない
+                        return;
+                    }
+                    current = VisualTreeHelper.GetParent(current);
+                }
+            }
+
+            // タブのDataContextを取得
+            if (sender is FrameworkElement element && element.DataContext is Models.ExplorerTab tab)
+            {
+                // タブのパスを取得
+                var path = tab.ViewModel?.CurrentPath;
+                if (string.IsNullOrEmpty(path))
+                {
+                    // パスが空の場合はホームディレクトリを使用
+                    path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                }
+
+                if (!string.IsNullOrEmpty(path))
+                {
+                    try
+                    {
+                        System.Windows.Clipboard.SetText(path);
+                    }
+                    catch
+                    {
+                        // クリップボードへのコピーに失敗した場合は何もしない
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// タブエリアでマウス右ボタンが離されたときに呼び出されます（タブの右クリックメニュー表示）
         /// </summary>
         /// <param name="sender">イベントの送信元</param>

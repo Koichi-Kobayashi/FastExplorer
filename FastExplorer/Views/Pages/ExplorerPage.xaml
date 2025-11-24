@@ -7,6 +7,7 @@
     xmlns:local="clr-namespace:FastExplorer.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:FastExplorer.Models"
+    xmlns:helpers="clr-namespace:FastExplorer.Helpers"
     xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
     xmlns:sys="clr-namespace:System;assembly=mscorlib"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -291,15 +292,50 @@
                                     <ui:SymbolIcon Symbol="Home24" />
                                 </ui:Button.Icon>
                             </ui:Button>
-                            <TextBlock
-                                Margin="4,0"
+                            <ItemsControl
                                 VerticalAlignment="Center"
-                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                Text="&gt;" />
-                            <TextBlock
-                                VerticalAlignment="Center"
-                                Text="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbConverter}}"
-                                TextTrimming="CharacterEllipsis" />
+                                DataContext="{Binding}"
+                                ItemsSource="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type helpers:BreadcrumbItem}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock
+                                                Margin="4,0"
+                                                VerticalAlignment="Center"
+                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                Text="&gt;" />
+                                            <Button
+                                                Margin="2,0"
+                                                Padding="4,2"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Command="{Binding DataContext.ViewModel.NavigateToPathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding Path}"
+                                                Cursor="Hand"
+                                                ToolTip="{Binding Path}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                                <TextBlock
+                                                    VerticalAlignment="Center"
+                                                    Text="{Binding Name}"
+                                                    TextTrimming="CharacterEllipsis" />
+                                            </Button>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -692,7 +728,7 @@
                 </TabControl.Resources>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp">
+                        <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp" MouseLeftButtonDown="TabArea_MouseLeftButtonDown">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -865,7 +901,7 @@
                 </TabControl.Resources>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp">
+                        <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp" MouseLeftButtonDown="TabArea_MouseLeftButtonDown">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -1030,7 +1066,7 @@
             </TabControl.Resources>
             <TabControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                    <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp">
+                    <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp" MouseLeftButtonDown="TabArea_MouseLeftButtonDown">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -1113,15 +1149,49 @@
                                             <ui:SymbolIcon Symbol="Home24" />
                                         </ui:Button.Icon>
                                     </ui:Button>
-                                    <TextBlock
-                                        Margin="4,0"
+                                    <ItemsControl
                                         VerticalAlignment="Center"
-                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                        Text="&gt;" />
-                                    <TextBlock
-                                        VerticalAlignment="Center"
-                                        Text="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbConverter}}"
-                                        TextTrimming="CharacterEllipsis" />
+                                        ItemsSource="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type helpers:BreadcrumbItem}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock
+                                                        Margin="4,0"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                        Text="&gt;" />
+                                                    <Button
+                                                        Margin="2,0"
+                                                        Padding="4,2"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Command="{Binding ViewModel.NavigateToPathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding Path}"
+                                                        Cursor="Hand"
+                                                        ToolTip="{Binding Path}">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button">
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                        <TextBlock
+                                                            VerticalAlignment="Center"
+                                                            Text="{Binding Name}"
+                                                            TextTrimming="CharacterEllipsis" />
+                                                    </Button>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </StackPanel>
                             </Grid>
                         </Border>

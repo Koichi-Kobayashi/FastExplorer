@@ -15,6 +15,7 @@
             </ResourceDictionary.MergedDictionaries>
             <helpers:DirectoryIconConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="DirectoryIconConverter" />
             <helpers:PathToBreadcrumbConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="PathToBreadcrumbConverter" />
+            <helpers:PathToBreadcrumbItemsConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="PathToBreadcrumbItemsConverter" />
             <helpers:InverseBooleanToVisibilityConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="InverseBooleanToVisibilityConverter" />
             <helpers:FolderIconConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="FolderIconConverter" />
             <helpers:EnumToBooleanConverter xmlns:helpers="clr-namespace:FastExplorer.Helpers" x:Key="EnumToBooleanConverter" />
