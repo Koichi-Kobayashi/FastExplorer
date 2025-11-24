@@ -318,13 +318,32 @@
                                                 CommandParameter="{Binding Path}"
                                                 Cursor="Hand"
                                                 ToolTip="{Binding Path}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border
+                                                            x:Name="Border"
+                                                            Background="{TemplateBinding Background}"
+                                                            BorderBrush="Transparent"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Content="{TemplateBinding Content}" />
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorSecondaryBrush}" />
+                                                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
                                                 <Button.Style>
                                                     <Style TargetType="Button">
-                                                        <Style.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                            </Trigger>
-                                                        </Style.Triggers>
+                                                        <Setter Property="BorderThickness" Value="1" />
+                                                        <Setter Property="BorderBrush" Value="Transparent" />
                                                     </Style>
                                                 </Button.Style>
                                                 <TextBlock
@@ -728,17 +747,59 @@
                 </TabControl.Resources>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp" MouseLeftButtonDown="TabArea_MouseLeftButtonDown">
+                        <Grid Background="Transparent">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock
+                            <Button
                                 Grid.Column="0"
                                 Margin="0,0,8,0"
-                                VerticalAlignment="Center"
-                                Text="{Binding Title, Mode=OneWay}"
-                                TextTrimming="CharacterEllipsis" />
+                                Padding="4,2"
+                                Background="Transparent"
+                                BorderThickness="1"
+                                Cursor="Hand"
+                                MouseLeftButtonDown="TabArea_MouseLeftButtonDown"
+                                MouseRightButtonUp="TabArea_MouseRightButtonUp">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border
+                                            x:Name="Border"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="Transparent"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Content="{TemplateBinding Content}" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorSecondaryBrush}" />
+                                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="BorderThickness" Value="1" />
+                                        <Setter Property="BorderBrush" Value="Transparent" />
+                                    </Style>
+                                </Button.Style>
+                                <Button.ToolTip>
+                                    <StackPanel MaxWidth="500">
+                                        <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" />
+                                        <TextBlock Text="クリックでパスをコピー" FontStyle="Italic" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Button.ToolTip>
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Text="{Binding Title, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </Button>
                             <Button
                                 Grid.Column="1"
                                 Width="18"
@@ -901,17 +962,59 @@
                 </TabControl.Resources>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid MouseRightButtonUp="TabArea_MouseRightButtonUp" MouseLeftButtonDown="TabArea_MouseLeftButtonDown">
+                        <Grid Background="Transparent">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock
+                            <Button
                                 Grid.Column="0"
                                 Margin="0,0,8,0"
-                                VerticalAlignment="Center"
-                                Text="{Binding Title, Mode=OneWay}"
-                                TextTrimming="CharacterEllipsis" />
+                                Padding="4,2"
+                                Background="Transparent"
+                                BorderThickness="1"
+                                Cursor="Hand"
+                                MouseLeftButtonDown="TabArea_MouseLeftButtonDown"
+                                MouseRightButtonUp="TabArea_MouseRightButtonUp">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border
+                                            x:Name="Border"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="Transparent"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Content="{TemplateBinding Content}" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource AccentFillColorSecondaryBrush}" />
+                                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="BorderThickness" Value="1" />
+                                        <Setter Property="BorderBrush" Value="Transparent" />
+                                    </Style>
+                                </Button.Style>
+                                <Button.ToolTip>
+                                    <StackPanel MaxWidth="500">
+                                        <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" />
+                                        <TextBlock Text="クリックでパスをコピー" FontStyle="Italic" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Button.ToolTip>
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Text="{Binding Title, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </Button>
                             <Button
                                 Grid.Column="1"
                                 Width="18"
@@ -1071,12 +1174,36 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock
+                        <Border
                             Grid.Column="0"
                             Margin="0,0,8,0"
-                            VerticalAlignment="Center"
-                            Text="{Binding Title, Mode=OneWay}"
-                            TextTrimming="CharacterEllipsis" />
+                            Padding="4,2"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Cursor="Hand">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorSecondaryBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Border.ToolTip>
+                                <StackPanel MaxWidth="500">
+                                    <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" />
+                                    <TextBlock Text="クリックでパスをコピー" FontStyle="Italic" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Border.ToolTip>
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Text="{Binding Title, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis" />
+                        </Border>
                         <Button
                             Grid.Column="1"
                             Width="18"
