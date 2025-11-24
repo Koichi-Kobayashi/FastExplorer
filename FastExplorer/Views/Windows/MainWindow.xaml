@@ -18,12 +18,12 @@
     ExtendsContentIntoTitleBar="True"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     KeyDown="MainWindow_KeyDown"
+    RenderOptions.ClearTypeHint="Enabled"
+    SnapsToDevicePixels="True"
+    UseLayoutRounding="True"
     WindowBackdropType="Mica"
     WindowCornerPreference="Round"
     WindowStartupLocation="CenterScreen"
-    UseLayoutRounding="True"
-    SnapsToDevicePixels="True"
-    RenderOptions.ClearTypeHint="Enabled"
     mc:Ignorable="d">
     <Grid UseLayoutRounding="True">
         <Grid.RowDefinitions>
@@ -39,9 +39,9 @@
             FrameMargin="0"
             IsBackButtonVisible="Visible"
             IsPaneToggleVisible="True"
+            ItemInvoked="RootNavigation_ItemInvoked"
             MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
-            PaneDisplayMode="LeftFluent"
-            ItemInvoked="RootNavigation_ItemInvoked">
+            PaneDisplayMode="LeftFluent">
             <ui:NavigationView.ContentOverlay>
                 <Grid>
                     <ui:SnackbarPresenter x:Name="SnackbarPresenter" />
