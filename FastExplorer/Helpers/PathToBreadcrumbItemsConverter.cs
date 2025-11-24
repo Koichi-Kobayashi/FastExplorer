@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Windows.Data;
+using Cysharp.Text;
 using FastExplorer.Models;
 
 namespace FastExplorer.Helpers
@@ -12,6 +13,10 @@ namespace FastExplorer.Helpers
     /// </summary>
     public class PathToBreadcrumbItemsConverter : IValueConverter
     {
+        // 文字列定数（メモリ割り当てを削減）
+        private static readonly char DirectorySeparator = Path.DirectorySeparatorChar;
+        private static readonly char AltDirectorySeparator = Path.AltDirectorySeparatorChar;
+
         /// <summary>
         /// 値を変換します
         /// </summary>
@@ -22,84 +27,110 @@ namespace FastExplorer.Helpers
         /// <returns>パンくずリスト用のアイテムコレクション</returns>
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            var items = new List<BreadcrumbItem>();
-            
-            if (value is string path && !string.IsNullOrEmpty(path))
+            if (value is not string path || string.IsNullOrEmpty(path))
             {
-                try
+                return new List<BreadcrumbItem>(0);
+            }
+
+            // リストの容量を事前に確保（平均的なパス深度を想定）
+            var items = new List<BreadcrumbItem>(8);
+            
+            try
+            {
+                // パスを正規化
+                var normalizedPath = Path.GetFullPath(path);
+                
+                // ルートディレクトリを取得
+                var root = Path.GetPathRoot(normalizedPath);
+                if (string.IsNullOrEmpty(root))
                 {
-                    // パスを正規化
-                    var normalizedPath = Path.GetFullPath(path);
-                    
-                    // ルートディレクトリを取得
-                    var root = Path.GetPathRoot(normalizedPath);
-                    if (string.IsNullOrEmpty(root))
+                    // ルートがない場合は、パスを分割して処理
+                    var parts = normalizedPath.Split(DirectorySeparator, AltDirectorySeparator, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length == 0)
                     {
-                        // ルートがない場合は、パスを分割して処理
-                        var parts = normalizedPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length > 0)
+                        return items;
+                    }
+
+                    // リストの容量を事前に確保
+                    items.Capacity = parts.Length;
+                    
+                    var currentPath = string.Empty;
+                    foreach (var part in parts)
+                    {
+                        // 文字列結合を最適化（ZString.Concatを使用）
+                        if (string.IsNullOrEmpty(currentPath))
                         {
-                            var currentPath = string.Empty;
-                            foreach (var part in parts)
-                            {
-                                if (string.IsNullOrEmpty(currentPath))
-                                {
-                                    currentPath = part;
-                                }
-                                else
-                                {
-                                    currentPath = Path.Combine(currentPath, part);
-                                }
-                                items.Add(new BreadcrumbItem { Name = part, Path = currentPath });
-                            }
+                            currentPath = part;
                         }
+                        else
+                        {
+                            currentPath = Path.Combine(currentPath, part);
+                        }
+                        items.Add(new BreadcrumbItem { Name = part, Path = currentPath });
+                    }
+                }
+                else
+                {
+                    // ルートを追加
+                    var rootTrimmed = root.TrimEnd(DirectorySeparator, AltDirectorySeparator);
+                    items.Add(new BreadcrumbItem { Name = rootTrimmed, Path = root });
+                    
+                    // ルートを除いた部分を取得
+                    var relativePath = normalizedPath.Substring(root.Length);
+                    var parts = relativePath.Split(DirectorySeparator, AltDirectorySeparator, StringSplitOptions.RemoveEmptyEntries);
+                    
+                    if (parts.Length == 0)
+                    {
+                        return items;
+                    }
+
+                    // リストの容量を事前に確保
+                    items.Capacity = items.Count + parts.Length;
+                    
+                    var currentPath = root;
+                    var rootLength = root.Length;
+                    var isRootEndsWithSeparator = rootLength > 0 && (root[rootLength - 1] == DirectorySeparator || root[rootLength - 1] == AltDirectorySeparator);
+                    
+                    foreach (var part in parts)
+                    {
+                        // ルートディレクトリの場合は、Path.Combineが正しく動作しないため、手動で結合
+                        // 文字列結合を最適化（ZString.Concatを使用）
+                        if (isRootEndsWithSeparator)
+                        {
+                            currentPath = ZString.Concat(currentPath, part);
+                        }
+                        else
+                        {
+                            currentPath = Path.Combine(currentPath, part);
+                        }
+                        items.Add(new BreadcrumbItem { Name = part, Path = currentPath });
+                    }
+                }
+            }
+            catch
+            {
+                // パスが無効な場合は、パスを分割して処理
+                var parts = path.Split(DirectorySeparator, AltDirectorySeparator, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0)
+                {
+                    return items;
+                }
+
+                // リストの容量を事前に確保
+                items.Capacity = parts.Length;
+                
+                var currentPath = string.Empty;
+                foreach (var part in parts)
+                {
+                    if (string.IsNullOrEmpty(currentPath))
+                    {
+                        currentPath = part;
                     }
                     else
                     {
-                        // ルートを追加
-                        var rootTrimmed = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                        items.Add(new BreadcrumbItem { Name = rootTrimmed, Path = root });
-                        
-                        // ルートを除いた部分を取得
-                        var relativePath = normalizedPath.Substring(root.Length);
-                        var parts = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-                        
-                        var currentPath = root;
-                        foreach (var part in parts)
-                        {
-                            // ルートディレクトリの場合は、Path.Combineが正しく動作しないため、手動で結合
-                            if (currentPath.EndsWith(Path.DirectorySeparatorChar.ToString()) || currentPath.EndsWith(Path.AltDirectorySeparatorChar.ToString()))
-                            {
-                                currentPath = currentPath + part;
-                            }
-                            else
-                            {
-                                currentPath = Path.Combine(currentPath, part);
-                            }
-                            items.Add(new BreadcrumbItem { Name = part, Path = currentPath });
-                        }
+                        currentPath = Path.Combine(currentPath, part);
                     }
-                }
-                catch
-                {
-                    // パスが無効な場合は、パスを分割して処理
-                    var parts = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length > 0)
-                    {
-                        var currentPath = string.Empty;
-                        foreach (var part in parts)
-                        {
-                            if (string.IsNullOrEmpty(currentPath))
-                            {
-                                currentPath = part;
-                            }
-                            else
-                            {
-                                currentPath = Path.Combine(currentPath, part);
-                            }
-                            items.Add(new BreadcrumbItem { Name = part, Path = currentPath });
-                        }
-                    }
+                    items.Add(new BreadcrumbItem { Name = part, Path = currentPath });
                 }
             }
             

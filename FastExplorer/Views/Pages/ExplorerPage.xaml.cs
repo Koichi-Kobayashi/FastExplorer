@@ -1305,10 +1305,10 @@ namespace FastExplorer.Views.Pages
                 }
             }
 
-            // タブのDataContextを取得
-            if (sender is FrameworkElement element && element.DataContext is Models.ExplorerTab tab)
+            // タブのDataContextを取得（パターンマッチングを使用）
+            if (sender is FrameworkElement { DataContext: Models.ExplorerTab tab })
             {
-                // タブのパスを取得
+                // タブのパスを取得（プロパティアクセスをキャッシュ）
                 var path = tab.ViewModel?.CurrentPath;
                 if (string.IsNullOrEmpty(path))
                 {
