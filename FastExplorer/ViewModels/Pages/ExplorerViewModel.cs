@@ -87,6 +87,16 @@ namespace FastExplorer.ViewModels.Pages
         private string _statusBarText = "準備完了";
 
         /// <summary>
+        /// 現在のソート列（"Name", "Size", "Extension", "LastModified"）
+        /// </summary>
+        private string _sortColumn = "Name";
+
+        /// <summary>
+        /// ソート方向（true: 昇順、false: 降順）
+        /// </summary>
+        private bool _sortAscending = true;
+
+        /// <summary>
         /// <see cref="ExplorerViewModel"/>クラスの新しいインスタンスを初期化します
         /// </summary>
         /// <param name="fileSystemService">ファイルシステムサービス</param>
@@ -360,6 +370,9 @@ namespace FastExplorer.ViewModels.Pages
                     // キャンセルされた場合は処理を中断
                     if (cancellationToken.IsCancellationRequested)
                         return;
+
+                    // アイテムをソート（バックグラウンドスレッドで実行）
+                    SortItemList(itemList);
 
                     // UIスレッドでバッチ更新（500件ずつ追加してUIの応答性を保ちつつ、更新回数を削減）
                     // バッチサイズを200から500に増やすことで、Dispatcher呼び出し回数を削減（高速化）
@@ -763,6 +776,99 @@ namespace FastExplorer.ViewModels.Pages
         public void NavigateToDrives(bool addToHistory = true)
         {
             NavigateToHome(addToHistory);
+        }
+
+        /// <summary>
+        /// 指定された列でソートします
+        /// </summary>
+        /// <param name="columnName">ソートする列名（"Name", "Size", "Extension", "LastModified"）</param>
+        public void SortByColumn(string columnName)
+        {
+            // 同じ列をクリックした場合はソート方向を反転
+            if (_sortColumn == columnName)
+            {
+                _sortAscending = !_sortAscending;
+            }
+            else
+            {
+                _sortColumn = columnName;
+                _sortAscending = true;
+            }
+
+            // 現在のアイテムをソート
+            SortItems();
+        }
+
+        /// <summary>
+        /// アイテムを現在のソート設定に基づいてソートします
+        /// </summary>
+        private void SortItems()
+        {
+            var itemsCount = Items.Count;
+            if (itemsCount == 0)
+                return;
+
+            // 一時リストにコピーしてソート（容量を事前に確保）
+            var sortedItems = new List<FileSystemItem>(itemsCount);
+            sortedItems.AddRange(Items);
+            SortItemList(sortedItems);
+
+            // UIスレッドで更新（一括更新でパフォーマンス向上）
+            var dispatcher = _cachedDispatcher ?? System.Windows.Application.Current?.Dispatcher;
+            dispatcher?.Invoke(() =>
+            {
+                // Clear + 個別にAdd（ObservableCollectionにはAddRangeがないため）
+                var items = Items;
+                items.Clear();
+                
+                // プロパティアクセスをキャッシュして高速化
+                foreach (var item in sortedItems)
+                {
+                    items.Add(item);
+                }
+            });
+        }
+
+        /// <summary>
+        /// アイテムリストを現在のソート設定に基づいてソートします（インライン、最適化済み）
+        /// </summary>
+        /// <param name="itemList">ソートするアイテムリスト</param>
+        private void SortItemList(List<FileSystemItem> itemList)
+        {
+            var count = itemList.Count;
+            if (count == 0)
+                return;
+
+            // ソート列名を定数として使用（メモリ割り当てを削減）
+            const string NameColumn = "Name";
+            const string SizeColumn = "Size";
+            const string ExtensionColumn = "Extension";
+            const string LastModifiedColumn = "LastModified";
+
+            // ソート実行（比較関数を最適化）
+            itemList.Sort((x, y) =>
+            {
+                // ディレクトリを常に先に表示（早期リターンでパフォーマンス向上）
+                var xIsDir = x.IsDirectory;
+                var yIsDir = y.IsDirectory;
+                if (xIsDir != yIsDir)
+                {
+                    return xIsDir ? -1 : 1;
+                }
+
+                // 列に応じてソート（switch式を使用してパフォーマンス向上）
+                int result = _sortColumn switch
+                {
+                    NameColumn => string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase),
+                    SizeColumn => x.Size.CompareTo(y.Size),
+                    ExtensionColumn => string.Compare(x.Extension, y.Extension, StringComparison.OrdinalIgnoreCase),
+                    LastModifiedColumn => x.LastModified.CompareTo(y.LastModified),
+                    _ => string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase)
+                };
+
+                // ソート方向を適用（三項演算子で分岐を削減）
+                return _sortAscending ? result : -result;
+            });
         }
     }
 }

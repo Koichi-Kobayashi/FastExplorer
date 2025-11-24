@@ -30,6 +30,9 @@
             <Setter Property="BorderThickness" Value="0,0,1,1" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <EventSetter Event="Click" Handler="GridViewColumnHeader_Click" />
+            <EventSetter Event="MouseDoubleClick" Handler="GridViewColumnHeader_MouseDoubleClick" />
+            <EventSetter Event="PreviewMouseDoubleClick" Handler="GridViewColumnHeader_PreviewMouseDoubleClick" />
         </Style>
         <Style x:Key="FileListViewItemStyle" TargetType="ListViewItem">
             <Setter Property="Padding" Value="0" />

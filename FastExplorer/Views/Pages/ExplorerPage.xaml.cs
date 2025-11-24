@@ -99,25 +99,39 @@ namespace FastExplorer.Views.Pages
             if (targetTab == null)
                 return;
 
-            // クリックされた位置がListViewItem上かどうかを確認（ビジュアルツリー走査を避けるため、OriginalSourceを使用）
-            bool isOnItem = false;
+            // クリックされた位置がListViewItem上かどうかを確認（ビジュアルツリー走査を最適化）
             if (e.OriginalSource is DependencyObject source)
             {
                 DependencyObject? current = source;
                 while (current != null && current != listView)
                 {
+                    // 型チェックを一度に実行（パフォーマンス向上）
+                    if (current is System.Windows.Controls.GridViewColumnHeader)
+                    {
+                        // ヘッダー上でクリックされた場合は処理しない
+                        e.Handled = true;
+                        return;
+                    }
                     if (current is ListViewItem)
                     {
-                        isOnItem = true;
+                        // ListViewItem上でクリックされた場合は処理を続行
                         break;
                     }
                     current = VisualTreeHelper.GetParent(current);
                 }
+                
+                // ListViewItemが見つからなかった場合は空領域
+                if (current == null || !(current is ListViewItem))
+                {
+                    // 空領域（アイテムがない場所）をダブルクリックした場合は親フォルダーに移動
+                    targetTab.ViewModel.NavigateToParentCommand.Execute(null);
+                    e.Handled = true;
+                    return;
+                }
             }
-
-            // 空領域（アイテムがない場所）をダブルクリックした場合は親フォルダーに移動
-            if (!isOnItem)
+            else
             {
+                // OriginalSourceがDependencyObjectでない場合は空領域として扱う
                 targetTab.ViewModel.NavigateToParentCommand.Execute(null);
                 e.Handled = true;
                 return;
@@ -890,6 +904,383 @@ namespace FastExplorer.Views.Pages
                 var scm = new FastExplorer.ShellContextMenu.ShellContextMenuService();
                 scm.ShowContextMenu(new[] { path }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
             }
+        }
+
+        /// <summary>
+        /// GridViewColumnHeaderがクリックされたときに呼び出されます（ソート処理）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ルーティングイベント引数</param>
+        private void GridViewColumnHeader_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.GridViewColumnHeader header)
+                return;
+
+            // クリックされたListViewを取得
+            var listView = FindAncestor<System.Windows.Controls.ListView>(header);
+            if (listView == null)
+                return;
+
+            // ターゲットタブを取得（最適化：早期リターン）
+            Models.ExplorerTab? targetTab;
+            
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                var pane = GetPaneForElement(listView);
+                targetTab = pane switch
+                {
+                    0 => ViewModel.SelectedLeftPaneTab,
+                    2 => ViewModel.SelectedRightPaneTab,
+                    _ => GetActiveTab()
+                };
+            }
+            else
+            {
+                targetTab = ViewModel.SelectedTab;
+            }
+
+            if (targetTab?.ViewModel == null)
+                return;
+
+            // ヘッダーテキストから列名を取得
+            var columnName = GetColumnNameFromHeader(header);
+            if (!string.IsNullOrEmpty(columnName))
+            {
+                targetTab.ViewModel.SortByColumn(columnName);
+            }
+        }
+
+        /// <summary>
+        /// GridViewColumnHeaderがダブルクリックされたときに呼び出されます
+        /// リサイズハンドル上でのダブルクリックの場合は列幅を自動調整
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void GridViewColumnHeader_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.GridViewColumnHeader header)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            var targetColumn = GetResizeHandleColumn(header, e.GetPosition(header));
+            if (targetColumn != null)
+            {
+                AutoSizeColumn(header, targetColumn);
+                e.Handled = true;
+                return;
+            }
+            
+            // リサイズハンドル以外でのダブルクリックは無効化
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// GridViewColumnHeaderがダブルクリックされる前に呼び出されます（Previewイベント）
+        /// リサイズハンドル上でのダブルクリックの場合は列幅を自動調整し、親要素への伝播を防ぐ
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void GridViewColumnHeader_PreviewMouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.GridViewColumnHeader header)
+                return;
+
+            var targetColumn = GetResizeHandleColumn(header, e.GetPosition(header));
+            if (targetColumn != null)
+            {
+                // Previewイベントでは非同期で処理（UIスレッドのブロックを防ぐ）
+                var columnToResize = targetColumn;
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    AutoSizeColumn(header, columnToResize);
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+                e.Handled = true;
+            }
+            // リサイズハンドルでない場合は、通常のイベントを発火させる（Handledしない）
+        }
+
+        /// <summary>
+        /// クリック位置からリサイズハンドルに対応する列を取得します（最適化：共通メソッド）
+        /// </summary>
+        /// <param name="header">GridViewColumnHeader</param>
+        /// <param name="clickPosition">クリック位置</param>
+        /// <returns>リサイズハンドルに対応する列、見つからない場合はnull</returns>
+        private System.Windows.Controls.GridViewColumn? GetResizeHandleColumn(
+            System.Windows.Controls.GridViewColumnHeader header, 
+            Point clickPosition)
+        {
+            if (header == null)
+                return null;
+
+            var headerWidth = header.ActualWidth;
+            // リサイズハンドルの検出範囲（ピクセル単位）
+            // GridViewColumnHeaderの列境界線付近でクリックされた場合にリサイズハンドルとして認識する範囲
+            // 通常のリサイズハンドルは約5ピクセルだが、クリックしやすくするため8ピクセルに設定
+            const double resizeHandleWidth = 8.0;
+            
+            // 右端のリサイズハンドル（この列の右端）
+            if (clickPosition.X >= headerWidth - resizeHandleWidth && clickPosition.X <= headerWidth)
+            {
+                return header.Column;
+            }
+            
+            // 左端のリサイズハンドル（前の列の右端、つまりこの列の左端）
+            if (clickPosition.X >= 0 && clickPosition.X <= resizeHandleWidth)
+            {
+                // ListViewを取得
+                var listView = FindAncestor<System.Windows.Controls.ListView>(header);
+                if (listView?.View is System.Windows.Controls.GridView gridView)
+                {
+                    var currentColumn = header.Column;
+                    if (currentColumn != null)
+                    {
+                        var columns = gridView.Columns;
+                        var currentIndex = columns.IndexOf(currentColumn);
+                        if (currentIndex > 0)
+                        {
+                            return columns[currentIndex - 1];
+                        }
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// 列幅を自動調整します（ヘッダーと内容の両方を考慮）
+        /// </summary>
+        /// <param name="header">GridViewColumnHeader</param>
+        /// <param name="column">GridViewColumn</param>
+        private void AutoSizeColumn(System.Windows.Controls.GridViewColumnHeader header, System.Windows.Controls.GridViewColumn column)
+        {
+            if (header == null || column == null)
+                return;
+
+            // ListViewを取得
+            var listView = FindAncestor<System.Windows.Controls.ListView>(header);
+            if (listView == null)
+                return;
+
+            // ターゲットタブを取得
+            Models.ExplorerTab? targetTab = null;
+            
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                var pane = GetPaneForElement(listView);
+                targetTab = pane switch
+                {
+                    0 => ViewModel.SelectedLeftPaneTab,
+                    2 => ViewModel.SelectedRightPaneTab,
+                    _ => GetActiveTab()
+                };
+            }
+            else
+            {
+                targetTab = ViewModel.SelectedTab;
+            }
+
+            if (targetTab?.ViewModel?.Items == null)
+                return;
+
+            // ヘッダーテキストの幅を計算
+            double maxWidth = 0.0;
+            
+            // ヘッダーの幅を測定
+            if (header.Content is string headerText)
+            {
+                var textBlock = new TextBlock
+                {
+                    Text = headerText,
+                    FontFamily = header.FontFamily,
+                    FontSize = header.FontSize,
+                    FontWeight = header.FontWeight,
+                    FontStyle = header.FontStyle,
+                    FontStretch = header.FontStretch
+                };
+                textBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                maxWidth = Math.Max(maxWidth, textBlock.DesiredSize.Width);
+            }
+            else if (header.Content is FrameworkElement headerElement)
+            {
+                headerElement.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                maxWidth = Math.Max(maxWidth, headerElement.DesiredSize.Width);
+            }
+
+            // 列の内容の幅を測定
+            var items = targetTab.ViewModel.Items;
+            var itemsCount = items.Count;
+            if (itemsCount == 0)
+            {
+                // アイテムがない場合はヘッダーの幅のみを使用
+                column.Width = Math.Max(50.0, maxWidth + 20.0);
+                return;
+            }
+
+            var cellTemplate = column.CellTemplate;
+            var columnHeader = column.Header as string;
+            var isNameColumn = columnHeader == "名前";
+            
+            // ListViewのフォントプロパティをキャッシュ（パフォーマンス向上）
+            var fontFamily = listView.FontFamily;
+            var fontSize = listView.FontSize;
+            var fontWeight = listView.FontWeight;
+            var fontStyle = listView.FontStyle;
+            var fontStretch = listView.FontStretch;
+            
+            // 名前列の定数
+            const double iconWidth = 20.0;
+            const double iconMargin = 12.0;
+            
+            if (cellTemplate != null)
+            {
+                // セルテンプレートを使用して内容の幅を測定
+                foreach (var item in items)
+                {
+                    if (item is FileSystemItem fileItem)
+                    {
+                        double itemWidth;
+                        
+                        if (isNameColumn)
+                        {
+                            // 名前列の場合は、SymbolIcon + マージン + テキストの幅を計算
+                            var textBlock = new TextBlock
+                            {
+                                Text = fileItem.Name,
+                                FontFamily = fontFamily,
+                                FontSize = fontSize,
+                                FontWeight = fontWeight,
+                                FontStyle = fontStyle,
+                                FontStretch = fontStretch
+                            };
+                            textBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                            itemWidth = iconWidth + iconMargin + textBlock.DesiredSize.Width;
+                        }
+                        else
+                        {
+                            // その他の列はContentPresenterで測定
+                            var contentPresenter = new ContentPresenter
+                            {
+                                Content = fileItem,
+                                ContentTemplate = cellTemplate
+                            };
+                            contentPresenter.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                            itemWidth = contentPresenter.DesiredSize.Width;
+                        }
+                        
+                        maxWidth = Math.Max(maxWidth, itemWidth);
+                    }
+                }
+            }
+            else
+            {
+                // セルテンプレートがない場合は、データを直接測定
+                foreach (var item in items)
+                {
+                    if (item is FileSystemItem fileItem)
+                    {
+                        string text = GetTextForColumn(fileItem, column);
+                        if (!string.IsNullOrEmpty(text))
+                        {
+                            var textBlock = new TextBlock
+                            {
+                                Text = text,
+                                FontFamily = fontFamily,
+                                FontSize = fontSize,
+                                FontWeight = fontWeight,
+                                FontStyle = fontStyle,
+                                FontStretch = fontStretch
+                            };
+                            textBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                            maxWidth = Math.Max(maxWidth, textBlock.DesiredSize.Width);
+                        }
+                    }
+                }
+            }
+
+            // パディングとマージンを考慮（余裕を持たせる）
+            const double padding = 20.0; // 左右のパディング
+            maxWidth += padding;
+
+            // 最小幅と最大幅を設定
+            const double minWidth = 50.0;
+            const double maxColumnWidth = 500.0;
+            maxWidth = Math.Max(minWidth, Math.Min(maxWidth, maxColumnWidth));
+
+            // 列幅を設定
+            column.Width = maxWidth;
+        }
+
+        /// <summary>
+        /// 列に応じたテキストを取得します
+        /// </summary>
+        /// <param name="item">FileSystemItem</param>
+        /// <param name="column">GridViewColumn</param>
+        /// <returns>列に表示するテキスト</returns>
+        private static string GetTextForColumn(FileSystemItem item, System.Windows.Controls.GridViewColumn column)
+        {
+            // 列のヘッダーから判定（簡易実装）
+            // より正確には、CellTemplateの内容を解析する必要がある
+            if (column.Header is string headerText)
+            {
+                return headerText switch
+                {
+                    "名前" => item.Name,
+                    "サイズ" => item.FormattedSize,
+                    "種類" => item.Extension,
+                    "更新日時" => item.FormattedDate,
+                    _ => item.Name
+                };
+            }
+            return item.Name;
+        }
+
+        /// <summary>
+        /// ヘッダーから列名を取得します（最適化：定数を使用）
+        /// </summary>
+        /// <param name="header">GridViewColumnHeader</param>
+        /// <returns>列名（"Name", "Size", "Extension", "LastModified"）</returns>
+        private static string GetColumnNameFromHeader(System.Windows.Controls.GridViewColumnHeader header)
+        {
+            if (header?.Content is not string headerText)
+                return string.Empty;
+
+            // 定数を使用してメモリ割り当てを削減
+            const string NameHeader = "名前";
+            const string SizeHeader = "サイズ";
+            const string ExtensionHeader = "種類";
+            const string LastModifiedHeader = "更新日時";
+
+            return headerText switch
+            {
+                NameHeader => "Name",
+                SizeHeader => "Size",
+                ExtensionHeader => "Extension",
+                LastModifiedHeader => "LastModified",
+                _ => string.Empty
+            };
+        }
+
+        /// <summary>
+        /// 指定された型の親要素を検索します
+        /// </summary>
+        /// <typeparam name="T">検索する型</typeparam>
+        /// <param name="element">開始要素</param>
+        /// <returns>見つかった親要素、見つからない場合はnull</returns>
+        private T? FindAncestor<T>(DependencyObject element) where T : DependencyObject
+        {
+            var current = element;
+            while (current != null)
+            {
+                if (current is T ancestor)
+                {
+                    return ancestor;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
+            return null;
         }
 
         /// <summary>
