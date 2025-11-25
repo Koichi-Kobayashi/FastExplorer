@@ -471,53 +471,62 @@ namespace FastExplorer.ViewModels.Pages
             {
                 // 左ペインのタブかチェック
                 // Contains()とIndexOf()を1回の呼び出しに統合（パフォーマンス向上）
-                var leftIndex = LeftPaneTabs.IndexOf(tab);
+                var leftPaneTabs = LeftPaneTabs;
+                var leftIndex = leftPaneTabs.IndexOf(tab);
                 if (leftIndex >= 0)
                 {
-                    if (LeftPaneTabs.Count <= 1)
+                    // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                    var leftPaneTabsCount = leftPaneTabs.Count;
+                    if (leftPaneTabsCount <= 1)
                         return;
-                    LeftPaneTabs.RemoveAt(leftIndex);
+                    leftPaneTabs.RemoveAt(leftIndex);
                     if (SelectedLeftPaneTab == tab)
                     {
                         if (leftIndex > 0)
-                            SelectedLeftPaneTab = LeftPaneTabs[leftIndex - 1];
-                        else if (LeftPaneTabs.Count > 0)
-                            SelectedLeftPaneTab = LeftPaneTabs[0];
+                            SelectedLeftPaneTab = leftPaneTabs[leftIndex - 1];
+                        else if (leftPaneTabs.Count > 0)
+                            SelectedLeftPaneTab = leftPaneTabs[0];
                     }
                 }
                 // 右ペインのタブかチェック
                 else
                 {
-                    var rightIndex = RightPaneTabs.IndexOf(tab);
+                    var rightPaneTabs = RightPaneTabs;
+                    var rightIndex = rightPaneTabs.IndexOf(tab);
                     if (rightIndex >= 0)
                     {
-                        if (RightPaneTabs.Count <= 1)
+                        // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                        var rightPaneTabsCount = rightPaneTabs.Count;
+                        if (rightPaneTabsCount <= 1)
                             return;
-                        RightPaneTabs.RemoveAt(rightIndex);
+                        rightPaneTabs.RemoveAt(rightIndex);
                         if (SelectedRightPaneTab == tab)
                         {
                             if (rightIndex > 0)
-                                SelectedRightPaneTab = RightPaneTabs[rightIndex - 1];
-                            else if (RightPaneTabs.Count > 0)
-                                SelectedRightPaneTab = RightPaneTabs[0];
+                                SelectedRightPaneTab = rightPaneTabs[rightIndex - 1];
+                            else if (rightPaneTabs.Count > 0)
+                                SelectedRightPaneTab = rightPaneTabs[0];
                         }
                     }
                 }
             }
             else
             {
-                if (Tabs.Count <= 1)
-                return;
+                var tabs = Tabs;
+                // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                var tabsCount = tabs.Count;
+                if (tabsCount <= 1)
+                    return;
 
-                var index = Tabs.IndexOf(tab);
-                Tabs.Remove(tab);
+                var index = tabs.IndexOf(tab);
+                tabs.Remove(tab);
 
                 if (SelectedTab == tab)
                 {
                     if (index > 0)
-                        SelectedTab = Tabs[index - 1];
-                    else if (Tabs.Count > 0)
-                        SelectedTab = Tabs[0];
+                        SelectedTab = tabs[index - 1];
+                    else if (tabs.Count > 0)
+                        SelectedTab = tabs[0];
                 }
             }
         }
@@ -569,7 +578,24 @@ namespace FastExplorer.ViewModels.Pages
                 if (string.IsNullOrEmpty(folderName))
                 {
                     var root = Path.GetPathRoot(currentPath);
-                    tab.Title = string.IsNullOrEmpty(root) ? currentPath : root.TrimEnd('\\');
+                    // 文字列操作を最適化（TrimEnd()の結果を直接使用）
+                    if (string.IsNullOrEmpty(root))
+                    {
+                        tab.Title = currentPath;
+                    }
+                    else
+                    {
+                        // TrimEnd()を最適化（末尾のバックスラッシュのみをチェック）
+                        var rootLength = root.Length;
+                        if (rootLength > 0 && root[rootLength - 1] == '\\')
+                        {
+                            tab.Title = root.Substring(0, rootLength - 1);
+                        }
+                        else
+                        {
+                            tab.Title = root;
+                        }
+                    }
                 }
                 else
                 {

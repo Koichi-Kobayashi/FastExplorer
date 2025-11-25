@@ -510,7 +510,9 @@ namespace FastExplorer.Views.Pages
                 return scrollViewer;
             }
 
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(element); i++)
+            // 子要素の数を一度だけ取得してキャッシュ（パフォーマンス向上）
+            var childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(element);
+            for (int i = 0; i < childrenCount; i++)
             {
                 var child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
                 var result = GetScrollViewer(child);
