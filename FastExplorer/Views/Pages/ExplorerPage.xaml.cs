@@ -1685,9 +1685,15 @@ namespace FastExplorer.Views.Pages
         private void TabArea_ButtonClick(object sender, RoutedEventArgs e)
         {
             // 閉じるボタン上でクリックされた場合は処理しない
-            if (sender is Button button && button.Tag?.ToString() == "CloseButton")
+            // 最適化：Tag?.ToString()の代わりに直接比較（メモリ割り当てを削減）
+            if (sender is Button button)
             {
-                return;
+                var tag = button.Tag;
+                // 文字列の場合は直接比較、それ以外の場合はToString()を呼び出し
+                if (tag is string tagString && tagString == "CloseButton")
+                {
+                    return;
+                }
             }
 
             // タブのDataContextを取得（パターンマッチングを使用）

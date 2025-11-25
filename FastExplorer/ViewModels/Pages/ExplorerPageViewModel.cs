@@ -655,22 +655,21 @@ namespace FastExplorer.ViewModels.Pages
                 return;
 
             var path = tab.ViewModel?.CurrentPath;
+            // 最適化：string.IsNullOrEmpty()を1回だけ呼び出し
             if (string.IsNullOrEmpty(path))
             {
                 // パスが空の場合はホームディレクトリのパスを使用
                 path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             }
 
-            if (!string.IsNullOrEmpty(path))
+            // pathは上記で必ず設定されるため、再度チェックは不要
+            try
             {
-                try
-                {
-                    System.Windows.Clipboard.SetText(path);
-                }
-                catch
-                {
-                    // クリップボードへのコピーに失敗した場合は何もしない
-                }
+                System.Windows.Clipboard.SetText(path);
+            }
+            catch
+            {
+                // クリップボードへのコピーに失敗した場合は何もしない
             }
         }
 

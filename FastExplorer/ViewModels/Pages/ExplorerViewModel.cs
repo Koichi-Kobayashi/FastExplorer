@@ -701,13 +701,32 @@ namespace FastExplorer.ViewModels.Pages
             // LINQのTake()を直接ループに置き換え（メモリ割り当てを削減）
             var recentFilesCount = _recentFiles.Count;
             var count = Math.Min(recentFilesCount, 10);
+            // リストの容量を事前に確保（最大10件）
+            var validFiles = new List<FileSystemItem>(count);
             for (int i = 0; i < count; i++)
             {
                 var file = _recentFiles[i];
-                if (File.Exists(file.FullPath) || Directory.Exists(file.FullPath))
+                var fullPath = file.FullPath;
+                // ファイルシステムアクセスを最適化（IsDirectoryで分岐）
+                if (file.IsDirectory)
                 {
-                    recentFilesList.Add(file);
+                    if (Directory.Exists(fullPath))
+                    {
+                        validFiles.Add(file);
+                    }
                 }
+                else
+                {
+                    if (File.Exists(fullPath))
+                    {
+                        validFiles.Add(file);
+                    }
+                }
+            }
+            // 一括追加（メモリ割り当てを削減）
+            foreach (var file in validFiles)
+            {
+                recentFilesList.Add(file);
             }
         }
 
@@ -736,7 +755,9 @@ namespace FastExplorer.ViewModels.Pages
                 // 文字列比較を最適化（ReadOnlySpanを使用してメモリ割り当てを削減）
                 var filePathSpan = filePath.AsSpan();
                 var filePathLength = filePathSpan.Length;
-                for (int i = _recentFiles.Count - 1; i >= 0; i--)
+                // 最適化：一度見つかったら削除してbreak（通常は1件しか存在しないため）
+                var recentFilesCount = _recentFiles.Count;
+                for (int i = recentFilesCount - 1; i >= 0; i--)
                 {
                     var fullPath = _recentFiles[i].FullPath;
                     var fullPathSpan = fullPath.AsSpan();
@@ -745,16 +766,18 @@ namespace FastExplorer.ViewModels.Pages
                         fullPathSpan.CompareTo(filePathSpan, StringComparison.OrdinalIgnoreCase) == 0)
                     {
                         _recentFiles.RemoveAt(i);
+                        break; // 一度見つかったら終了（通常は1件しか存在しないため）
                     }
                 }
                 // 先頭に追加
                 _recentFiles.Insert(0, item);
                 // 最大20件まで保持
                 // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                var recentFilesCount = _recentFiles.Count;
-                if (recentFilesCount > 20)
+                // 注意：recentFilesCountは既に上で定義されているため、新しい変数名を使用
+                var currentRecentFilesCount = _recentFiles.Count;
+                if (currentRecentFilesCount > 20)
                 {
-                    _recentFiles.RemoveRange(20, recentFilesCount - 20);
+                    _recentFiles.RemoveRange(20, currentRecentFilesCount - 20);
                 }
 
                 // ホームページ表示中の場合は更新
