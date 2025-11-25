@@ -1978,57 +1978,114 @@ namespace FastExplorer.Views.Pages
         private void TabControl_Drop(object sender, DragEventArgs e)
         {
             // 早期リターン: 必要な変数がnullの場合は処理しない
-            if (_draggedTabItem == null || _draggedTab == null || sender is not System.Windows.Controls.TabControl tabControl)
+            if (_draggedTabItem == null || _draggedTab == null || sender is not System.Windows.Controls.TabControl dropTabControl)
                 return;
 
-            // HitTestを使ってドロップ位置のTabItemを検出
-            Point dropPosition = e.GetPosition(tabControl);
-            HitTestResult? hitTestResult = VisualTreeHelper.HitTest(tabControl, dropPosition);
-            if (hitTestResult?.VisualHit == null)
-                return;
-
-            // ビジュアルツリーからTabItemを取得（最適化: 早期リターン）
-            System.Windows.Controls.TabItem? targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
-            if (targetTabItem == null || targetTabItem == _draggedTabItem)
-                return;
-
-            // DataContextのチェックを最適化
-            object? dataContext = targetTabItem.DataContext;
-            if (dataContext is not ExplorerTab targetTab || targetTab == _draggedTab)
-                return;
-
-            // タブの並び替えを実行（最適化: Grid.GetColumnの呼び出しを1回に、条件分岐を簡潔化）
-            ObservableCollection<ExplorerTab> tabs;
+            // ドロップ先のコレクションを取得
+            ObservableCollection<ExplorerTab> dropTabs;
             if (ViewModel.IsSplitPaneEnabled)
             {
-                int column = Grid.GetColumn(tabControl);
-                tabs = column == 0 ? ViewModel.LeftPaneTabs
-                    : column == 2 ? ViewModel.RightPaneTabs
+                int dropColumn = Grid.GetColumn(dropTabControl);
+                dropTabs = dropColumn == 0 ? ViewModel.LeftPaneTabs
+                    : dropColumn == 2 ? ViewModel.RightPaneTabs
                     : null;
-                if (tabs == null)
+                if (dropTabs == null)
                     return;
             }
             else
             {
-                tabs = ViewModel.Tabs;
+                dropTabs = ViewModel.Tabs;
             }
 
-            // タブの並び替えを直接実行（最適化: インデックスを事前に計算して早期リターン）
-            int draggedIndex = tabs.IndexOf(_draggedTab);
-            if (draggedIndex < 0)
-                return;
+            // ドラッグ元のコレクションを取得
+            ObservableCollection<ExplorerTab> sourceTabs;
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                // ドラッグ元のTabControlを特定
+                var sourceTabControl = FindAncestor<System.Windows.Controls.TabControl>(_draggedTabItem);
+                if (sourceTabControl == null)
+                    return;
+                    
+                int sourceColumn = Grid.GetColumn(sourceTabControl);
+                sourceTabs = sourceColumn == 0 ? ViewModel.LeftPaneTabs
+                    : sourceColumn == 2 ? ViewModel.RightPaneTabs
+                    : null;
+                if (sourceTabs == null)
+                    return;
+            }
+            else
+            {
+                sourceTabs = ViewModel.Tabs;
+            }
+
+            // ペイン間での移動か、同じペイン内での移動かを判定
+            bool isCrossPaneMove = sourceTabs != dropTabs;
+
+            if (isCrossPaneMove)
+            {
+                // ペイン間での移動: ドラッグ元から削除して、ドロップ先に追加
+                int sourceIndex = sourceTabs.IndexOf(_draggedTab);
+                if (sourceIndex < 0)
+                    return;
+
+                // HitTestを使ってドロップ位置のTabItemを検出（挿入位置を決定するため）
+                Point dropPosition = e.GetPosition(dropTabControl);
+                HitTestResult? hitTestResult = VisualTreeHelper.HitTest(dropTabControl, dropPosition);
+                int insertIndex = dropTabs.Count; // デフォルトは最後に追加
+
+                if (hitTestResult?.VisualHit != null)
+                {
+                    System.Windows.Controls.TabItem? targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
+                    if (targetTabItem != null && targetTabItem.DataContext is ExplorerTab targetTab)
+                    {
+                        int targetIndex = dropTabs.IndexOf(targetTab);
+                        if (targetIndex >= 0)
+                        {
+                            insertIndex = targetIndex;
+                        }
+                    }
+                }
+
+                // コレクションの変更を実行
+                sourceTabs.RemoveAt(sourceIndex);
+                dropTabs.Insert(insertIndex, _draggedTab);
+            }
+            else
+            {
+                // 同じペイン内での移動: 既存のロジックを使用
+                // HitTestを使ってドロップ位置のTabItemを検出
+                Point dropPosition = e.GetPosition(dropTabControl);
+                HitTestResult? hitTestResult = VisualTreeHelper.HitTest(dropTabControl, dropPosition);
+                if (hitTestResult?.VisualHit == null)
+                    return;
+
+                // ビジュアルツリーからTabItemを取得（最適化: 早期リターン）
+                System.Windows.Controls.TabItem? targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
+                if (targetTabItem == null || targetTabItem == _draggedTabItem)
+                    return;
+
+                // DataContextのチェックを最適化
+                object? dataContext = targetTabItem.DataContext;
+                if (dataContext is not ExplorerTab targetTab || targetTab == _draggedTab)
+                    return;
+
+                // タブの並び替えを直接実行（最適化: インデックスを事前に計算して早期リターン）
+                int draggedIndex = dropTabs.IndexOf(_draggedTab);
+                if (draggedIndex < 0)
+                    return;
+                    
+                int targetIndex = dropTabs.IndexOf(targetTab);
+                if (targetIndex < 0 || draggedIndex == targetIndex)
+                    return;
                 
-            int targetIndex = tabs.IndexOf(targetTab);
-            if (targetIndex < 0 || draggedIndex == targetIndex)
-                return;
-            
-            // コレクションの変更を実行
-            tabs.RemoveAt(draggedIndex);
-            tabs.Insert(targetIndex, _draggedTab);
+                // コレクションの変更を実行
+                dropTabs.RemoveAt(draggedIndex);
+                dropTabs.Insert(targetIndex, _draggedTab);
+            }
             
             // UI更新を最適化: TabControlのSelectedItemを直接設定することで、確実にタブがアクティブになる
             // TwoWayバインディングにより、ViewModelも自動的に更新され、TabItemのIsSelectedも自動的に更新される
-            tabControl.SelectedItem = _draggedTab;
+            dropTabControl.SelectedItem = _draggedTab;
 
             // ドロップ完了後に変数をクリア
             _draggedTab = null;
