@@ -905,9 +905,10 @@ namespace FastExplorer.Views.Pages
 
         // タブのドラッグ&ドロップ用の変数
         private Point _tabDragStartPoint;
-        private ExplorerTab? _draggedTab = null;
-        private System.Windows.Controls.TabItem? _capturedTabItem = null;
-        private System.Windows.Controls.TabItem? _draggedTabItem = null; // ドラッグ中のTabItemを保持
+        private ExplorerTab? _draggedTab;
+        private System.Windows.Controls.TabItem? _capturedTabItem;
+        private System.Windows.Controls.TabItem? _draggedTabItem; // ドラッグ中のTabItemを保持
+        private bool _isTabDragging; // タブのドラッグ操作が進行中かどうか
 
         // ビジュアルツリー走査の結果をキャッシュ（パフォーマンス向上）
         private readonly Dictionary<FrameworkElement, int> _paneCache = new();
@@ -1815,25 +1816,17 @@ namespace FastExplorer.Views.Pages
             if (IsCloseButton(e.OriginalSource))
                 return;
 
+            if (sender is not System.Windows.Controls.TabItem tabItem || tabItem.DataContext is not ExplorerTab tab)
+                return;
+
             _tabDragStartPoint = e.GetPosition(null);
-            if (sender is System.Windows.Controls.TabItem tabItem && tabItem.DataContext is ExplorerTab tab)
-            {
-                _draggedTab = tab;
-                _draggedTabItem = tabItem;
-            }
-            else
-            {
-                _draggedTab = null;
-                _draggedTabItem = null;
-            }
+            _draggedTab = tab;
+            _draggedTabItem = tabItem;
+            _capturedTabItem = tabItem;
+            _isTabDragging = false;
             
             // ドラッグを開始するために、マウスキャプチャを設定
-            // これにより、選択されているタブでもドラッグが可能になる
-            if (sender is System.Windows.Controls.TabItem tabItem2)
-            {
-                _capturedTabItem = tabItem2;
-                tabItem2.CaptureMouse();
-            }
+            tabItem.CaptureMouse();
         }
 
         /// <summary>
@@ -1861,24 +1854,27 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスイベント引数</param>
         private void TabItem_PreviewMouseMove(object sender, MouseEventArgs e)
         {
-            if (_draggedTab == null || e.LeftButton != MouseButtonState.Pressed)
-            {
-                // マウスボタンが離された場合はキャプチャを解放
-                ReleaseMouseCapture();
+            // 閉じるボタン上でのドラッグを防ぐ
+            if (IsCloseButton(e.OriginalSource))
                 return;
-            }
 
-            var currentPoint = e.GetPosition(null);
-            var diff = _tabDragStartPoint - currentPoint;
-
-            // ドラッグ開始の閾値（5ピクセル以上移動した場合）
-            if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
-                Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+            if (e.LeftButton == MouseButtonState.Pressed && _draggedTabItem != null && !_isTabDragging)
             {
-                var dataObject = new DataObject();
-                dataObject.SetData("ExplorerTab", _draggedTab);
-                DragDrop.DoDragDrop(sender as DependencyObject ?? this, dataObject, DragDropEffects.Move);
-                _draggedTab = null;
+                Point currentPoint = e.GetPosition(null);
+                double deltaX = Math.Abs(currentPoint.X - _tabDragStartPoint.X);
+                double deltaY = Math.Abs(currentPoint.Y - _tabDragStartPoint.Y);
+
+                // ドラッグ開始の閾値チェック
+                if (deltaX > SystemParameters.MinimumHorizontalDragDistance ||
+                    deltaY > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    _isTabDragging = true;
+                    DragDrop.DoDragDrop(_draggedTabItem, _draggedTabItem, DragDropEffects.Move);
+                    _isTabDragging = false;
+                }
+            }
+            else if (e.LeftButton != MouseButtonState.Pressed)
+            {
                 ReleaseMouseCapture();
             }
         }
@@ -1892,24 +1888,25 @@ namespace FastExplorer.Views.Pages
             if (IsCloseButton(e.OriginalSource))
                 return;
 
-            // ドラッグが開始されなかった場合（単なるクリック）は、タブの選択を許可
-            // マウスキャプチャを解放する前に、タブの選択を明示的に実行
-            if (_draggedTab != null && sender is System.Windows.Controls.TabItem tabItem && tabItem.DataContext is ExplorerTab tab)
+            ReleaseMouseCapture();
+            
+            // ドラッグが開始されなかった場合（単なるクリック）は、タブを選択
+            if (!_isTabDragging && _draggedTab != null && sender is System.Windows.Controls.TabItem tabItem && tabItem.DataContext is ExplorerTab tab)
             {
-                // ドラッグが開始されなかった場合のみ、タブを選択
-                var currentPoint = e.GetPosition(null);
-                var diff = _tabDragStartPoint - currentPoint;
-                var dragDistance = Math.Abs(diff.X) + Math.Abs(diff.Y);
+                Point currentPoint = e.GetPosition(null);
+                double deltaX = Math.Abs(currentPoint.X - _tabDragStartPoint.X);
+                double deltaY = Math.Abs(currentPoint.Y - _tabDragStartPoint.Y);
                 
-                if (dragDistance < SystemParameters.MinimumHorizontalDragDistance)
+                // 単なるクリックの場合、タブを選択
+                if (deltaX < SystemParameters.MinimumHorizontalDragDistance &&
+                    deltaY < SystemParameters.MinimumVerticalDragDistance)
                 {
-                    // 単なるクリックの場合、タブを選択
                     if (ViewModel.IsSplitPaneEnabled)
                     {
                         var tabControl = FindAncestor<System.Windows.Controls.TabControl>(tabItem);
                         if (tabControl != null)
                         {
-                            var column = Grid.GetColumn(tabControl);
+                            int column = Grid.GetColumn(tabControl);
                             if (column == 0)
                             {
                                 ViewModel.SelectedLeftPaneTab = tab;
@@ -1927,8 +1924,10 @@ namespace FastExplorer.Views.Pages
                 }
             }
 
-            ReleaseMouseCapture();
+            // 変数をクリア
             _draggedTab = null;
+            _draggedTabItem = null;
+            _isTabDragging = false;
         }
         
         /// <summary>
@@ -1944,25 +1943,20 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
-        /// TabItemでドラッグオーバーされたときに呼び出されます
+        /// TabControlでドラッグオーバーされたときに呼び出されます
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">ドラッグイベント引数</param>
-        private void TabItem_DragOver(object sender, DragEventArgs e)
+        private void TabControl_DragOver(object sender, DragEventArgs e)
         {
-            e.Handled = true;
-
-            if (!e.Data.GetDataPresent("ExplorerTab") || 
-                e.Data.GetData("ExplorerTab") is not ExplorerTab draggedTab ||
-                sender is not System.Windows.Controls.TabItem targetTabItem ||
-                targetTabItem.DataContext is not ExplorerTab targetTab ||
-                draggedTab == targetTab)
+            if (_draggedTabItem == null || sender is not System.Windows.Controls.TabControl)
             {
                 e.Effects = DragDropEffects.None;
                 return;
             }
 
             e.Effects = DragDropEffects.Move;
+            e.Handled = true;
         }
 
         /// <summary>
@@ -1974,28 +1968,20 @@ namespace FastExplorer.Views.Pages
         private void TabControl_Drop(object sender, DragEventArgs e)
         {
             if (_draggedTabItem == null || _draggedTab == null || sender is not System.Windows.Controls.TabControl tabControl)
-            {
                 return;
-            }
 
             // HitTestを使ってドロップ位置のTabItemを検出
             HitTestResult hitTestResult = VisualTreeHelper.HitTest(tabControl, e.GetPosition(tabControl));
             if (hitTestResult?.VisualHit == null)
-            {
                 return;
-            }
 
             // ビジュアルツリーからTabItemを取得
             System.Windows.Controls.TabItem? targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
             if (targetTabItem == null || targetTabItem == _draggedTabItem)
-            {
                 return;
-            }
 
             if (targetTabItem.DataContext is not ExplorerTab targetTab || targetTab == _draggedTab)
-            {
                 return;
-            }
 
             // タブの並び替えを実行
             ObservableCollection<ExplorerTab> tabs;
@@ -2003,7 +1989,7 @@ namespace FastExplorer.Views.Pages
 
             if (ViewModel.IsSplitPaneEnabled)
             {
-                var column = Grid.GetColumn(tabControl);
+                int column = Grid.GetColumn(tabControl);
                 if (column == 0)
                 {
                     tabs = ViewModel.LeftPaneTabs;
@@ -2025,8 +2011,7 @@ namespace FastExplorer.Views.Pages
                 setSelectedTab = tab => ViewModel.SelectedTab = tab;
             }
 
-            // タブの並び替えを直接実行（wpfuiの実装を完全に再現）
-            // Dropイベント内で直接コレクションを操作することで、確実に移動が反映される
+            // タブの並び替えを直接実行
             int draggedIndex = tabs.IndexOf(_draggedTab);
             int targetIndex = tabs.IndexOf(targetTab);
             
@@ -2036,6 +2021,11 @@ namespace FastExplorer.Views.Pages
                 tabs.Insert(targetIndex, _draggedTab);
                 setSelectedTab(_draggedTab);
             }
+
+            // ドロップ完了後に変数をクリア
+            _draggedTab = null;
+            _draggedTabItem = null;
+            _isTabDragging = false;
         }
 
         /// <summary>
