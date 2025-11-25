@@ -30,6 +30,9 @@ namespace FastExplorer.Views.Pages
         private System.Windows.Controls.ListView? _cachedRightListView;
         private Brush? _cachedFocusedBackground;
         private Brush? _cachedUnfocusedBackground;
+        private Services.WindowSettingsService? _cachedWindowSettingsService;
+        private Brush? _cachedUnfocusedPaneBackgroundBrush;
+        private Brush? _cachedControlFillColorDefaultBrush;
 
         /// <summary>
         /// <see cref="ExplorerPage"/>クラスの新しいインスタンスを初期化します
@@ -85,6 +88,11 @@ namespace FastExplorer.Views.Pages
                     UpdateListViewBackgroundColors();
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
+            else if (e.PropertyName == nameof(ExplorerPageViewModel.ActivePane))
+            {
+                // ActivePaneが変更された場合のみ更新（既に処理されているが、重複を避けるため）
+                // この処理は既に上で実行されているため、ここでは何もしない
+            }
         }
 
 
@@ -93,141 +101,106 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         private void UpdateListViewBackgroundColors()
         {
+            // WindowSettingsServiceをキャッシュ（パフォーマンス向上）
+            if (_cachedWindowSettingsService == null)
+            {
+                _cachedWindowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
+            }
 
-            // フォーカスがないペインの背景色をThirdColorCodeから取得（常に最新の値を取得）
+            // フォーカスがないペインの背景色をThirdColorCodeから取得（最適化：キャッシュを活用）
             try
             {
-                var windowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
-                if (windowSettingsService != null)
+                if (_cachedWindowSettingsService != null)
                 {
-                    var settings = windowSettingsService.GetSettings();
-                    if (!string.IsNullOrEmpty(settings.ThemeThirdColorCode))
+                    var settings = _cachedWindowSettingsService.GetSettings();
+                    var thirdColorCode = settings.ThemeThirdColorCode;
+                    if (!string.IsNullOrEmpty(thirdColorCode))
                     {
                         // ThirdColorCodeが設定されている場合はそれを使用
-                        var thirdColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeThirdColorCode);
+                        var thirdColor = Helpers.FastColorConverter.ParseHexColor(thirdColorCode);
                         var thirdColorBrush = new SolidColorBrush(thirdColor);
                         thirdColorBrush.Freeze();
                         _cachedUnfocusedBackground = thirdColorBrush;
                     }
                     else
                     {
-                        // ThirdColorCodeが設定されていない場合はUnfocusedPaneBackgroundBrushリソースを使用
-                        var unfocusedBackground = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
-                        if (unfocusedBackground != null)
+                        // ThirdColorCodeが設定されていない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
+                        if (_cachedUnfocusedPaneBackgroundBrush == null)
                         {
-                            _cachedUnfocusedBackground = unfocusedBackground;
+                            _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
                         }
-                        else
-                        {
-                            // リソースが見つからない場合は#FEEBEBを使用
-                            var defaultBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xEB, 0xEB));
-                            defaultBrush.Freeze();
-                            _cachedUnfocusedBackground = defaultBrush;
-                        }
+                        _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ?? 
+                            (_cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush());
                     }
                 }
                 else
                 {
-                    // WindowSettingsServiceが取得できない場合はUnfocusedPaneBackgroundBrushリソースを使用
-                    var unfocusedBackground = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
-                    if (unfocusedBackground != null)
+                    // WindowSettingsServiceが取得できない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
+                    if (_cachedUnfocusedPaneBackgroundBrush == null)
                     {
-                        _cachedUnfocusedBackground = unfocusedBackground;
+                        _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
                     }
-                    else
-                    {
-                        // リソースが見つからない場合は#FEEBEBを使用
-                        var defaultBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xEB, 0xEB));
-                        defaultBrush.Freeze();
-                        _cachedUnfocusedBackground = defaultBrush;
-                    }
+                    _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ?? 
+                        (_cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush());
                 }
             }
             catch
             {
                 // エラーが発生した場合は既存のキャッシュを使用、またはデフォルト値
-                if (_cachedUnfocusedBackground == null)
-                {
-                    var defaultBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xEB, 0xEB));
-                    defaultBrush.Freeze();
-                    _cachedUnfocusedBackground = defaultBrush;
-                }
+                _cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush();
             }
 
-            // フォーカスがあるペインの背景色をSecondaryColorCodeから取得（常に最新の値を取得）
+            // フォーカスがあるペインの背景色をSecondaryColorCodeから取得（最適化：キャッシュを活用）
             try
             {
-                var windowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
-                if (windowSettingsService != null)
+                if (_cachedWindowSettingsService != null)
                 {
-                    var settings = windowSettingsService.GetSettings();
-                    if (!string.IsNullOrEmpty(settings.ThemeSecondaryColorCode))
+                    var settings = _cachedWindowSettingsService.GetSettings();
+                    var secondaryColorCode = settings.ThemeSecondaryColorCode;
+                    if (!string.IsNullOrEmpty(secondaryColorCode))
                     {
                         // SecondaryColorCodeが設定されている場合はそれを使用
-                        var secondaryColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeSecondaryColorCode);
+                        var secondaryColor = Helpers.FastColorConverter.ParseHexColor(secondaryColorCode);
                         var secondaryColorBrush = new SolidColorBrush(secondaryColor);
                         secondaryColorBrush.Freeze();
                         _cachedFocusedBackground = secondaryColorBrush;
                     }
                     else
                     {
-                        // SecondaryColorCodeが設定されていない場合はControlFillColorDefaultBrushリソースを使用
-                        var controlFillBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
-                        if (controlFillBrush != null)
+                        // SecondaryColorCodeが設定されていない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
+                        if (_cachedControlFillColorDefaultBrush == null)
                         {
-                            _cachedFocusedBackground = controlFillBrush;
+                            _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
                         }
-                        else
-                        {
-                            // リソースが見つからない場合はデフォルトの色を使用
-                            var defaultBrush = new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)); // 薄いグレー
-                            defaultBrush.Freeze();
-                            _cachedFocusedBackground = defaultBrush;
-                        }
+                        _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ?? 
+                            (_cachedFocusedBackground ??= CreateDefaultFocusedBrush());
                     }
                 }
                 else
                 {
-                    // WindowSettingsServiceが取得できない場合はControlFillColorDefaultBrushリソースを使用
-                    var controlFillBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
-                    if (controlFillBrush != null)
+                    // WindowSettingsServiceが取得できない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
+                    if (_cachedControlFillColorDefaultBrush == null)
                     {
-                        _cachedFocusedBackground = controlFillBrush;
+                        _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
                     }
-                    else
-                    {
-                        // リソースが見つからない場合はデフォルトの色を使用
-                        var defaultBrush = new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)); // 薄いグレー
-                        defaultBrush.Freeze();
-                        _cachedFocusedBackground = defaultBrush;
-                    }
+                    _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ?? 
+                        (_cachedFocusedBackground ??= CreateDefaultFocusedBrush());
                 }
             }
             catch
             {
                 // エラーが発生した場合は既存のキャッシュを使用、またはデフォルト値
-                if (_cachedFocusedBackground == null)
-                {
-                    var defaultBrush = new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)); // 薄いグレー
-                    defaultBrush.Freeze();
-                    _cachedFocusedBackground = defaultBrush;
-                }
+                _cachedFocusedBackground ??= CreateDefaultFocusedBrush();
             }
 
-            if (ViewModel.IsSplitPaneEnabled)
+            // ViewModelプロパティをキャッシュ（パフォーマンス向上）
+            var viewModel = ViewModel;
+            var isSplitPaneEnabled = viewModel.IsSplitPaneEnabled;
+            
+            if (isSplitPaneEnabled)
             {
                 // 分割ペインモードの場合
-                // ListViewの参照を取得またはキャッシュから取得
-                if (_cachedLeftListView == null)
-                {
-                    _cachedLeftListView = FindListViewInPane(0);
-                }
-                if (_cachedRightListView == null)
-                {
-                    _cachedRightListView = FindListViewInPane(2);
-                }
-
-                // キャッシュが無効な場合（ListViewが見つからない場合）は再検索
+                // ListViewの参照を取得またはキャッシュから取得（最適化：一度だけ検索）
                 if (_cachedLeftListView == null)
                 {
                     _cachedLeftListView = FindListViewInPane(0);
@@ -239,29 +212,27 @@ namespace FastExplorer.Views.Pages
 
                 // 背景色を更新
                 // ActivePaneが-1（未設定）の場合は、左ペインをフォーカスあり（SecondaryColorCode）、右ペインをフォーカスなし（ThirdColorCode）にする
-                var activePane = ViewModel.ActivePane;
+                var activePane = viewModel.ActivePane;
                 if (activePane == -1)
                 {
                     // 起動時や分割直後など、ActivePaneが未設定の場合は左ペインをフォーカスありにする
                     activePane = 0;
                 }
 
+                // 背景色を事前に決定（条件分岐を削減）
+                var leftBackground = activePane == 0 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
+                var rightBackground = activePane == 2 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
+
                 // 左ペインの背景色を更新
-                // 右にフォーカスがある場合（activePane == 2）は左をThirdColorCodeに、左にフォーカスがある場合（activePane == 0）は左をSecondaryColorCodeに
                 if (_cachedLeftListView != null)
                 {
-                    var targetBackground = activePane == 0 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
-                    // 背景色を強制的に更新（Brushの比較が参照比較の可能性があるため）
-                    _cachedLeftListView.Background = targetBackground;
+                    _cachedLeftListView.Background = leftBackground;
                 }
 
                 // 右ペインの背景色を更新
-                // 左にフォーカスがある場合（activePane == 0）は右をThirdColorCodeに、右にフォーカスがある場合（activePane == 2）は右をSecondaryColorCodeに
                 if (_cachedRightListView != null)
                 {
-                    var targetBackground = activePane == 2 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
-                    // 背景色を強制的に更新（Brushの比較が参照比較の可能性があるため）
-                    _cachedRightListView.Background = targetBackground;
+                    _cachedRightListView.Background = rightBackground;
                 }
             }
             else
@@ -269,7 +240,7 @@ namespace FastExplorer.Views.Pages
                 // 単一ペインモードの場合、ListViewの背景色をSecondaryColorCodeに設定
                 // 通常モードのTabControl内のListViewを検索
                 var singlePaneListView = FindListViewInSinglePane();
-                if (singlePaneListView != null)
+                if (singlePaneListView != null && _cachedFocusedBackground != null)
                 {
                     // SecondaryColorCodeを取得（既に_cachedFocusedBackgroundに設定されている）
                     // 背景色を強制的に更新
@@ -342,7 +313,9 @@ namespace FastExplorer.Views.Pages
             if (parent == null)
                 return null;
 
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            // 子要素の数を一度だけ取得してキャッシュ（パフォーマンス向上）
+            var childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
             {
                 var child = VisualTreeHelper.GetChild(parent, i);
                 
@@ -357,6 +330,26 @@ namespace FastExplorer.Views.Pages
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// デフォルトのフォーカスなし背景ブラシを作成します
+        /// </summary>
+        private static Brush CreateDefaultUnfocusedBrush()
+        {
+            var brush = new SolidColorBrush(Color.FromRgb(0xFE, 0xEB, 0xEB));
+            brush.Freeze();
+            return brush;
+        }
+
+        /// <summary>
+        /// デフォルトのフォーカスあり背景ブラシを作成します
+        /// </summary>
+        private static Brush CreateDefaultFocusedBrush()
+        {
+            var brush = new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)); // 薄いグレー
+            brush.Freeze();
+            return brush;
         }
 
         /// <summary>
@@ -911,6 +904,7 @@ namespace FastExplorer.Views.Pages
         // タブのドラッグ&ドロップ用の変数
         private Point _tabDragStartPoint;
         private ExplorerTab? _draggedTab = null;
+        private System.Windows.Controls.TabItem? _capturedTabItem = null;
 
         // ビジュアルツリー走査の結果をキャッシュ（パフォーマンス向上）
         private readonly Dictionary<FrameworkElement, int> _paneCache = new();
@@ -1625,11 +1619,13 @@ namespace FastExplorer.Views.Pages
                 // まずボタン自体のDataContextを確認
                 tab = buttonElement.DataContext as Models.ExplorerTab;
                 
-                // DataContextが見つからない場合、親要素を辿ってExplorerTabのDataContextを取得
+                // DataContextが見つからない場合、親要素を辿ってExplorerTabのDataContextを取得（最大5階層まで）
                 if (tab == null)
                 {
                     var current = VisualTreeHelper.GetParent(buttonElement);
-                    while (current != null)
+                    int depth = 0;
+                    const int maxDepth = 5; // 最大深度を制限してパフォーマンス向上
+                    while (current != null && depth < maxDepth)
                     {
                         if (current is FrameworkElement element && element.DataContext is Models.ExplorerTab explorerTab)
                         {
@@ -1637,18 +1633,29 @@ namespace FastExplorer.Views.Pages
                             break;
                         }
                         current = VisualTreeHelper.GetParent(current);
+                        depth++;
                     }
                 }
             }
 
             // DataContextから取得できない場合は、選択されているタブを使用（フォールバック）
-            tab ??= ViewModel.IsSplitPaneEnabled
-                ? (ViewModel.ActivePane == 0 ? ViewModel.SelectedLeftPaneTab
-                   : ViewModel.ActivePane == 2 ? ViewModel.SelectedRightPaneTab
-                   : ViewModel.SelectedLeftPaneTab ?? ViewModel.SelectedRightPaneTab)
-                : ViewModel.SelectedTab;
+            if (tab == null)
+            {
+                var viewModel = ViewModel;
+                if (viewModel.IsSplitPaneEnabled)
+                {
+                    var activePane = viewModel.ActivePane;
+                    tab = activePane == 0 ? viewModel.SelectedLeftPaneTab
+                        : activePane == 2 ? viewModel.SelectedRightPaneTab
+                        : viewModel.SelectedLeftPaneTab ?? viewModel.SelectedRightPaneTab;
+                }
+                else
+                {
+                    tab = viewModel.SelectedTab;
+                }
+            }
 
-            // パスを取得してクリップボードにコピー
+            // パスを取得してクリップボードにコピー（最適化：null合体演算子を使用）
             var path = tab?.ViewModel?.CurrentPath;
             if (string.IsNullOrEmpty(path))
             {
@@ -1801,6 +1808,14 @@ namespace FastExplorer.Views.Pages
 
             _tabDragStartPoint = e.GetPosition(null);
             _draggedTab = sender is System.Windows.Controls.TabItem tabItem && tabItem.DataContext is ExplorerTab tab ? tab : null;
+            
+            // ドラッグを開始するために、マウスキャプチャを設定
+            // これにより、選択されているタブでもドラッグが可能になる
+            if (sender is System.Windows.Controls.TabItem tabItem2)
+            {
+                _capturedTabItem = tabItem2;
+                tabItem2.CaptureMouse();
+            }
         }
 
         /// <summary>
@@ -1829,7 +1844,11 @@ namespace FastExplorer.Views.Pages
         private void TabItem_PreviewMouseMove(object sender, MouseEventArgs e)
         {
             if (_draggedTab == null || e.LeftButton != MouseButtonState.Pressed)
+            {
+                // マウスボタンが離された場合はキャプチャを解放
+                ReleaseMouseCapture();
                 return;
+            }
 
             var currentPoint = e.GetPosition(null);
             var diff = _tabDragStartPoint - currentPoint;
@@ -1842,6 +1861,67 @@ namespace FastExplorer.Views.Pages
                 dataObject.SetData("ExplorerTab", _draggedTab);
                 DragDrop.DoDragDrop(sender as DependencyObject ?? this, dataObject, DragDropEffects.Move);
                 _draggedTab = null;
+                ReleaseMouseCapture();
+            }
+        }
+        
+        /// <summary>
+        /// TabItemでマウスボタンが離されたときに呼び出されます
+        /// </summary>
+        private void TabItem_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            // 閉じるボタン上でクリックされた場合は処理しない
+            if (IsCloseButton(e.OriginalSource))
+                return;
+
+            // ドラッグが開始されなかった場合（単なるクリック）は、タブの選択を許可
+            // マウスキャプチャを解放する前に、タブの選択を明示的に実行
+            if (_draggedTab != null && sender is System.Windows.Controls.TabItem tabItem && tabItem.DataContext is ExplorerTab tab)
+            {
+                // ドラッグが開始されなかった場合のみ、タブを選択
+                var currentPoint = e.GetPosition(null);
+                var diff = _tabDragStartPoint - currentPoint;
+                var dragDistance = Math.Abs(diff.X) + Math.Abs(diff.Y);
+                
+                if (dragDistance < SystemParameters.MinimumHorizontalDragDistance)
+                {
+                    // 単なるクリックの場合、タブを選択
+                    if (ViewModel.IsSplitPaneEnabled)
+                    {
+                        var tabControl = FindAncestor<System.Windows.Controls.TabControl>(tabItem);
+                        if (tabControl != null)
+                        {
+                            var column = Grid.GetColumn(tabControl);
+                            if (column == 0)
+                            {
+                                ViewModel.SelectedLeftPaneTab = tab;
+                            }
+                            else if (column == 2)
+                            {
+                                ViewModel.SelectedRightPaneTab = tab;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ViewModel.SelectedTab = tab;
+                    }
+                }
+            }
+
+            ReleaseMouseCapture();
+            _draggedTab = null;
+        }
+        
+        /// <summary>
+        /// マウスキャプチャを解放します
+        /// </summary>
+        private void ReleaseMouseCapture()
+        {
+            if (_capturedTabItem != null)
+            {
+                _capturedTabItem.ReleaseMouseCapture();
+                _capturedTabItem = null;
             }
         }
 
@@ -1920,15 +2000,20 @@ namespace FastExplorer.Views.Pages
                 setSelectedTab = tab => ViewModel.SelectedTab = tab;
             }
 
-            ViewModel.ReorderTab(draggedTab, targetTab, tabs);
-            setSelectedTab(draggedTab);
-
-            // ドラッグしたタブにフォーカスを設定
+            // タブの並び替え処理をDispatcherで遅延実行することで、
+            // TabControlの内部状態の更新タイミングを安定させ、バインディングエラーを回避
             Dispatcher.BeginInvoke(new System.Action(() =>
             {
-                var draggedTabItem = FindTabItemByDataContext(tabControl, draggedTab);
-                draggedTabItem?.Focus();
-            }), System.Windows.Threading.DispatcherPriority.Input);
+                ViewModel.ReorderTab(draggedTab, targetTab, tabs);
+                setSelectedTab(draggedTab);
+
+                // ドラッグしたタブにフォーカスを設定
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    var draggedTabItem = FindTabItemByDataContext(tabControl, draggedTab);
+                    draggedTabItem?.Focus();
+                }), System.Windows.Threading.DispatcherPriority.Input);
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
 
             e.Handled = true;
         }

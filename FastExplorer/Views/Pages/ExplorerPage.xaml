@@ -23,6 +23,9 @@
     UseLayoutRounding="True"
     mc:Ignorable="d">
     <UserControl.Resources>
+        <!--  コンバーター  -->
+        <helpers:SymbolRegularConverter x:Key="SymbolRegularConverter" />
+        
         <!--  ListView用の共通スタイル（重複を削減）  -->
         <Style x:Key="FileListViewGridViewColumnHeaderStyle" TargetType="GridViewColumnHeader">
             <Setter Property="Padding" Value="8,6" />
@@ -626,6 +629,17 @@
         <Style x:Key="ScrollButtonStyle" TargetType="RepeatButton">
             <!--  Contentは各RepeatButtonで個別に設定  -->
         </Style>
+
+        <!--  TabControlのスクロールボタン用のRepeatButtonスタイル  -->
+        <!--  バインディングエラーを回避するため、スタイルを最小限に設定 -->
+        <Style x:Key="TabScrollButtonStyle" TargetType="RepeatButton">
+            <!--  テンプレートを設定しない（デフォルトのテンプレートを使用）  -->
+        </Style>
+        
+        <!--  右スクロールボタン用のスタイル（左と同じ）  -->
+        <Style x:Key="TabScrollButtonRightStyle" TargetType="RepeatButton">
+            <!--  テンプレートを設定しない（デフォルトのテンプレートを使用）  -->
+        </Style>
     </UserControl.Resources>
 
     <Grid Margin="0">
@@ -723,6 +737,7 @@
                         <Setter Property="BorderThickness" Value="1,1,1,0" />
                         <Setter Property="AllowDrop" Value="True" />
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
+                        <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
                         <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
                         <EventSetter Event="Drop" Handler="TabItem_Drop" />
                         <EventSetter Event="DragOver" Handler="TabItem_DragOver" />
@@ -906,6 +921,7 @@
                         <Setter Property="BorderThickness" Value="1,1,1,0" />
                         <Setter Property="AllowDrop" Value="True" />
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
+                        <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
                         <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
                         <EventSetter Event="Drop" Handler="TabItem_Drop" />
                         <EventSetter Event="DragOver" Handler="TabItem_DragOver" />
@@ -1032,21 +1048,15 @@
                                     Width="0"
                                     Height="0"
                                     IsTabStop="False"
-                                    Visibility="Collapsed">
-                                    <RepeatButton.Content>
-                                        <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
-                                    </RepeatButton.Content>
-                                </RepeatButton>
+                                    Visibility="Collapsed"
+                                    Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
                                 <RepeatButton
                                     x:Name="PART_ButtonScrollRight"
                                     Width="0"
                                     Height="0"
                                     IsTabStop="False"
-                                    Visibility="Collapsed">
-                                    <RepeatButton.Content>
-                                        <ui:SymbolIcon Symbol="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
-                                    </RepeatButton.Content>
-                                </RepeatButton>
+                                    Visibility="Collapsed"
+                                    Content="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
                                 <ui:Button
                                     Width="32"
                                     Height="32"

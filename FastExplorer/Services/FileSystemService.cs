@@ -40,20 +40,16 @@ namespace FastExplorer.Services
                         var isDirectory = (info.Attributes & FileAttributes.Directory) == FileAttributes.Directory;
                         long size = 0;
                         
-                        // 型チェックを最適化（is演算子とキャストを1回に統合）
-                        if (!isDirectory)
+                        // 型チェックを最適化（パターンマッチングを使用して高速化）
+                        if (!isDirectory && info is FileInfo fileInfo)
                         {
-                            // FileInfoとしてキャストしてLengthを取得（型チェックを削減）
-                            var fileInfo = info as FileInfo;
-                            if (fileInfo != null)
-                            {
-                                size = fileInfo.Length;
-                            }
+                            size = fileInfo.Length;
                         }
                         
                         // プロパティアクセスをキャッシュ（高速化）
                         var name = info.Name;
                         var fullPath = info.FullName;
+                        // 拡張子の取得を最適化（isDirectoryがtrueの場合はstring.Emptyを直接使用）
                         var extension = isDirectory ? string.Empty : info.Extension;
                         var lastModified = info.LastWriteTime;
                         var attributes = info.Attributes;
