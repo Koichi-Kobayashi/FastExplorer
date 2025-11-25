@@ -21,9 +21,9 @@ namespace FastExplorer.Helpers
             }
 
             // null値またはその他の場合は、パラメータで指定されたデフォルト値を使用
-            // パラメータが文字列の場合は、それをSymbolRegularに変換
             if (parameter != null)
             {
+                // SymbolRegular型のパラメータの場合
                 if (parameter is SymbolRegular defaultSymbol)
                 {
                     return defaultSymbol;
@@ -41,8 +41,8 @@ namespace FastExplorer.Helpers
                 }
             }
 
-            // デフォルト値
-            return SymbolRegular.ChevronLeft24;
+            // デフォルト値（CaretUp24を使用）
+            return SymbolRegular.CaretUp24;
         }
 
         /// <summary>

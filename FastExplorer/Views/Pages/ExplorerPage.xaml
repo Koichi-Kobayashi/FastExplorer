@@ -640,6 +640,80 @@
         <Style x:Key="TabScrollButtonRightStyle" TargetType="RepeatButton">
             <!--  テンプレートを設定しない（デフォルトのテンプレートを使用）  -->
         </Style>
+
+        <!--  ScrollBarのRepeatButtonスタイルをオーバーライドして、TargetNullValueを追加 -->
+        <!--  タブ移動時にListViewのScrollViewerが再構築され、ScrollBarのRepeatButtonのContentが一時的にnullになることを防ぐ -->
+        <Style x:Key="UiScrollBarLineButton" TargetType="{x:Type RepeatButton}">
+            <Setter Property="Foreground" Value="{DynamicResource ScrollBarButtonArrowForeground}" />
+            <Setter Property="Width" Value="12" />
+            <Setter Property="Height" Value="12" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type RepeatButton}">
+                        <Border
+                            x:Name="Border"
+                            Width="{TemplateBinding Width}"
+                            Height="{TemplateBinding Height}"
+                            Margin="{TemplateBinding Margin}"
+                            Background="{DynamicResource ScrollBarButtonBackground}"
+                            CornerRadius="6">
+                            <uiControls:SymbolIcon
+                                Margin="0,0,0,0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Filled="True"
+                                FontSize="{TemplateBinding FontSize}"
+                                Foreground="{TemplateBinding Foreground}">
+                                <uiControls:SymbolIcon.Symbol>
+                                    <Binding Path="Content" RelativeSource="{RelativeSource TemplatedParent}" Mode="OneWay" Converter="{StaticResource SymbolRegularConverter}" TargetNullValue="{x:Static uiControls:SymbolRegular.CaretUp24}" FallbackValue="{x:Static uiControls:SymbolRegular.CaretUp24}" />
+                                </uiControls:SymbolIcon.Symbol>
+                            </uiControls:SymbolIcon>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation
+                                                Storyboard.TargetName="Border"
+                                                Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Opacity)"
+                                                From="0.0"
+                                                To="1.0"
+                                                Duration="0:0:0.16" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation
+                                                Storyboard.TargetName="Border"
+                                                Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Opacity)"
+                                                From="1.0"
+                                                To="0.0"
+                                                Duration="0:0:0.16" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  ScrollBarのリソースでRepeatButtonのスタイルを設定 -->
+        <!--  タブ移動時にTabControlが再構築され、ScrollBarのRepeatButtonのContentが一時的にnullになることを防ぐ -->
+        <Style TargetType="{x:Type ScrollBar}">
+            <Style.Resources>
+                <Style TargetType="{x:Type RepeatButton}" BasedOn="{StaticResource UiScrollBarLineButton}" />
+            </Style.Resources>
+        </Style>
     </UserControl.Resources>
 
     <Grid Margin="0">
