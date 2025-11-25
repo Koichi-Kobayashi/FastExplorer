@@ -1987,59 +1987,48 @@ namespace FastExplorer.Views.Pages
             if (hitTestResult?.VisualHit == null)
                 return;
 
-            // ビジュアルツリーからTabItemを取得
+            // ビジュアルツリーからTabItemを取得（最適化: 早期リターン）
             System.Windows.Controls.TabItem? targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
             if (targetTabItem == null || targetTabItem == _draggedTabItem)
                 return;
 
-            if (targetTabItem.DataContext is not ExplorerTab targetTab || targetTab == _draggedTab)
+            // DataContextのチェックを最適化
+            object? dataContext = targetTabItem.DataContext;
+            if (dataContext is not ExplorerTab targetTab || targetTab == _draggedTab)
                 return;
 
-            // タブの並び替えを実行
+            // タブの並び替えを実行（最適化: Grid.GetColumnの呼び出しを1回に、条件分岐を簡潔化）
             ObservableCollection<ExplorerTab> tabs;
-            Action<ExplorerTab> setSelectedTab;
-
             if (ViewModel.IsSplitPaneEnabled)
             {
                 int column = Grid.GetColumn(tabControl);
-                if (column == 0)
-                {
-                    tabs = ViewModel.LeftPaneTabs;
-                    setSelectedTab = tab => ViewModel.SelectedLeftPaneTab = tab;
-                }
-                else if (column == 2)
-                {
-                    tabs = ViewModel.RightPaneTabs;
-                    setSelectedTab = tab => ViewModel.SelectedRightPaneTab = tab;
-                }
-                else
-                {
+                tabs = column == 0 ? ViewModel.LeftPaneTabs
+                    : column == 2 ? ViewModel.RightPaneTabs
+                    : null;
+                if (tabs == null)
                     return;
-                }
             }
             else
             {
                 tabs = ViewModel.Tabs;
-                setSelectedTab = tab => ViewModel.SelectedTab = tab;
             }
 
-            // タブの並び替えを直接実行
+            // タブの並び替えを直接実行（最適化: インデックスを事前に計算して早期リターン）
             int draggedIndex = tabs.IndexOf(_draggedTab);
+            if (draggedIndex < 0)
+                return;
+                
             int targetIndex = tabs.IndexOf(targetTab);
+            if (targetIndex < 0 || draggedIndex == targetIndex)
+                return;
             
-            if (draggedIndex >= 0 && targetIndex >= 0 && draggedIndex != targetIndex)
-            {
-                // コレクションの変更を実行
-                tabs.RemoveAt(draggedIndex);
-                tabs.Insert(targetIndex, _draggedTab);
-                
-                // UI更新を最適化: TabItemのIsSelectedプロパティを直接設定（wpfuiの実装を参考）
-                // これにより、ViewModelのプロパティ更新による遅延を回避
-                _draggedTabItem.SetCurrentValue(System.Windows.Controls.TabItem.IsSelectedProperty, true);
-                
-                // ViewModelの選択状態も更新（バインディングの整合性のため）
-                setSelectedTab(_draggedTab);
-            }
+            // コレクションの変更を実行
+            tabs.RemoveAt(draggedIndex);
+            tabs.Insert(targetIndex, _draggedTab);
+            
+            // UI更新を最適化: TabControlのSelectedItemを直接設定することで、確実にタブがアクティブになる
+            // TwoWayバインディングにより、ViewModelも自動的に更新され、TabItemのIsSelectedも自動的に更新される
+            tabControl.SelectedItem = _draggedTab;
 
             // ドロップ完了後に変数をクリア
             _draggedTab = null;
@@ -2048,22 +2037,20 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
-        /// ビジュアルツリーから指定された型の親要素を検索します
+        /// ビジュアルツリーから指定された型の親要素を検索します（最適化版）
         /// </summary>
         private static T? FindParent<T>(DependencyObject child) where T : DependencyObject
         {
-            DependencyObject parentObject = VisualTreeHelper.GetParent(child);
-            if (parentObject == null)
+            DependencyObject? current = child;
+            while (current != null)
             {
-                return null;
+                current = VisualTreeHelper.GetParent(current);
+                if (current is T parent)
+                {
+                    return parent;
+                }
             }
-
-            if (parentObject is T parent)
-            {
-                return parent;
-            }
-
-            return FindParent<T>(parentObject);
+            return null;
         }
 
         /// <summary>
