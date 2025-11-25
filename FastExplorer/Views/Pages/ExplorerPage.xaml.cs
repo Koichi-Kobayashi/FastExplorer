@@ -1835,11 +1835,15 @@ namespace FastExplorer.Views.Pages
             if (source is not DependencyObject depObj)
                 return false;
 
-            var current = depObj;
+            DependencyObject? current = depObj;
             while (current != null)
             {
-                if (current is Button button && button.Tag?.ToString() == "CloseButton")
-                    return true;
+                if (current is Button button)
+                {
+                    object? tag = button.Tag;
+                    if (tag != null && tag.ToString() == "CloseButton")
+                        return true;
+                }
                 current = VisualTreeHelper.GetParent(current);
             }
             return false;
@@ -1852,28 +1856,33 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスイベント引数</param>
         private void TabItem_PreviewMouseMove(object sender, MouseEventArgs e)
         {
+            // 早期リターン: マウスボタンが離されている場合は処理しない
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                ReleaseMouseCapture();
+                return;
+            }
+
+            // 早期リターン: ドラッグ条件を満たさない場合は処理しない
+            if (_draggedTabItem == null || _isTabDragging)
+                return;
+
             // 閉じるボタン上でのドラッグを防ぐ
             if (IsCloseButton(e.OriginalSource))
                 return;
 
-            if (e.LeftButton == MouseButtonState.Pressed && _draggedTabItem != null && !_isTabDragging)
-            {
-                Point currentPoint = e.GetPosition(null);
-                double deltaX = Math.Abs(currentPoint.X - _tabDragStartPoint.X);
-                double deltaY = Math.Abs(currentPoint.Y - _tabDragStartPoint.Y);
+            Point currentPoint = e.GetPosition(null);
+            double deltaX = currentPoint.X - _tabDragStartPoint.X;
+            double deltaY = currentPoint.Y - _tabDragStartPoint.Y;
 
-                // ドラッグ開始の閾値チェック
-                if (deltaX > SystemParameters.MinimumHorizontalDragDistance ||
-                    deltaY > SystemParameters.MinimumVerticalDragDistance)
-                {
-                    _isTabDragging = true;
-                    DragDrop.DoDragDrop(_draggedTabItem, _draggedTabItem, DragDropEffects.Move);
-                    _isTabDragging = false;
-                }
-            }
-            else if (e.LeftButton != MouseButtonState.Pressed)
+            // ドラッグ開始の閾値チェック（Math.Absを避けて絶対値比較を最適化）
+            double minDragDistance = SystemParameters.MinimumHorizontalDragDistance;
+            if ((deltaX > minDragDistance || deltaX < -minDragDistance) ||
+                (deltaY > minDragDistance || deltaY < -minDragDistance))
             {
-                ReleaseMouseCapture();
+                _isTabDragging = true;
+                DragDrop.DoDragDrop(_draggedTabItem, _draggedTabItem, DragDropEffects.Move);
+                _isTabDragging = false;
             }
         }
         
@@ -1892,12 +1901,13 @@ namespace FastExplorer.Views.Pages
             if (!_isTabDragging && _draggedTab != null && sender is System.Windows.Controls.TabItem tabItem && tabItem.DataContext is ExplorerTab tab)
             {
                 Point currentPoint = e.GetPosition(null);
-                double deltaX = Math.Abs(currentPoint.X - _tabDragStartPoint.X);
-                double deltaY = Math.Abs(currentPoint.Y - _tabDragStartPoint.Y);
+                double deltaX = currentPoint.X - _tabDragStartPoint.X;
+                double deltaY = currentPoint.Y - _tabDragStartPoint.Y;
+                double minDragDistance = SystemParameters.MinimumHorizontalDragDistance;
                 
-                // 単なるクリックの場合、タブを選択
-                if (deltaX < SystemParameters.MinimumHorizontalDragDistance &&
-                    deltaY < SystemParameters.MinimumVerticalDragDistance)
+                // 単なるクリックの場合、タブを選択（Math.Absを避けて絶対値比較を最適化）
+                if (deltaX >= -minDragDistance && deltaX <= minDragDistance &&
+                    deltaY >= -minDragDistance && deltaY <= minDragDistance)
                 {
                     if (ViewModel.IsSplitPaneEnabled)
                     {
@@ -1967,11 +1977,13 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">ドラッグイベント引数</param>
         private void TabControl_Drop(object sender, DragEventArgs e)
         {
+            // 早期リターン: 必要な変数がnullの場合は処理しない
             if (_draggedTabItem == null || _draggedTab == null || sender is not System.Windows.Controls.TabControl tabControl)
                 return;
 
             // HitTestを使ってドロップ位置のTabItemを検出
-            HitTestResult hitTestResult = VisualTreeHelper.HitTest(tabControl, e.GetPosition(tabControl));
+            Point dropPosition = e.GetPosition(tabControl);
+            HitTestResult? hitTestResult = VisualTreeHelper.HitTest(tabControl, dropPosition);
             if (hitTestResult?.VisualHit == null)
                 return;
 
@@ -2017,8 +2029,15 @@ namespace FastExplorer.Views.Pages
             
             if (draggedIndex >= 0 && targetIndex >= 0 && draggedIndex != targetIndex)
             {
+                // コレクションの変更を実行
                 tabs.RemoveAt(draggedIndex);
                 tabs.Insert(targetIndex, _draggedTab);
+                
+                // UI更新を最適化: TabItemのIsSelectedプロパティを直接設定（wpfuiの実装を参考）
+                // これにより、ViewModelのプロパティ更新による遅延を回避
+                _draggedTabItem.SetCurrentValue(System.Windows.Controls.TabItem.IsSelectedProperty, true);
+                
+                // ViewModelの選択状態も更新（バインディングの整合性のため）
                 setSelectedTab(_draggedTab);
             }
 
