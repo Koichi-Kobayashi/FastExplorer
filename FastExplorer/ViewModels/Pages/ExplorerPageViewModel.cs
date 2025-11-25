@@ -548,14 +548,16 @@ namespace FastExplorer.ViewModels.Pages
             if (draggedIndex == -1 || targetIndex == -1 || draggedIndex == targetIndex)
                 return;
 
-            // タブを移動
+            // タブを移動（wpfuiの実装を完全に再現）
+            // 削除前のtargetIndexをそのまま使う
+            // 左から右に移動する場合（draggedIndex < targetIndex）:
+            //   - 削除後、targetTabのインデックスは targetIndex - 1 になる
+            //   - 削除前のtargetIndexの位置に挿入することで、targetTabの後ろに来る
+            //   - Insertメソッドは、インデックスがコレクションサイズと同じ場合、最後に追加される
+            // 右から左に移動する場合（draggedIndex > targetIndex）:
+            //   - 削除後、targetIndexはそのまま有効（targetTabの前に挿入）
             tabs.RemoveAt(draggedIndex);
-            
-            // 新しい位置を計算（削除後のインデックスを考慮）
-            // 後ろから前に移動する場合、targetIndexはそのまま
-            // 前から後ろに移動する場合、targetIndexは1減る（削除された要素の分）
-            var newIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
-            tabs.Insert(newIndex, draggedTab);
+            tabs.Insert(targetIndex, draggedTab);
         }
 
         /// <summary>

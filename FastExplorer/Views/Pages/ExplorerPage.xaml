@@ -738,7 +738,9 @@
                 Grid.Column="0"
                 Margin="0,0,0,0"
                 ItemsSource="{Binding ViewModel.LeftPaneTabs, Mode=OneWay}"
-                SelectedItem="{Binding ViewModel.SelectedLeftPaneTab, Mode=TwoWay}">
+                SelectedItem="{Binding ViewModel.SelectedLeftPaneTab, Mode=TwoWay}"
+                AllowDrop="True"
+                Drop="TabControl_Drop">
                 <TabControl.Template>
                     <ControlTemplate TargetType="TabControl">
                         <Grid>
@@ -813,7 +815,6 @@
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                         <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
                         <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
-                        <EventSetter Event="Drop" Handler="TabItem_Drop" />
                         <EventSetter Event="DragOver" Handler="TabItem_DragOver" />
                         <Setter Property="Template">
                             <Setter.Value>
@@ -922,7 +923,9 @@
                 Grid.Column="2"
                 Margin="0,0,0,0"
                 ItemsSource="{Binding ViewModel.RightPaneTabs, Mode=OneWay}"
-                SelectedItem="{Binding ViewModel.SelectedRightPaneTab, Mode=TwoWay}">
+                SelectedItem="{Binding ViewModel.SelectedRightPaneTab, Mode=TwoWay}"
+                AllowDrop="True"
+                Drop="TabControl_Drop">
                 <TabControl.Template>
                     <ControlTemplate TargetType="TabControl">
                         <Grid>
@@ -997,7 +1000,6 @@
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                         <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
                         <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
-                        <EventSetter Event="Drop" Handler="TabItem_Drop" />
                         <EventSetter Event="DragOver" Handler="TabItem_DragOver" />
                         <Setter Property="Template">
                             <Setter.Value>
@@ -1098,7 +1100,9 @@
             Margin="0,0,0,4"
             ItemsSource="{Binding ViewModel.Tabs, Mode=OneWay}"
             SelectedItem="{Binding ViewModel.SelectedTab, Mode=TwoWay}"
-            Visibility="{Binding ViewModel.IsSplitPaneEnabled, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+            Visibility="{Binding ViewModel.IsSplitPaneEnabled, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
+            AllowDrop="True"
+            Drop="TabControl_Drop">
             <TabControl.Template>
                 <ControlTemplate TargetType="TabControl">
                     <Grid>
@@ -1172,7 +1176,6 @@
                     <Setter Property="AllowDrop" Value="True" />
                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                     <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
-                    <EventSetter Event="Drop" Handler="TabItem_Drop" />
                     <EventSetter Event="DragOver" Handler="TabItem_DragOver" />
                     <Setter Property="Template">
                         <Setter.Value>

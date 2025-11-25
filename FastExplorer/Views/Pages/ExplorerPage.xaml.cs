@@ -907,6 +907,7 @@ namespace FastExplorer.Views.Pages
         private Point _tabDragStartPoint;
         private ExplorerTab? _draggedTab = null;
         private System.Windows.Controls.TabItem? _capturedTabItem = null;
+        private System.Windows.Controls.TabItem? _draggedTabItem = null; // ドラッグ中のTabItemを保持
 
         // ビジュアルツリー走査の結果をキャッシュ（パフォーマンス向上）
         private readonly Dictionary<FrameworkElement, int> _paneCache = new();
@@ -1815,7 +1816,16 @@ namespace FastExplorer.Views.Pages
                 return;
 
             _tabDragStartPoint = e.GetPosition(null);
-            _draggedTab = sender is System.Windows.Controls.TabItem tabItem && tabItem.DataContext is ExplorerTab tab ? tab : null;
+            if (sender is System.Windows.Controls.TabItem tabItem && tabItem.DataContext is ExplorerTab tab)
+            {
+                _draggedTab = tab;
+                _draggedTabItem = tabItem;
+            }
+            else
+            {
+                _draggedTab = null;
+                _draggedTabItem = null;
+            }
             
             // ドラッグを開始するために、マウスキャプチャを設定
             // これにより、選択されているタブでもドラッグが可能になる
@@ -1956,26 +1966,34 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
-        /// TabItemでドロップされたときに呼び出されます（タブの並び替え）
+        /// TabControlでドロップされたときに呼び出されます（タブの並び替え）
+        /// wpfuiの実装を参考に、HitTestを使ってドロップ位置のTabItemを検出
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">ドラッグイベント引数</param>
-        private void TabItem_Drop(object sender, DragEventArgs e)
+        private void TabControl_Drop(object sender, DragEventArgs e)
         {
-            if (!e.Data.GetDataPresent("ExplorerTab") ||
-                e.Data.GetData("ExplorerTab") is not ExplorerTab draggedTab ||
-                sender is not System.Windows.Controls.TabItem targetTabItem ||
-                targetTabItem.DataContext is not ExplorerTab targetTab ||
-                draggedTab == targetTab)
+            if (_draggedTabItem == null || _draggedTab == null || sender is not System.Windows.Controls.TabControl tabControl)
             {
-                e.Handled = true;
                 return;
             }
 
-            var tabControl = FindAncestor<System.Windows.Controls.TabControl>(targetTabItem);
-            if (tabControl == null)
+            // HitTestを使ってドロップ位置のTabItemを検出
+            HitTestResult hitTestResult = VisualTreeHelper.HitTest(tabControl, e.GetPosition(tabControl));
+            if (hitTestResult?.VisualHit == null)
             {
-                e.Handled = true;
+                return;
+            }
+
+            // ビジュアルツリーからTabItemを取得
+            System.Windows.Controls.TabItem? targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
+            if (targetTabItem == null || targetTabItem == _draggedTabItem)
+            {
+                return;
+            }
+
+            if (targetTabItem.DataContext is not ExplorerTab targetTab || targetTab == _draggedTab)
+            {
                 return;
             }
 
@@ -1998,7 +2016,6 @@ namespace FastExplorer.Views.Pages
                 }
                 else
                 {
-                    e.Handled = true;
                     return;
                 }
             }
@@ -2008,22 +2025,36 @@ namespace FastExplorer.Views.Pages
                 setSelectedTab = tab => ViewModel.SelectedTab = tab;
             }
 
-            // タブの並び替え処理をDispatcherで遅延実行することで、
-            // TabControlの内部状態の更新タイミングを安定させ、バインディングエラーを回避
-            Dispatcher.BeginInvoke(new System.Action(() =>
+            // タブの並び替えを直接実行（wpfuiの実装を完全に再現）
+            // Dropイベント内で直接コレクションを操作することで、確実に移動が反映される
+            int draggedIndex = tabs.IndexOf(_draggedTab);
+            int targetIndex = tabs.IndexOf(targetTab);
+            
+            if (draggedIndex >= 0 && targetIndex >= 0 && draggedIndex != targetIndex)
             {
-                ViewModel.ReorderTab(draggedTab, targetTab, tabs);
-                setSelectedTab(draggedTab);
+                tabs.RemoveAt(draggedIndex);
+                tabs.Insert(targetIndex, _draggedTab);
+                setSelectedTab(_draggedTab);
+            }
+        }
 
-                // ドラッグしたタブにフォーカスを設定
-                Dispatcher.BeginInvoke(new System.Action(() =>
-                {
-                    var draggedTabItem = FindTabItemByDataContext(tabControl, draggedTab);
-                    draggedTabItem?.Focus();
-                }), System.Windows.Threading.DispatcherPriority.Input);
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        /// <summary>
+        /// ビジュアルツリーから指定された型の親要素を検索します
+        /// </summary>
+        private static T? FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            DependencyObject parentObject = VisualTreeHelper.GetParent(child);
+            if (parentObject == null)
+            {
+                return null;
+            }
 
-            e.Handled = true;
+            if (parentObject is T parent)
+            {
+                return parent;
+            }
+
+            return FindParent<T>(parentObject);
         }
 
         /// <summary>
