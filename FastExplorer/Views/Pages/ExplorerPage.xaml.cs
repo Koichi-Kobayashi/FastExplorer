@@ -906,7 +906,6 @@ namespace FastExplorer.Views.Pages
         // タブのドラッグ&ドロップ用の変数
         private Point _tabDragStartPoint;
         private ExplorerTab? _draggedTab;
-        private System.Windows.Controls.TabItem? _capturedTabItem;
         private System.Windows.Controls.TabItem? _draggedTabItem; // ドラッグ中のTabItemを保持
         private bool _isTabDragging; // タブのドラッグ操作が進行中かどうか
 
@@ -1822,7 +1821,6 @@ namespace FastExplorer.Views.Pages
             _tabDragStartPoint = e.GetPosition(null);
             _draggedTab = tab;
             _draggedTabItem = tabItem;
-            _capturedTabItem = tabItem;
             _isTabDragging = false;
             
             // ドラッグを開始するために、マウスキャプチャを設定
@@ -1924,21 +1922,23 @@ namespace FastExplorer.Views.Pages
                 }
             }
 
-            // 変数をクリア
-            _draggedTab = null;
-            _draggedTabItem = null;
+            // 変数をクリア（ドロップが完了していない場合のみ）
+            if (!_isTabDragging)
+            {
+                _draggedTab = null;
+                _draggedTabItem = null;
+            }
             _isTabDragging = false;
         }
         
         /// <summary>
         /// マウスキャプチャを解放します
         /// </summary>
-        private void ReleaseMouseCapture()
+        private new void ReleaseMouseCapture()
         {
-            if (_capturedTabItem != null)
+            if (_draggedTabItem != null)
             {
-                _capturedTabItem.ReleaseMouseCapture();
-                _capturedTabItem = null;
+                _draggedTabItem.ReleaseMouseCapture();
             }
         }
 
@@ -1949,7 +1949,7 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">ドラッグイベント引数</param>
         private void TabControl_DragOver(object sender, DragEventArgs e)
         {
-            if (_draggedTabItem == null || sender is not System.Windows.Controls.TabControl)
+            if (_draggedTabItem == null)
             {
                 e.Effects = DragDropEffects.None;
                 return;
