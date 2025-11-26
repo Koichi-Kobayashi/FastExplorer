@@ -724,6 +724,55 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
+        /// ドライブにナビゲートします
+        /// </summary>
+        /// <param name="parameter">(drivePath, pane)のタプル。drivePathはドライブのパス、paneはペイン番号（0=左ペイン、2=右ペイン、null=現在アクティブなペイン）</param>
+        [RelayCommand]
+        private void NavigateToDrive((string drivePath, int? pane)? parameter)
+        {
+            if (parameter == null)
+                return;
+
+            var (drivePath, pane) = parameter.Value;
+            
+            if (string.IsNullOrEmpty(drivePath))
+                return;
+
+            ExplorerTab? targetTab = null;
+
+            if (IsSplitPaneEnabled)
+            {
+                // 分割ペインモードの場合
+                if (pane.HasValue)
+                {
+                    // ペイン番号が指定されている場合は、そのペインのタブを使用
+                    targetTab = pane.Value == ActivePaneLeft ? SelectedLeftPaneTab : SelectedRightPaneTab;
+                }
+                else
+                {
+                    // ペイン番号が指定されていない場合は、現在アクティブなペインのタブを使用
+                    targetTab = ActivePane == ActivePaneLeft ? SelectedLeftPaneTab : SelectedRightPaneTab;
+                }
+
+                // タブが見つからない場合は、フォールバック
+                if (targetTab == null)
+                {
+                    targetTab = SelectedLeftPaneTab ?? SelectedRightPaneTab;
+                }
+            }
+            else
+            {
+                // 通常モード
+                targetTab = SelectedTab;
+            }
+
+            if (targetTab?.ViewModel != null)
+            {
+                targetTab.ViewModel.NavigateToPathCommand.Execute(drivePath);
+            }
+        }
+
+        /// <summary>
         /// 指定されたタブのパスをクリップボードにコピーします
         /// </summary>
         /// <param name="tab">パスをコピーするタブ</param>

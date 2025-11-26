@@ -881,40 +881,22 @@ namespace FastExplorer.Views.Pages
             var border = sender as System.Windows.Controls.Border;
             if (border?.DataContext is Models.DriveInfoModel drive)
             {
-                Models.ExplorerTab? targetTab = null;
+                int? pane = null;
                 
                 if (ViewModel.IsSplitPaneEnabled)
                 {
                     // 分割ペインモードの場合、クリックされた要素がどのペインに属しているかを判定
                     var element = border as FrameworkElement;
-                    var pane = GetPaneForElement(element);
-                    if (pane == 0)
+                    var paneValue = GetPaneForElement(element);
+                    if (paneValue == 0 || paneValue == 2)
                     {
-                        // 左ペイン
-                        targetTab = ViewModel.SelectedLeftPaneTab;
+                        pane = paneValue;
                     }
-                    else if (pane == 2)
-                    {
-                        // 右ペイン
-                        targetTab = ViewModel.SelectedRightPaneTab;
-                    }
-                    else
-                    {
-                        // 判定できない場合は、GetActiveTab()を使用
-                        targetTab = GetActiveTab();
-                    }
-                }
-                else
-                {
-                    // 通常モード
-                    targetTab = ViewModel.SelectedTab;
                 }
                 
-                if (targetTab != null)
-                {
-                    targetTab.ViewModel.NavigateToPathCommand.Execute(drive.Path);
+                // ViewModelのコマンドを呼び出し
+                ViewModel.NavigateToDriveCommand.Execute((drive.Path, pane));
                 e.Handled = true;
-            }
             }
         }
 
@@ -2255,6 +2237,20 @@ namespace FastExplorer.Views.Pages
                 
                 // SelectedItemを同期的に設定（ListViewが表示されるようにする）
                 dropTabControl.SelectedItem = _draggedTab;
+                
+                // ViewModelの選択タブも明示的に更新（タブ移動後のペイン判定を正しくするため）
+                if (isSplitPaneEnabled)
+                {
+                    int dropColumn = Grid.GetColumn(dropTabControl);
+                    if (dropColumn == 0)
+                    {
+                        ViewModel.SelectedLeftPaneTab = _draggedTab;
+                    }
+                    else if (dropColumn == 2)
+                    {
+                        ViewModel.SelectedRightPaneTab = _draggedTab;
+                    }
+                }
             }
             else
             {
@@ -2316,7 +2312,14 @@ namespace FastExplorer.Views.Pages
             _isTabDragging = false;
             
             // タブが移動したため、ペインキャッシュをクリア（ドライブ要素などのペイン判定を正しく更新するため）
+            // キャッシュを完全にクリアして、次回のGetPaneForElement呼び出しで最新の情報を取得するようにする
             _paneCache.Clear();
+            
+            // タブ移動後、UIの更新を待ってからキャッシュをクリア（ビジュアルツリーが更新されるのを待つ）
+            Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                _paneCache.Clear();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         /// <summary>
