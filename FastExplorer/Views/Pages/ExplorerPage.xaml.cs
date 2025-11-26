@@ -55,15 +55,10 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         private void ExplorerPage_Loaded(object sender, RoutedEventArgs e)
         {
-            // 初期状態の背景色を更新（UI構築完了後に実行、複数回実行して確実に適用）
+            // 初期状態の背景色を更新（UI構築完了後に実行、1回のみで十分）
             Dispatcher.BeginInvoke(new System.Action(() =>
             {
                 UpdateListViewBackgroundColors();
-                // さらに少し遅延して再実行（ListViewが見つからない場合に備える）
-                Dispatcher.BeginInvoke(new System.Action(() =>
-                {
-                    UpdateListViewBackgroundColors();
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
@@ -72,26 +67,25 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(ExplorerPageViewModel.ActivePane))
+            // プロパティ名をキャッシュ（高速化）
+            var propertyName = e.PropertyName;
+            if (propertyName == nameof(ExplorerPageViewModel.ActivePane))
             {
                 // ActivePaneが変更された場合のみ更新
                 UpdateListViewBackgroundColors();
             }
-            else if (e.PropertyName == nameof(ExplorerPageViewModel.IsSplitPaneEnabled))
+            else if (propertyName == nameof(ExplorerPageViewModel.IsSplitPaneEnabled))
             {
                 // 分割ペインの有効/無効が変更された場合はキャッシュをクリア
                 _cachedLeftListView = null;
                 _cachedRightListView = null;
+                // ペインキャッシュもクリア（UI構造が変わるため）
+                _paneCache.Clear();
                 // UI構築完了後に背景色を更新（分割ペイン切り替え時）
                 Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     UpdateListViewBackgroundColors();
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
-            }
-            else if (e.PropertyName == nameof(ExplorerPageViewModel.ActivePane))
-            {
-                // ActivePaneが変更された場合のみ更新（既に処理されているが、重複を避けるため）
-                // この処理は既に上で実行されているため、ここでは何もしない
             }
         }
 
@@ -219,18 +213,18 @@ namespace FastExplorer.Views.Pages
                     activePane = 0;
                 }
 
-                // 背景色を事前に決定（条件分岐を削減）
+                // 背景色を事前に決定（条件分岐を削減、nullチェックも含める）
                 var leftBackground = activePane == 0 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
                 var rightBackground = activePane == 2 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
 
-                // 左ペインの背景色を更新
-                if (_cachedLeftListView != null)
+                // 左ペインの背景色を更新（nullチェックと値の変更チェックで不要な更新を回避）
+                if (_cachedLeftListView != null && leftBackground != null && _cachedLeftListView.Background != leftBackground)
                 {
                     _cachedLeftListView.Background = leftBackground;
                 }
 
-                // 右ペインの背景色を更新
-                if (_cachedRightListView != null)
+                // 右ペインの背景色を更新（nullチェックと値の変更チェックで不要な更新を回避）
+                if (_cachedRightListView != null && rightBackground != null && _cachedRightListView.Background != rightBackground)
                 {
                     _cachedRightListView.Background = rightBackground;
                 }
@@ -240,10 +234,10 @@ namespace FastExplorer.Views.Pages
                 // 単一ペインモードの場合、ListViewの背景色をSecondaryColorCodeに設定
                 // 通常モードのTabControl内のListViewを検索
                 var singlePaneListView = FindListViewInSinglePane();
-                if (singlePaneListView != null && _cachedFocusedBackground != null)
+                if (singlePaneListView != null && _cachedFocusedBackground != null && singlePaneListView.Background != _cachedFocusedBackground)
                 {
                     // SecondaryColorCodeを取得（既に_cachedFocusedBackgroundに設定されている）
-                    // 背景色を強制的に更新
+                    // 背景色を強制的に更新（値が変更されている場合のみ）
                     singlePaneListView.Background = _cachedFocusedBackground;
                 }
             }
@@ -809,7 +803,11 @@ namespace FastExplorer.Views.Pages
         /// <returns>左ペインの場合は0、右ペインの場合は2、判定できない場合は-1</returns>
         private int GetPaneForElement(FrameworkElement? element)
         {
-            if (element == null || !ViewModel.IsSplitPaneEnabled)
+            if (element == null)
+                return -1;
+            
+            // ViewModelプロパティを一度だけ取得してキャッシュ（高速化）
+            if (!ViewModel.IsSplitPaneEnabled)
                 return -1;
             
             // キャッシュを確認
@@ -819,8 +817,12 @@ namespace FastExplorer.Views.Pages
             }
             
             // 親要素をたどって、Grid.Column="0"（左ペイン）またはGrid.Column="2"（右ペイン）を探す
+            // 最大深度を制限してパフォーマンス向上（通常は5階層以内）
             var current = element;
-            while (current != null)
+            int depth = 0;
+            const int maxDepth = 10;
+            
+            while (current != null && depth < maxDepth)
             {
                 // TabControlを探す
                 if (current is System.Windows.Controls.TabControl tabControl)
@@ -836,6 +838,7 @@ namespace FastExplorer.Views.Pages
                 }
                 
                 current = VisualTreeHelper.GetParent(current) as FrameworkElement;
+                depth++;
             }
             
             // 見つからなかった場合もキャッシュに保存（再走査を避ける）
