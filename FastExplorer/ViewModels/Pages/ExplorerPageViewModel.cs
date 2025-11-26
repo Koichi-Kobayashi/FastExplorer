@@ -359,7 +359,14 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void CreateNewTab()
         {
-            var tab = CreateTabInternal();
+            // 直前に開いていたタブのパスを取得
+            string? pathToOpen = null;
+            if (SelectedTab != null)
+            {
+                pathToOpen = SelectedTab.ViewModel?.CurrentPath;
+            }
+            
+            var tab = CreateTabInternal(pathToOpen);
             Tabs.Add(tab);
             SelectedTab = tab;
             UpdateTabTitle(tab);
@@ -371,7 +378,18 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void CreateNewLeftPaneTab()
         {
-            var tab = CreateTabInternal();
+            // 直前に開いていたタブのパスを取得（左ペインのタブを優先、なければ右ペインのタブ）
+            string? pathToOpen = null;
+            if (SelectedLeftPaneTab != null)
+            {
+                pathToOpen = SelectedLeftPaneTab.ViewModel?.CurrentPath;
+            }
+            else if (SelectedRightPaneTab != null)
+            {
+                pathToOpen = SelectedRightPaneTab.ViewModel?.CurrentPath;
+            }
+            
+            var tab = CreateTabInternal(pathToOpen);
             LeftPaneTabs.Add(tab);
             SelectedLeftPaneTab = tab;
             UpdateTabTitle(tab);
@@ -383,7 +401,18 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void CreateNewRightPaneTab()
         {
-            var tab = CreateTabInternal();
+            // 直前に開いていたタブのパスを取得（右ペインのタブを優先、なければ左ペインのタブ）
+            string? pathToOpen = null;
+            if (SelectedRightPaneTab != null)
+            {
+                pathToOpen = SelectedRightPaneTab.ViewModel?.CurrentPath;
+            }
+            else if (SelectedLeftPaneTab != null)
+            {
+                pathToOpen = SelectedLeftPaneTab.ViewModel?.CurrentPath;
+            }
+            
+            var tab = CreateTabInternal(pathToOpen);
             RightPaneTabs.Add(tab);
             SelectedRightPaneTab = tab;
             UpdateTabTitle(tab);
@@ -392,7 +421,8 @@ namespace FastExplorer.ViewModels.Pages
         /// <summary>
         /// タブを作成する内部メソッド
         /// </summary>
-        private ExplorerTab CreateTabInternal()
+        /// <param name="pathToOpen">開くパス。nullまたは空の場合はホームディレクトリを開く</param>
+        private ExplorerTab CreateTabInternal(string? pathToOpen = null)
         {
             var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
             var tab = new ExplorerTab
@@ -444,7 +474,16 @@ namespace FastExplorer.ViewModels.Pages
 
             // タブを追加する前に初期化を完了させる
             // これにより、タブが追加された直後にフォルダーをダブルクリックしても問題が発生しない
-            tab.ViewModel.NavigateToHome();
+            if (!string.IsNullOrEmpty(pathToOpen) && System.IO.Directory.Exists(pathToOpen))
+            {
+                // パスが指定されていて存在する場合は、そのパスに移動
+                tab.ViewModel.NavigateToPathCommand.Execute(pathToOpen);
+            }
+            else
+            {
+                // パスが指定されていない、または存在しない場合はホームに移動
+                tab.ViewModel.NavigateToHome();
+            }
             
             return tab;
         }
