@@ -600,6 +600,56 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
+        /// タブのタイトルを現在のパスに基づいて更新します（必要な場合のみ）
+        /// </summary>
+        /// <param name="tab">タイトルを更新するタブ</param>
+        private void UpdateTabTitleIfNeeded(ExplorerTab tab)
+        {
+            // 現在のパスから期待されるタイトルを計算
+            var currentPath = tab.ViewModel?.CurrentPath;
+            string expectedTitle;
+            
+            if (string.IsNullOrEmpty(currentPath))
+            {
+                expectedTitle = HomeTitle;
+            }
+            else
+            {
+                var folderName = Path.GetFileName(currentPath);
+                if (string.IsNullOrEmpty(folderName))
+                {
+                    var root = Path.GetPathRoot(currentPath);
+                    if (string.IsNullOrEmpty(root))
+                    {
+                        expectedTitle = currentPath;
+                    }
+                    else
+                    {
+                        var rootLength = root.Length;
+                        if (rootLength > 0 && root[rootLength - 1] == '\\')
+                        {
+                            expectedTitle = root.Substring(0, rootLength - 1);
+                        }
+                        else
+                        {
+                            expectedTitle = root;
+                        }
+                    }
+                }
+                else
+                {
+                    expectedTitle = folderName;
+                }
+            }
+            
+            // タイトルが実際に変更される必要がある場合のみ更新（高速化）
+            if (tab.Title != expectedTitle)
+            {
+                tab.Title = expectedTitle;
+            }
+        }
+
+        /// <summary>
         /// タブのタイトルを現在のパスに基づいて更新します
         /// </summary>
         /// <param name="tab">タイトルを更新するタブ</param>
@@ -721,8 +771,10 @@ namespace FastExplorer.ViewModels.Pages
         {
             if (value != null)
             {
-                UpdateTabTitle(value);
+                // タブタイトルは実際に変更が必要な場合のみ更新（高速化）
+                UpdateTabTitleIfNeeded(value);
             }
+            // ステータスバーは遅延実行（既にスロットリング済み）
             UpdateStatusBar();
         }
 
@@ -733,8 +785,10 @@ namespace FastExplorer.ViewModels.Pages
         {
             if (value != null)
             {
-                UpdateTabTitle(value);
+                // タブタイトルは実際に変更が必要な場合のみ更新（高速化）
+                UpdateTabTitleIfNeeded(value);
             }
+            // ステータスバーは遅延実行（既にスロットリング済み）
             UpdateStatusBar();
         }
 
@@ -745,8 +799,10 @@ namespace FastExplorer.ViewModels.Pages
         {
             if (value != null)
             {
-                UpdateTabTitle(value);
+                // タブタイトルは実際に変更が必要な場合のみ更新（高速化）
+                UpdateTabTitleIfNeeded(value);
             }
+            // ステータスバーは遅延実行（既にスロットリング済み）
             UpdateStatusBar();
         }
 

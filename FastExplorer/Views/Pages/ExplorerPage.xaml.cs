@@ -1909,8 +1909,11 @@ namespace FastExplorer.Views.Pages
                 if (deltaX >= -minDragDistance && deltaX <= minDragDistance &&
                     deltaY >= -minDragDistance && deltaY <= minDragDistance)
                 {
-                    if (ViewModel.IsSplitPaneEnabled)
+                    // ViewModelプロパティを一度だけ取得してキャッシュ（高速化）
+                    var isSplitPaneEnabled = ViewModel.IsSplitPaneEnabled;
+                    if (isSplitPaneEnabled)
                     {
+                        // TabControlの親要素を検索（高速化：キャッシュを活用）
                         var tabControl = FindAncestor<System.Windows.Controls.TabControl>(tabItem);
                         if (tabControl != null)
                         {
@@ -1981,9 +1984,12 @@ namespace FastExplorer.Views.Pages
             if (_draggedTabItem == null || _draggedTab == null || sender is not System.Windows.Controls.TabControl dropTabControl)
                 return;
 
+            // ViewModelプロパティを一度だけ取得してキャッシュ（高速化）
+            var isSplitPaneEnabled = ViewModel.IsSplitPaneEnabled;
+
             // ドロップ先のコレクションを取得
             ObservableCollection<ExplorerTab> dropTabs;
-            if (ViewModel.IsSplitPaneEnabled)
+            if (isSplitPaneEnabled)
             {
                 int dropColumn = Grid.GetColumn(dropTabControl);
                 dropTabs = dropColumn == 0 ? ViewModel.LeftPaneTabs
@@ -1997,11 +2003,11 @@ namespace FastExplorer.Views.Pages
                 dropTabs = ViewModel.Tabs;
             }
 
-            // ドラッグ元のコレクションを取得
+            // ドラッグ元のコレクションを取得（高速化：キャッシュされたTabControlを使用）
             ObservableCollection<ExplorerTab> sourceTabs;
-            if (ViewModel.IsSplitPaneEnabled)
+            if (isSplitPaneEnabled)
             {
-                // ドラッグ元のTabControlを特定
+                // ドラッグ元のTabControlを特定（キャッシュを活用）
                 var sourceTabControl = FindAncestor<System.Windows.Controls.TabControl>(_draggedTabItem);
                 if (sourceTabControl == null)
                     return;
@@ -2021,6 +2027,22 @@ namespace FastExplorer.Views.Pages
             // ペイン間での移動か、同じペイン内での移動かを判定
             bool isCrossPaneMove = sourceTabs != dropTabs;
 
+            // HitTestを一度だけ実行して結果を再利用（高速化）
+            Point dropPosition = e.GetPosition(dropTabControl);
+            HitTestResult? hitTestResult = VisualTreeHelper.HitTest(dropTabControl, dropPosition);
+            
+            // ドロップ位置のTabItemを取得（高速化：一度だけ実行）
+            System.Windows.Controls.TabItem? targetTabItem = null;
+            ExplorerTab? targetTab = null;
+            if (hitTestResult?.VisualHit != null)
+            {
+                targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
+                if (targetTabItem != null && targetTabItem.DataContext is ExplorerTab tab)
+                {
+                    targetTab = tab;
+                }
+            }
+
             if (isCrossPaneMove)
             {
                 // ペイン間での移動: ドラッグ元から削除して、ドロップ先に追加
@@ -2028,21 +2050,15 @@ namespace FastExplorer.Views.Pages
                 if (sourceIndex < 0)
                     return;
 
-                // HitTestを使ってドロップ位置のTabItemを検出（挿入位置を決定するため）
-                Point dropPosition = e.GetPosition(dropTabControl);
-                HitTestResult? hitTestResult = VisualTreeHelper.HitTest(dropTabControl, dropPosition);
                 int insertIndex = dropTabs.Count; // デフォルトは最後に追加
 
-                if (hitTestResult?.VisualHit != null)
+                // ターゲットタブが見つかった場合は、その位置に挿入
+                if (targetTab != null)
                 {
-                    System.Windows.Controls.TabItem? targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
-                    if (targetTabItem != null && targetTabItem.DataContext is ExplorerTab targetTab)
+                    int targetIndex = dropTabs.IndexOf(targetTab);
+                    if (targetIndex >= 0)
                     {
-                        int targetIndex = dropTabs.IndexOf(targetTab);
-                        if (targetIndex >= 0)
-                        {
-                            insertIndex = targetIndex;
-                        }
+                        insertIndex = targetIndex;
                     }
                 }
 
@@ -2052,21 +2068,8 @@ namespace FastExplorer.Views.Pages
             }
             else
             {
-                // 同じペイン内での移動: 既存のロジックを使用
-                // HitTestを使ってドロップ位置のTabItemを検出
-                Point dropPosition = e.GetPosition(dropTabControl);
-                HitTestResult? hitTestResult = VisualTreeHelper.HitTest(dropTabControl, dropPosition);
-                if (hitTestResult?.VisualHit == null)
-                    return;
-
-                // ビジュアルツリーからTabItemを取得（最適化: 早期リターン）
-                System.Windows.Controls.TabItem? targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
-                if (targetTabItem == null || targetTabItem == _draggedTabItem)
-                    return;
-
-                // DataContextのチェックを最適化
-                object? dataContext = targetTabItem.DataContext;
-                if (dataContext is not ExplorerTab targetTab || targetTab == _draggedTab)
+                // 同じペイン内での移動
+                if (targetTabItem == null || targetTabItem == _draggedTabItem || targetTab == null || targetTab == _draggedTab)
                     return;
 
                 // タブの並び替えを直接実行（最適化: インデックスを事前に計算して早期リターン）
