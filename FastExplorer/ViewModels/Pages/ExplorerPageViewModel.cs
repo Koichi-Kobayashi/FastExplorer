@@ -730,35 +730,40 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void NavigateToDrive((string drivePath, int? pane)? parameter)
         {
+            // 早期リターン：パラメータチェック
             if (parameter == null)
                 return;
 
             var (drivePath, pane) = parameter.Value;
             
+            // 早期リターン：ドライブパスチェック
             if (string.IsNullOrEmpty(drivePath))
                 return;
 
-            ExplorerTab? targetTab = null;
+            // プロパティアクセスをキャッシュ（パフォーマンス向上）
+            var isSplitPaneEnabled = IsSplitPaneEnabled;
+            ExplorerTab? targetTab;
 
-            if (IsSplitPaneEnabled)
+            if (isSplitPaneEnabled)
             {
-                // 分割ペインモードの場合
+                // 分割ペインモードの場合、プロパティを一度だけ取得してキャッシュ
+                var selectedLeftPaneTab = SelectedLeftPaneTab;
+                var selectedRightPaneTab = SelectedRightPaneTab;
+                
                 if (pane.HasValue)
                 {
                     // ペイン番号が指定されている場合は、そのペインのタブを使用
-                    targetTab = pane.Value == ActivePaneLeft ? SelectedLeftPaneTab : SelectedRightPaneTab;
+                    targetTab = pane.Value == ActivePaneLeft ? selectedLeftPaneTab : selectedRightPaneTab;
                 }
                 else
                 {
                     // ペイン番号が指定されていない場合は、現在アクティブなペインのタブを使用
-                    targetTab = ActivePane == ActivePaneLeft ? SelectedLeftPaneTab : SelectedRightPaneTab;
+                    var activePane = ActivePane;
+                    targetTab = activePane == ActivePaneLeft ? selectedLeftPaneTab : selectedRightPaneTab;
                 }
 
-                // タブが見つからない場合は、フォールバック
-                if (targetTab == null)
-                {
-                    targetTab = SelectedLeftPaneTab ?? SelectedRightPaneTab;
-                }
+                // タブが見つからない場合は、フォールバック（null合体演算子を使用）
+                targetTab ??= selectedLeftPaneTab ?? selectedRightPaneTab;
             }
             else
             {
@@ -766,10 +771,11 @@ namespace FastExplorer.ViewModels.Pages
                 targetTab = SelectedTab;
             }
 
-            if (targetTab?.ViewModel != null)
-            {
-                targetTab.ViewModel.NavigateToPathCommand.Execute(drivePath);
-            }
+            // 早期リターン：タブまたはViewModelがnullの場合
+            if (targetTab?.ViewModel == null)
+                return;
+
+            targetTab.ViewModel.NavigateToPathCommand.Execute(drivePath);
         }
 
         /// <summary>

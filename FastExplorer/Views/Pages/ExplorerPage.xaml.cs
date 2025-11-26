@@ -886,11 +886,26 @@ namespace FastExplorer.Views.Pages
                 if (ViewModel.IsSplitPaneEnabled)
                 {
                     // 分割ペインモードの場合、クリックされた要素がどのペインに属しているかを判定
+                    // GetPaneForElementではなく、TabControlを直接検索して確実に判定
                     var element = border as FrameworkElement;
-                    var paneValue = GetPaneForElement(element);
-                    if (paneValue == 0 || paneValue == 2)
+                    var tabControl = FindAncestor<System.Windows.Controls.TabControl>(element);
+                    if (tabControl != null)
                     {
-                        pane = paneValue;
+                        var column = Grid.GetColumn(tabControl);
+                        if (column == 0 || column == 2)
+                        {
+                            pane = column;
+                        }
+                    }
+                    
+                    // TabControlが見つからない場合は、GetPaneForElementを使用（フォールバック）
+                    if (!pane.HasValue)
+                    {
+                        var paneValue = GetPaneForElement(element);
+                        if (paneValue == 0 || paneValue == 2)
+                        {
+                            pane = paneValue;
+                        }
                     }
                 }
                 
@@ -914,35 +929,39 @@ namespace FastExplorer.Views.Pages
             if (!ViewModel.IsSplitPaneEnabled)
                 return -1;
             
-            // キャッシュを確認
+            // キャッシュを確認（ただし、タブ移動後はキャッシュが無効化されている可能性があるため、TabControlを直接検索する方法も併用）
             if (_paneCache.TryGetValue(element, out var cachedPane))
             {
-                return cachedPane;
-            }
-            
-            // 親要素をたどって、Grid.Column="0"（左ペイン）またはGrid.Column="2"（右ペイン）を探す
-            // 最大深度を制限してパフォーマンス向上（通常は5階層以内）
-            var current = element;
-            int depth = 0;
-            const int maxDepth = 10;
-            
-            while (current != null && depth < maxDepth)
-            {
-                // TabControlを探す
-                if (current is System.Windows.Controls.TabControl tabControl)
+                // キャッシュされた値が有効かどうかを確認するため、TabControlを直接検索して検証
+                var tabControl = FindAncestor<System.Windows.Controls.TabControl>(element);
+                if (tabControl != null)
                 {
-                    // TabControl自体のGrid.Columnを取得
-                    var column = System.Windows.Controls.Grid.GetColumn(tabControl);
+                    var column = Grid.GetColumn(tabControl);
+                    if (column == cachedPane && (column == 0 || column == 2))
+                    {
+                        // キャッシュが有効な場合はそのまま返す
+                        return cachedPane;
+                    }
+                    // キャッシュが無効な場合は更新
                     if (column == 0 || column == 2)
                     {
-                        // キャッシュに保存
                         _paneCache[element] = column;
                         return column;
                     }
                 }
-                
-                current = VisualTreeHelper.GetParent(current) as FrameworkElement;
-                depth++;
+            }
+            
+            // キャッシュがない、または無効な場合は、TabControlを直接検索
+            var tabControlDirect = FindAncestor<System.Windows.Controls.TabControl>(element);
+            if (tabControlDirect != null)
+            {
+                var column = Grid.GetColumn(tabControlDirect);
+                if (column == 0 || column == 2)
+                {
+                    // キャッシュに保存
+                    _paneCache[element] = column;
+                    return column;
+                }
             }
             
             // 見つからなかった場合もキャッシュに保存（再走査を避ける）
@@ -2099,11 +2118,12 @@ namespace FastExplorer.Views.Pages
             // ViewModelプロパティを一度だけ取得してキャッシュ（高速化）
             var isSplitPaneEnabled = ViewModel.IsSplitPaneEnabled;
 
-            // ドロップ先のコレクションを取得
+            // ドロップ先のコレクションを取得（dropColumnをキャッシュして再利用）
             ObservableCollection<ExplorerTab> dropTabs;
+            int dropColumn = -1;
             if (isSplitPaneEnabled)
             {
-                int dropColumn = Grid.GetColumn(dropTabControl);
+                dropColumn = Grid.GetColumn(dropTabControl);
                 dropTabs = dropColumn == 0 ? ViewModel.LeftPaneTabs
                     : dropColumn == 2 ? ViewModel.RightPaneTabs
                     : null;
@@ -2239,16 +2259,18 @@ namespace FastExplorer.Views.Pages
                 dropTabControl.SelectedItem = _draggedTab;
                 
                 // ViewModelの選択タブも明示的に更新（タブ移動後のペイン判定を正しくするため）
-                if (isSplitPaneEnabled)
+                // dropColumnは既に取得済み（上記の処理で使用）なので再利用
+                if (isSplitPaneEnabled && dropColumn >= 0)
                 {
-                    int dropColumn = Grid.GetColumn(dropTabControl);
-                    if (dropColumn == 0)
+                    // switch式を使用してパフォーマンス向上
+                    switch (dropColumn)
                     {
-                        ViewModel.SelectedLeftPaneTab = _draggedTab;
-                    }
-                    else if (dropColumn == 2)
-                    {
-                        ViewModel.SelectedRightPaneTab = _draggedTab;
+                        case 0:
+                            ViewModel.SelectedLeftPaneTab = _draggedTab;
+                            break;
+                        case 2:
+                            ViewModel.SelectedRightPaneTab = _draggedTab;
+                            break;
                     }
                 }
             }
@@ -2312,14 +2334,14 @@ namespace FastExplorer.Views.Pages
             _isTabDragging = false;
             
             // タブが移動したため、ペインキャッシュをクリア（ドライブ要素などのペイン判定を正しく更新するため）
-            // キャッシュを完全にクリアして、次回のGetPaneForElement呼び出しで最新の情報を取得するようにする
+            // 即座にクリアして、UI更新後にも再クリア（ビジュアルツリーが更新されるのを待つ）
             _paneCache.Clear();
             
-            // タブ移動後、UIの更新を待ってからキャッシュをクリア（ビジュアルツリーが更新されるのを待つ）
-            Dispatcher.BeginInvoke(new System.Action(() =>
-            {
-                _paneCache.Clear();
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
+            // UI更新後に再度キャッシュをクリア（ビジュアルツリーの更新を確実に反映）
+            // デリゲートをキャッシュしてメモリ割り当てを削減
+            Dispatcher.BeginInvoke(
+                new System.Action(() => _paneCache.Clear()),
+                System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         /// <summary>
