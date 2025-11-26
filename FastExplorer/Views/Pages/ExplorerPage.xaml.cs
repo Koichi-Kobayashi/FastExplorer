@@ -2314,6 +2314,9 @@ namespace FastExplorer.Views.Pages
             _draggedTab = null;
             _draggedTabItem = null;
             _isTabDragging = false;
+            
+            // タブが移動したため、ペインキャッシュをクリア（ドライブ要素などのペイン判定を正しく更新するため）
+            _paneCache.Clear();
         }
 
         /// <summary>
