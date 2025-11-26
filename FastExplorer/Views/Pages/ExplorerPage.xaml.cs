@@ -28,11 +28,16 @@ namespace FastExplorer.Views.Pages
         // パフォーマンス最適化用のキャッシュ
         private System.Windows.Controls.ListView? _cachedLeftListView;
         private System.Windows.Controls.ListView? _cachedRightListView;
+        private System.Windows.Controls.ListView? _cachedSinglePaneListView;
         private Brush? _cachedFocusedBackground;
         private Brush? _cachedUnfocusedBackground;
         private Services.WindowSettingsService? _cachedWindowSettingsService;
         private Brush? _cachedUnfocusedPaneBackgroundBrush;
         private Brush? _cachedControlFillColorDefaultBrush;
+        // TabControlのキャッシュ（ビジュアルツリー走査を削減）
+        private System.Windows.Controls.TabControl? _cachedLeftTabControl;
+        private System.Windows.Controls.TabControl? _cachedRightTabControl;
+        private System.Windows.Controls.TabControl? _cachedSingleTabControl;
 
         /// <summary>
         /// <see cref="ExplorerPage"/>クラスの新しいインスタンスを初期化します
@@ -79,6 +84,10 @@ namespace FastExplorer.Views.Pages
                 // 分割ペインの有効/無効が変更された場合はキャッシュをクリア
                 _cachedLeftListView = null;
                 _cachedRightListView = null;
+                _cachedSinglePaneListView = null;
+                _cachedLeftTabControl = null;
+                _cachedRightTabControl = null;
+                _cachedSingleTabControl = null;
                 // ペインキャッシュもクリア（UI構造が変わるため）
                 _paneCache.Clear();
                 // UI構築完了後に背景色を更新（分割ペイン切り替え時）
@@ -232,8 +241,8 @@ namespace FastExplorer.Views.Pages
             else
             {
                 // 単一ペインモードの場合、ListViewの背景色をSecondaryColorCodeに設定
-                // 通常モードのTabControl内のListViewを検索
-                var singlePaneListView = FindListViewInSinglePane();
+                // キャッシュから取得（高速化）
+                var singlePaneListView = _cachedSinglePaneListView ?? FindListViewInSinglePane();
                 if (singlePaneListView != null && _cachedFocusedBackground != null && singlePaneListView.Background != _cachedFocusedBackground)
                 {
                     // SecondaryColorCodeを取得（既に_cachedFocusedBackgroundに設定されている）
@@ -244,67 +253,180 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
-        /// 単一ペインモードのListViewを検索します
+        /// 単一ペインモードのListViewを検索します（キャッシュ付き）
         /// </summary>
         /// <returns>ListView、見つからない場合はnull</returns>
         private System.Windows.Controls.ListView? FindListViewInSinglePane()
         {
-            // 通常モードのTabControlを検索
-            var tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc =>
+            // キャッシュを確認
+            if (_cachedSinglePaneListView != null)
             {
-                // 分割ペインのTabControlではないことを確認（Grid.Columnが設定されていない）
-                var column = Grid.GetColumn(tc);
-                return column == 0 && !ViewModel.IsSplitPaneEnabled; // 通常モードのTabControl
-            });
-
-            if (tabControl == null)
-            {
-                // より広範囲に検索（Grid.Columnが設定されていないTabControlを探す）
-                tabControl = FindChild<System.Windows.Controls.TabControl>(this, null);
-                if (tabControl != null)
-                {
-                    // 分割ペインのTabControlでないことを確認
-                    var column = Grid.GetColumn(tabControl);
-                    if (column != 0 && column != 2)
-                    {
-                        // TabControl内のListViewを検索
-                        return FindChild<System.Windows.Controls.ListView>(tabControl, null);
-                    }
-                }
-                return null;
+                return _cachedSinglePaneListView;
             }
 
+            // TabControlのキャッシュを確認
+            System.Windows.Controls.TabControl? tabControl = _cachedSingleTabControl;
+            if (tabControl == null)
+            {
+                // 通常モードのTabControlを検索
+                tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc =>
+                {
+                    // 分割ペインのTabControlではないことを確認（Grid.Columnが設定されていない）
+                    var column = Grid.GetColumn(tc);
+                    return column == 0 && !ViewModel.IsSplitPaneEnabled; // 通常モードのTabControl
+                });
+
+                if (tabControl == null)
+                {
+                    // より広範囲に検索（Grid.Columnが設定されていないTabControlを探す）
+                    tabControl = FindChild<System.Windows.Controls.TabControl>(this, null);
+                    if (tabControl != null)
+                    {
+                        // 分割ペインのTabControlでないことを確認
+                        var column = Grid.GetColumn(tabControl);
+                        if (column != 0 && column != 2)
+                        {
+                            _cachedSingleTabControl = tabControl;
+                        }
+                        else
+                        {
+                            tabControl = null;
+                        }
+                    }
+                }
+                else
+                {
+                    _cachedSingleTabControl = tabControl;
+                }
+            }
+
+            if (tabControl == null)
+                return null;
+
             // TabControl内のListViewを検索
-            return FindChild<System.Windows.Controls.ListView>(tabControl, null);
+            var listView = FindChild<System.Windows.Controls.ListView>(tabControl, null);
+            _cachedSinglePaneListView = listView;
+            return listView;
         }
 
         /// <summary>
-        /// 指定されたペイン内のListViewを検索します
+        /// 指定されたペイン内のListViewを検索します（キャッシュ付き）
         /// </summary>
         /// <param name="pane">ペイン番号（0=左、2=右）</param>
         /// <returns>ListView、見つからない場合はnull</returns>
         private System.Windows.Controls.ListView? FindListViewInPane(int pane)
         {
-            // 分割ペインのTabControlを検索（Grid.Columnで判定）
-            var tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc => 
+            // キャッシュを確認
+            System.Windows.Controls.TabControl? tabControl = null;
+            if (pane == 0)
             {
-                var column = Grid.GetColumn(tc);
-                return column == pane;
-            });
+                if (_cachedLeftTabControl != null)
+                {
+                    tabControl = _cachedLeftTabControl;
+                }
+                else if (_cachedLeftListView != null)
+                {
+                    // ListViewから親のTabControlを取得（キャッシュ）
+                    var parent = VisualTreeHelper.GetParent(_cachedLeftListView);
+                    while (parent != null && !(parent is System.Windows.Controls.TabControl))
+                    {
+                        parent = VisualTreeHelper.GetParent(parent);
+                    }
+                    if (parent is System.Windows.Controls.TabControl tc)
+                    {
+                        _cachedLeftTabControl = tc;
+                        tabControl = tc;
+                    }
+                }
+            }
+            else if (pane == 2)
+            {
+                if (_cachedRightTabControl != null)
+                {
+                    tabControl = _cachedRightTabControl;
+                }
+                else if (_cachedRightListView != null)
+                {
+                    // ListViewから親のTabControlを取得（キャッシュ）
+                    var parent = VisualTreeHelper.GetParent(_cachedRightListView);
+                    while (parent != null && !(parent is System.Windows.Controls.TabControl))
+                    {
+                        parent = VisualTreeHelper.GetParent(parent);
+                    }
+                    if (parent is System.Windows.Controls.TabControl tc)
+                    {
+                        _cachedRightTabControl = tc;
+                        tabControl = tc;
+                    }
+                }
+            }
+
+            // キャッシュにない場合は検索
+            if (tabControl == null)
+            {
+                // 分割ペインのTabControlを検索（Grid.Columnで判定）
+                tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc => 
+                {
+                    var column = Grid.GetColumn(tc);
+                    return column == pane;
+                });
+
+                // キャッシュに保存
+                if (pane == 0)
+                {
+                    _cachedLeftTabControl = tabControl;
+                }
+                else if (pane == 2)
+                {
+                    _cachedRightTabControl = tabControl;
+                }
+            }
 
             if (tabControl == null)
                 return null;
 
-            // TabControl内のListViewを検索
-            return FindChild<System.Windows.Controls.ListView>(tabControl, null);
+            // TabControl内のListViewを検索（キャッシュを確認）
+            if (pane == 0 && _cachedLeftListView != null)
+            {
+                return _cachedLeftListView;
+            }
+            if (pane == 2 && _cachedRightListView != null)
+            {
+                return _cachedRightListView;
+            }
+
+            var listView = FindChild<System.Windows.Controls.ListView>(tabControl, null);
+            
+            // キャッシュに保存
+            if (pane == 0)
+            {
+                _cachedLeftListView = listView;
+            }
+            else if (pane == 2)
+            {
+                _cachedRightListView = listView;
+            }
+
+            return listView;
         }
 
         /// <summary>
-        /// 指定された型の子要素を検索します
+        /// 指定された型の子要素を検索します（最適化版：最大深度制限付き）
         /// </summary>
         private T? FindChild<T>(DependencyObject parent, Func<T, bool>? predicate) where T : DependencyObject
         {
             if (parent == null)
+                return null;
+
+            return FindChildInternal<T>(parent, predicate, 0, 20); // 最大20階層まで
+        }
+
+        /// <summary>
+        /// 指定された型の子要素を検索します（内部実装、最大深度制限付き）
+        /// </summary>
+        private T? FindChildInternal<T>(DependencyObject parent, Func<T, bool>? predicate, int depth, int maxDepth) where T : DependencyObject
+        {
+            if (parent == null || depth >= maxDepth)
                 return null;
 
             // 子要素の数を一度だけ取得してキャッシュ（パフォーマンス向上）
@@ -318,7 +440,7 @@ namespace FastExplorer.Views.Pages
                     return t;
                 }
 
-                var result = FindChild<T>(child, predicate);
+                var result = FindChildInternal<T>(child, predicate, depth + 1, maxDepth);
                 if (result != null)
                     return result;
             }
