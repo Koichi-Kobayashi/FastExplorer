@@ -587,16 +587,11 @@ namespace FastExplorer.ViewModels.Pages
             if (draggedIndex == -1 || targetIndex == -1 || draggedIndex == targetIndex)
                 return;
 
-            // タブを移動（wpfuiの実装を完全に再現）
-            // 削除前のtargetIndexをそのまま使う
-            // 左から右に移動する場合（draggedIndex < targetIndex）:
-            //   - 削除後、targetTabのインデックスは targetIndex - 1 になる
-            //   - 削除前のtargetIndexの位置に挿入することで、targetTabの後ろに来る
-            //   - Insertメソッドは、インデックスがコレクションサイズと同じ場合、最後に追加される
-            // 右から左に移動する場合（draggedIndex > targetIndex）:
-            //   - 削除後、targetIndexはそのまま有効（targetTabの前に挿入）
-            tabs.RemoveAt(draggedIndex);
-            tabs.Insert(targetIndex, draggedTab);
+            // タブを移動（Moveメソッドを使用してUI更新を1回に削減）
+            // ObservableCollection.Moveは、RemoveAtとInsertを1回の操作として実行し、
+            // CollectionChangedイベントを1回だけ発火するため、パフォーマンスが向上
+            // 特にタブが多数ある場合に効果的
+            tabs.Move(draggedIndex, targetIndex);
         }
 
         /// <summary>
@@ -605,48 +600,55 @@ namespace FastExplorer.ViewModels.Pages
         /// <param name="tab">タイトルを更新するタブ</param>
         private void UpdateTabTitleIfNeeded(ExplorerTab tab)
         {
-            // 現在のパスから期待されるタイトルを計算
+            // 現在のタイトルとパスをキャッシュ（高速化）
+            var currentTitle = tab.Title;
             var currentPath = tab.ViewModel?.CurrentPath;
-            string expectedTitle;
             
+            // 早期リターン: パスがnullまたは空で、タイトルが既にHomeTitleの場合は何もしない
             if (string.IsNullOrEmpty(currentPath))
             {
-                expectedTitle = HomeTitle;
+                if (currentTitle == HomeTitle)
+                    return;
+                tab.Title = HomeTitle;
+                return;
+            }
+            
+            // フォルダー名を取得（高速化：Spanを使用してメモリ割り当てを削減）
+            var folderName = Path.GetFileName(currentPath);
+            if (!string.IsNullOrEmpty(folderName))
+            {
+                // フォルダー名が取得できた場合
+                if (currentTitle == folderName)
+                    return;
+                tab.Title = folderName;
+                return;
+            }
+            
+            // ルートディレクトリの場合
+            var root = Path.GetPathRoot(currentPath);
+            if (string.IsNullOrEmpty(root))
+            {
+                if (currentTitle == currentPath)
+                    return;
+                tab.Title = currentPath;
+                return;
+            }
+            
+            // ルートパスの末尾のバックスラッシュを削除
+            var rootLength = root.Length;
+            string expectedTitle;
+            if (rootLength > 0 && root[rootLength - 1] == '\\')
+            {
+                expectedTitle = root.Substring(0, rootLength - 1);
             }
             else
             {
-                var folderName = Path.GetFileName(currentPath);
-                if (string.IsNullOrEmpty(folderName))
-                {
-                    var root = Path.GetPathRoot(currentPath);
-                    if (string.IsNullOrEmpty(root))
-                    {
-                        expectedTitle = currentPath;
-                    }
-                    else
-                    {
-                        var rootLength = root.Length;
-                        if (rootLength > 0 && root[rootLength - 1] == '\\')
-                        {
-                            expectedTitle = root.Substring(0, rootLength - 1);
-                        }
-                        else
-                        {
-                            expectedTitle = root;
-                        }
-                    }
-                }
-                else
-                {
-                    expectedTitle = folderName;
-                }
+                expectedTitle = root;
             }
             
-            // タイトルが実際に変更される必要がある場合のみ更新（高速化）
-            if (tab.Title != expectedTitle)
-            {
-                tab.Title = expectedTitle;
-            }
+            if (currentTitle == expectedTitle)
+                return;
+            tab.Title = expectedTitle;
         }
 
         /// <summary>
@@ -769,13 +771,23 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         partial void OnSelectedTabChanged(ExplorerTab? value)
         {
+            // タブ切り替え時の処理を最小限に（高速化）
+            // タイトルとステータスバーの更新は遅延実行して、タブ切り替えの応答性を優先
+            var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+            if (dispatcher == null)
+                return;
+                
             if (value != null)
             {
-                // タブタイトルは実際に変更が必要な場合のみ更新（高速化）
-                UpdateTabTitleIfNeeded(value);
+                // タイトル更新を非同期で遅延実行（UIスレッドをブロックしない）
+                dispatcher.BeginInvoke(
+                    System.Windows.Threading.DispatcherPriority.Background,
+                    new System.Action(() => UpdateTabTitleIfNeeded(value)));
             }
-            // ステータスバーは遅延実行（既にスロットリング済み）
-            UpdateStatusBar();
+            // ステータスバー更新は大幅に遅延（Background優先度）して、タブ切り替えの応答性を優先
+            dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Background,
+                new System.Action(() => UpdateStatusBar()));
         }
 
         /// <summary>
@@ -783,13 +795,23 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         partial void OnSelectedLeftPaneTabChanged(ExplorerTab? value)
         {
+            // タブ切り替え時の処理を最小限に（高速化）
+            // タイトルとステータスバーの更新は遅延実行して、タブ切り替えの応答性を優先
+            var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+            if (dispatcher == null)
+                return;
+                
             if (value != null)
             {
-                // タブタイトルは実際に変更が必要な場合のみ更新（高速化）
-                UpdateTabTitleIfNeeded(value);
+                // タイトル更新を非同期で遅延実行（UIスレッドをブロックしない）
+                dispatcher.BeginInvoke(
+                    System.Windows.Threading.DispatcherPriority.Background,
+                    new System.Action(() => UpdateTabTitleIfNeeded(value)));
             }
-            // ステータスバーは遅延実行（既にスロットリング済み）
-            UpdateStatusBar();
+            // ステータスバー更新は大幅に遅延（Background優先度）して、タブ切り替えの応答性を優先
+            dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Background,
+                new System.Action(() => UpdateStatusBar()));
         }
 
         /// <summary>
@@ -797,13 +819,23 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         partial void OnSelectedRightPaneTabChanged(ExplorerTab? value)
         {
+            // タブ切り替え時の処理を最小限に（高速化）
+            // タイトルとステータスバーの更新は遅延実行して、タブ切り替えの応答性を優先
+            var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
+            if (dispatcher == null)
+                return;
+                
             if (value != null)
             {
-                // タブタイトルは実際に変更が必要な場合のみ更新（高速化）
-                UpdateTabTitleIfNeeded(value);
+                // タイトル更新を非同期で遅延実行（UIスレッドをブロックしない）
+                dispatcher.BeginInvoke(
+                    System.Windows.Threading.DispatcherPriority.Background,
+                    new System.Action(() => UpdateTabTitleIfNeeded(value)));
             }
-            // ステータスバーは遅延実行（既にスロットリング済み）
-            UpdateStatusBar();
+            // ステータスバー更新は大幅に遅延（Background優先度）して、タブ切り替えの応答性を優先
+            dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Background,
+                new System.Action(() => UpdateStatusBar()));
         }
 
         // ステータスバー更新のスロットリング（頻繁な更新を抑制）

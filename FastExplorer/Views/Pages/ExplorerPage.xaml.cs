@@ -912,6 +912,7 @@ namespace FastExplorer.Views.Pages
         // ビジュアルツリー走査の結果をキャッシュ（パフォーマンス向上）
         private readonly Dictionary<FrameworkElement, int> _paneCache = new();
         private readonly Dictionary<System.Windows.Controls.ListView, System.Windows.Controls.ScrollViewer?> _scrollViewerCache = new();
+        private readonly Dictionary<System.Windows.Controls.TabItem, System.Windows.Controls.TabControl?> _tabControlCache = new();
 
         /// <summary>
         /// ListViewItemでマウスが押されたときに呼び出されます（ドラッグ開始の検出）
@@ -1914,7 +1915,11 @@ namespace FastExplorer.Views.Pages
                     if (isSplitPaneEnabled)
                     {
                         // TabControlの親要素を検索（高速化：キャッシュを活用）
-                        var tabControl = FindAncestor<System.Windows.Controls.TabControl>(tabItem);
+                        if (!_tabControlCache.TryGetValue(tabItem, out var tabControl))
+                        {
+                            tabControl = FindAncestor<System.Windows.Controls.TabControl>(tabItem);
+                            _tabControlCache[tabItem] = tabControl;
+                        }
                         if (tabControl != null)
                         {
                             int column = Grid.GetColumn(tabControl);
@@ -2007,8 +2012,16 @@ namespace FastExplorer.Views.Pages
             ObservableCollection<ExplorerTab> sourceTabs;
             if (isSplitPaneEnabled)
             {
-                // ドラッグ元のTabControlを特定（キャッシュを活用）
-                var sourceTabControl = FindAncestor<System.Windows.Controls.TabControl>(_draggedTabItem);
+                // ドラッグ元のTabControlを特定（高速化：キャッシュを活用）
+                System.Windows.Controls.TabControl? sourceTabControl = null;
+                if (_draggedTabItem != null && !_tabControlCache.TryGetValue(_draggedTabItem, out sourceTabControl))
+                {
+                    sourceTabControl = FindAncestor<System.Windows.Controls.TabControl>(_draggedTabItem);
+                    if (_draggedTabItem != null)
+                    {
+                        _tabControlCache[_draggedTabItem] = sourceTabControl;
+                    }
+                }
                 if (sourceTabControl == null)
                     return;
                     
@@ -2043,6 +2056,55 @@ namespace FastExplorer.Views.Pages
                 }
             }
 
+            // HitTestが失敗した場合、ドロップ位置から挿入位置を計算（フォールバック）
+            if (targetTab == null && dropTabs.Count > 0)
+            {
+                // TabPanelを取得してタブの位置を計算
+                var tabPanel = FindChild<System.Windows.Controls.Primitives.TabPanel>(dropTabControl, null);
+                if (tabPanel != null)
+                {
+                    // 各TabItemの位置を確認して、ドロップ位置に最も近いタブを探す
+                    double minDistance = double.MaxValue;
+                    System.Windows.Controls.TabItem? closestTabItem = null;
+                    
+                    for (int i = 0; i < dropTabControl.Items.Count; i++)
+                    {
+                        if (dropTabControl.ItemContainerGenerator.ContainerFromIndex(i) is System.Windows.Controls.TabItem item)
+                        {
+                            var itemPosition = item.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
+                            var itemCenterX = itemPosition.X + item.ActualWidth / 2;
+                            var distance = Math.Abs(dropPosition.X - itemCenterX);
+                            
+                            if (distance < minDistance)
+                            {
+                                minDistance = distance;
+                                closestTabItem = item;
+                            }
+                        }
+                    }
+                    
+                    if (closestTabItem != null && closestTabItem.DataContext is ExplorerTab closestTab)
+                    {
+                        targetTabItem = closestTabItem;
+                        targetTab = closestTab;
+                        
+                        // ドロップ位置がタブの右側にある場合は、次の位置に挿入
+                        var closestPosition = closestTabItem.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
+                        var closestCenterX = closestPosition.X + closestTabItem.ActualWidth / 2;
+                        if (dropPosition.X > closestCenterX)
+                        {
+                            // 右側にドロップされた場合は、次のタブの位置を探す
+                            int closestIndex = dropTabs.IndexOf(closestTab);
+                            if (closestIndex >= 0 && closestIndex < dropTabs.Count - 1)
+                            {
+                                targetTab = dropTabs[closestIndex + 1];
+                            }
+                        }
+                    }
+                }
+            }
+
+            // コレクション変更を高速化するため、UI更新を最小限に抑制
             if (isCrossPaneMove)
             {
                 // ペイン間での移動: ドラッグ元から削除して、ドロップ先に追加
@@ -2062,33 +2124,66 @@ namespace FastExplorer.Views.Pages
                     }
                 }
 
-                // コレクションの変更を実行
+                // コレクションの変更を実行（同期的に実行して、SelectedItemが正しく設定されるようにする）
                 sourceTabs.RemoveAt(sourceIndex);
                 dropTabs.Insert(insertIndex, _draggedTab);
+                
+                // SelectedItemを同期的に設定（ListViewが表示されるようにする）
+                dropTabControl.SelectedItem = _draggedTab;
             }
             else
             {
                 // 同じペイン内での移動
-                if (targetTabItem == null || targetTabItem == _draggedTabItem || targetTab == null || targetTab == _draggedTab)
-                    return;
-
-                // タブの並び替えを直接実行（最適化: インデックスを事前に計算して早期リターン）
                 int draggedIndex = dropTabs.IndexOf(_draggedTab);
                 if (draggedIndex < 0)
                     return;
-                    
+                
+                // ターゲットタブが見つからない場合は、ドロップ位置から挿入位置を決定
+                if (targetTab == null || targetTab == _draggedTab)
+                {
+                    // ドロップ位置が最後のタブより右側にある場合は、最後に追加
+                    if (dropTabs.Count > 0)
+                    {
+                        var lastTab = dropTabs[dropTabs.Count - 1];
+                        if (dropTabControl.ItemContainerGenerator.ContainerFromItem(lastTab) is System.Windows.Controls.TabItem lastItem)
+                        {
+                            var lastPosition = lastItem.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
+                            if (dropPosition.X > lastPosition.X + lastItem.ActualWidth)
+                            {
+                                // 最後のタブより右側にドロップされた場合は、最後に移動
+                                int lastIndex = dropTabs.Count - 1;
+                                if (draggedIndex != lastIndex)
+                                {
+                                    // Moveメソッドを使用してUI更新を1回に削減
+                                    dropTabs.Move(draggedIndex, lastIndex);
+                                    dropTabControl.SelectedItem = _draggedTab;
+                                }
+                                return;
+                            }
+                        }
+                    }
+                    // それ以外の場合は移動しない（既に正しい位置にある可能性がある）
+                    return;
+                }
+
+                // ターゲットタブがドラッグ中のタブと同じ場合は移動しない
+                if (targetTabItem == _draggedTabItem)
+                    return;
+
+                // タブの並び替えを直接実行（最適化: Moveメソッドを使用してUI更新を1回に削減）
                 int targetIndex = dropTabs.IndexOf(targetTab);
                 if (targetIndex < 0 || draggedIndex == targetIndex)
                     return;
                 
-                // コレクションの変更を実行
-                dropTabs.RemoveAt(draggedIndex);
-                dropTabs.Insert(targetIndex, _draggedTab);
+                // コレクションの変更を実行（Moveメソッドで1回のUI更新のみ）
+                // ObservableCollection.Moveは、RemoveAtとInsertを1回の操作として実行し、
+                // CollectionChangedイベントを1回だけ発火するため、パフォーマンスが向上
+                dropTabs.Move(draggedIndex, targetIndex);
+                
+                // SelectedItemを同期的に設定（ListViewが表示されるようにする）
+                // TwoWayバインディングにより、ViewModelも自動的に更新され、TabItemのIsSelectedも自動的に更新される
+                dropTabControl.SelectedItem = _draggedTab;
             }
-            
-            // UI更新を最適化: TabControlのSelectedItemを直接設定することで、確実にタブがアクティブになる
-            // TwoWayバインディングにより、ViewModelも自動的に更新され、TabItemのIsSelectedも自動的に更新される
-            dropTabControl.SelectedItem = _draggedTab;
 
             // ドロップ完了後に変数をクリア
             _draggedTab = null;
