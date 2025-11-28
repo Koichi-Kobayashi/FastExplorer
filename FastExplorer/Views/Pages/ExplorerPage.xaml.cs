@@ -2255,6 +2255,22 @@ namespace FastExplorer.Views.Pages
                 sourceTabs.RemoveAt(sourceIndex);
                 dropTabs.Insert(insertIndex, _draggedTab);
                 
+                // ペイン間でタブを移動した場合、移動先のペインをアクティブにする（SelectedItemを設定する前に実行）
+                // これにより、背景色が正しく更新される
+                if (isSplitPaneEnabled && dropColumn >= 0)
+                {
+                    // ActivePaneを先に設定（背景色の更新を確実にするため）
+                    ViewModel.ActivePane = dropColumn;
+                    // ListViewのキャッシュをクリア（タブ移動後、ListViewが再構築される可能性があるため）
+                    _cachedLeftListView = null;
+                    _cachedRightListView = null;
+                    // 背景色を明示的に更新（UI構築完了後に実行、PropertyChangedイベントに依存せず確実に更新するため）
+                    Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        UpdateListViewBackgroundColors();
+                    }), System.Windows.Threading.DispatcherPriority.Normal);
+                }
+                
                 // SelectedItemを同期的に設定（ListViewが表示されるようにする）
                 dropTabControl.SelectedItem = _draggedTab;
                 
