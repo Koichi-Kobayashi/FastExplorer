@@ -18,8 +18,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.5" />
     <PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
-    <PackageReference Include="WPF-UI" Version="4.1.0" />
-    <PackageReference Include="WPF-UI.DependencyInjection" Version="4.1.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0 " />
     <PackageReference Include="ZString" Version="2.6.0" />
@@ -41,6 +39,18 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FastExplorer.ShellContextMenu\FastExplorer.ShellContextMenu.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Wpf.Ui">
+      <HintPath>..\..\wpfui\src\Wpf.Ui\bin\Debug\net10.0-windows\Wpf.Ui.dll</HintPath>
+    </Reference>
+    <Reference Include="Wpf.Ui.Abstractions">
+      <HintPath>..\..\wpfui\src\Wpf.Ui.DependencyInjection\bin\Debug\net10.0\Wpf.Ui.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Wpf.Ui.DependencyInjection">
+      <HintPath>..\..\wpfui\src\Wpf.Ui.DependencyInjection\bin\Debug\net10.0\Wpf.Ui.DependencyInjection.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

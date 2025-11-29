@@ -33,6 +33,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
             <Setter Property="BorderThickness" Value="0,0,1,1" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <EventSetter Event="Click" Handler="GridViewColumnHeader_Click" />
             <EventSetter Event="MouseDoubleClick" Handler="GridViewColumnHeader_MouseDoubleClick" />
@@ -41,6 +42,7 @@
         <Style x:Key="FileListViewItemStyle" TargetType="ListViewItem">
             <Setter Property="Padding" Value="0" />
             <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
             <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
             <Setter Property="Template">
@@ -212,6 +214,7 @@
                     Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay, FallbackValue=''}" />
                 <TextBlock
                     VerticalAlignment="Center"
+                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                     Text="{Binding Name, Mode=OneWay, FallbackValue=''}"
                     TextOptions.TextFormattingMode="Display"
                     TextOptions.TextRenderingMode="ClearType"
@@ -222,6 +225,7 @@
             <TextBlock
                 Padding="8,0"
                 HorizontalAlignment="Right"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding FormattedSize, Mode=OneWay, FallbackValue=''}"
                 TextOptions.TextFormattingMode="Display"
                 TextOptions.TextRenderingMode="ClearType"
@@ -230,6 +234,7 @@
         <DataTemplate x:Key="FileExtensionCellTemplate" DataType="{x:Type models:FileSystemItem}">
             <TextBlock
                 Padding="8,0"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding Extension, Mode=OneWay, FallbackValue=''}"
                 TextOptions.TextFormattingMode="Display"
                 TextOptions.TextRenderingMode="ClearType"
@@ -238,6 +243,7 @@
         <DataTemplate x:Key="FileDateCellTemplate" DataType="{x:Type models:FileSystemItem}">
             <TextBlock
                 Padding="8,0"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding FormattedDate, Mode=OneWay, FallbackValue=''}"
                 TextOptions.TextFormattingMode="Display"
                 TextOptions.TextRenderingMode="ClearType"
@@ -351,6 +357,7 @@
                                                 ToolTip="{Binding Path}">
                                                 <TextBlock
                                                     VerticalAlignment="Center"
+                                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                                     Text="{Binding Name}"
                                                     TextTrimming="CharacterEllipsis" />
                                             </Button>
@@ -641,79 +648,6 @@
             <!--  テンプレートを設定しない（デフォルトのテンプレートを使用）  -->
         </Style>
 
-        <!--  ScrollBarのRepeatButtonスタイルをオーバーライドして、TargetNullValueを追加 -->
-        <!--  タブ移動時にListViewのScrollViewerが再構築され、ScrollBarのRepeatButtonのContentが一時的にnullになることを防ぐ -->
-        <Style x:Key="UiScrollBarLineButton" TargetType="{x:Type RepeatButton}">
-            <Setter Property="Foreground" Value="{DynamicResource ScrollBarButtonArrowForeground}" />
-            <Setter Property="Width" Value="12" />
-            <Setter Property="Height" Value="12" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="SnapsToDevicePixels" Value="True" />
-            <Setter Property="OverridesDefaultStyle" Value="True" />
-            <Setter Property="Focusable" Value="False" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type RepeatButton}">
-                        <Border
-                            x:Name="Border"
-                            Width="{TemplateBinding Width}"
-                            Height="{TemplateBinding Height}"
-                            Margin="{TemplateBinding Margin}"
-                            Background="{DynamicResource ScrollBarButtonBackground}"
-                            CornerRadius="6">
-                            <uiControls:SymbolIcon
-                                Margin="0,0,0,0"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Filled="True"
-                                FontSize="{TemplateBinding FontSize}"
-                                Foreground="{TemplateBinding Foreground}">
-                                <uiControls:SymbolIcon.Symbol>
-                                    <Binding Path="Content" RelativeSource="{RelativeSource TemplatedParent}" Mode="OneWay" Converter="{StaticResource SymbolRegularConverter}" TargetNullValue="{x:Static uiControls:SymbolRegular.CaretUp24}" FallbackValue="{x:Static uiControls:SymbolRegular.CaretUp24}" />
-                                </uiControls:SymbolIcon.Symbol>
-                            </uiControls:SymbolIcon>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation
-                                                Storyboard.TargetName="Border"
-                                                Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Opacity)"
-                                                From="0.0"
-                                                To="1.0"
-                                                Duration="0:0:0.16" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation
-                                                Storyboard.TargetName="Border"
-                                                Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Opacity)"
-                                                From="1.0"
-                                                To="0.0"
-                                                Duration="0:0:0.16" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.ExitActions>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!--  ScrollBarのリソースでRepeatButtonのスタイルを設定 -->
-        <!--  タブ移動時にTabControlが再構築され、ScrollBarのRepeatButtonのContentが一時的にnullになることを防ぐ -->
-        <Style TargetType="{x:Type ScrollBar}">
-            <Style.Resources>
-                <Style TargetType="{x:Type RepeatButton}" BasedOn="{StaticResource UiScrollBarLineButton}" />
-            </Style.Resources>
-        </Style>
     </UserControl.Resources>
 
     <Grid Margin="0">
@@ -741,164 +675,30 @@
                 SelectedItem="{Binding ViewModel.SelectedLeftPaneTab, Mode=TwoWay}"
                 AllowDrop="True"
                 DragOver="TabControl_DragOver"
-                Drop="TabControl_Drop">
-                <TabControl.Template>
-                    <ControlTemplate TargetType="TabControl">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <Grid Grid.Row="0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <TabPanel
-                                        x:Name="HeaderPanel"
-                                        Grid.IsSharedSizeScope="True"
-                                        IsItemsHost="True"
-                                        KeyboardNavigation.TabIndex="1" />
-                                    <!--  スクロールボタンを非表示にする（エラー回避のため）  -->
-                                    <RepeatButton
-                                        x:Name="PART_ButtonScrollLeft"
-                                        Width="0"
-                                        Height="0"
-                                        IsTabStop="False"
-                                        Visibility="Collapsed"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
-                                    <RepeatButton
-                                        x:Name="PART_ButtonScrollRight"
-                                        Width="0"
-                                        Height="0"
-                                        IsTabStop="False"
-                                        Visibility="Collapsed"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
-                                    <ui:Button
-                                        Width="32"
-                                        Height="32"
-                                        Margin="4,2,0,0"
-                                        VerticalAlignment="Top"
-                                        Command="{Binding ViewModel.CreateNewLeftPaneTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        ToolTip="新しいタブ（左ペイン）">
-                                        <ui:Button.Icon>
-                                            <ui:SymbolIcon Symbol="Add24" />
-                                        </ui:Button.Icon>
-                                    </ui:Button>
-                                </StackPanel>
-                            </Grid>
-                            <Border
-                                x:Name="ContentPanel"
-                                Grid.Row="1"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                KeyboardNavigation.DirectionalNavigation="Contained"
-                                KeyboardNavigation.TabIndex="2"
-                                KeyboardNavigation.TabNavigation="Local">
-                                <ContentPresenter
-                                    x:Name="PART_SelectedContentHost"
-                                    Margin="{TemplateBinding Padding}"
-                                    ContentSource="SelectedContent" />
-                            </Border>
-                        </Grid>
-                    </ControlTemplate>
-                </TabControl.Template>
-                <TabControl.Resources>
-                    <Style TargetType="TabItem">
-                        <Setter Property="Padding" Value="12,8" />
-                        <Setter Property="Margin" Value="2,0,0,0" />
-                        <Setter Property="MinHeight" Value="36" />
-                        <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
-                        <Setter Property="BorderThickness" Value="1,1,1,0" />
-                        <Setter Property="AllowDrop" Value="True" />
+                Drop="TabControl_Drop"
+                uiControls:TabControlExtensions.CanAddTabs="True"
+                uiControls:TabControlExtensions.CanReorderTabs="True"
+                uiControls:TabControlExtensions.TabAdding="TabControl_TabAdding"
+                uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing">
+                <TabControl.ItemContainerStyle>
+                    <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
+                        <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                         <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
                         <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="TabItem">
-                                    <Border
-                                        x:Name="Border"
-                                        Background="{TemplateBinding Background}"
-                                        BorderBrush="{TemplateBinding BorderBrush}"
-                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                        CornerRadius="4,4,0,0">
-                                        <ContentPresenter
-                                            Margin="{TemplateBinding Padding}"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            ContentSource="Header" />
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                            <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,2" />
-                                        </Trigger>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                        </Trigger>
-                                        <MultiTrigger>
-                                            <MultiTrigger.Conditions>
-                                                <Condition Property="IsSelected" Value="True" />
-                                                <Condition Property="IsMouseOver" Value="True" />
-                                            </MultiTrigger.Conditions>
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                        </MultiTrigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
+                        <EventSetter Event="MouseRightButtonUp" Handler="TabArea_MouseRightButtonUp" />
                     </Style>
-                </TabControl.Resources>
+                </TabControl.ItemContainerStyle>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid Background="Transparent" MouseRightButtonUp="TabArea_MouseRightButtonUp">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock
-                                Grid.Column="0"
-                                Margin="0,0,8,0"
-                                VerticalAlignment="Center"
-                                Text="{Binding Title, Mode=OneWay}"
-                                TextTrimming="CharacterEllipsis">
-                                <TextBlock.ToolTip>
-                                    <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
-                                </TextBlock.ToolTip>
-                            </TextBlock>
-                            <Button
-                                Grid.Column="1"
-                                Width="18"
-                                Height="18"
-                                Margin="4,0,0,0"
-                                Padding="2"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Command="{Binding DataContext.ViewModel.CloseTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}"
-                                Cursor="Hand"
-                                Opacity="0.7"
-                                Tag="CloseButton"
-                                ToolTip="タブを閉じる">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="1.0" />
-                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                                <ui:SymbolIcon Symbol="Dismiss24" />
-                            </Button>
-                        </Grid>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Text="{Binding Title, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis">
+                            <TextBlock.ToolTip>
+                                <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
+                            </TextBlock.ToolTip>
+                        </TextBlock>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
                 <TabControl.ContentTemplate>
@@ -926,164 +726,30 @@
                 SelectedItem="{Binding ViewModel.SelectedRightPaneTab, Mode=TwoWay}"
                 AllowDrop="True"
                 DragOver="TabControl_DragOver"
-                Drop="TabControl_Drop">
-                <TabControl.Template>
-                    <ControlTemplate TargetType="TabControl">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <Grid Grid.Row="0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <TabPanel
-                                        x:Name="HeaderPanel"
-                                        Grid.IsSharedSizeScope="True"
-                                        IsItemsHost="True"
-                                        KeyboardNavigation.TabIndex="1" />
-                                    <!--  スクロールボタンを非表示にする（エラー回避のため）  -->
-                                    <RepeatButton
-                                        x:Name="PART_ButtonScrollLeft"
-                                        Width="0"
-                                        Height="0"
-                                        IsTabStop="False"
-                                        Visibility="Collapsed"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
-                                    <RepeatButton
-                                        x:Name="PART_ButtonScrollRight"
-                                        Width="0"
-                                        Height="0"
-                                        IsTabStop="False"
-                                        Visibility="Collapsed"
-                                        Content="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
-                                    <ui:Button
-                                        Width="32"
-                                        Height="32"
-                                        Margin="4,2,0,0"
-                                        VerticalAlignment="Top"
-                                        Command="{Binding ViewModel.CreateNewRightPaneTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        ToolTip="新しいタブ（右ペイン）">
-                                        <ui:Button.Icon>
-                                            <ui:SymbolIcon Symbol="Add24" />
-                                        </ui:Button.Icon>
-                                    </ui:Button>
-                                </StackPanel>
-                            </Grid>
-                            <Border
-                                x:Name="ContentPanel"
-                                Grid.Row="1"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                KeyboardNavigation.DirectionalNavigation="Contained"
-                                KeyboardNavigation.TabIndex="2"
-                                KeyboardNavigation.TabNavigation="Local">
-                                <ContentPresenter
-                                    x:Name="PART_SelectedContentHost"
-                                    Margin="{TemplateBinding Padding}"
-                                    ContentSource="SelectedContent" />
-                            </Border>
-                        </Grid>
-                    </ControlTemplate>
-                </TabControl.Template>
-                <TabControl.Resources>
-                    <Style TargetType="TabItem">
-                        <Setter Property="Padding" Value="12,8" />
-                        <Setter Property="Margin" Value="2,0,0,0" />
-                        <Setter Property="MinHeight" Value="36" />
-                        <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
-                        <Setter Property="BorderThickness" Value="1,1,1,0" />
-                        <Setter Property="AllowDrop" Value="True" />
+                Drop="TabControl_Drop"
+                uiControls:TabControlExtensions.CanAddTabs="True"
+                uiControls:TabControlExtensions.CanReorderTabs="True"
+                uiControls:TabControlExtensions.TabAdding="TabControl_TabAdding"
+                uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing">
+                <TabControl.ItemContainerStyle>
+                    <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
+                        <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                         <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
                         <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="TabItem">
-                                    <Border
-                                        x:Name="Border"
-                                        Background="{TemplateBinding Background}"
-                                        BorderBrush="{TemplateBinding BorderBrush}"
-                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                        CornerRadius="4,4,0,0">
-                                        <ContentPresenter
-                                            Margin="{TemplateBinding Padding}"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            ContentSource="Header" />
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                            <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,2" />
-                                        </Trigger>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                        </Trigger>
-                                        <MultiTrigger>
-                                            <MultiTrigger.Conditions>
-                                                <Condition Property="IsSelected" Value="True" />
-                                                <Condition Property="IsMouseOver" Value="True" />
-                                            </MultiTrigger.Conditions>
-                                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                        </MultiTrigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
+                        <EventSetter Event="MouseRightButtonUp" Handler="TabArea_MouseRightButtonUp" />
                     </Style>
-                </TabControl.Resources>
+                </TabControl.ItemContainerStyle>
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                        <Grid Background="Transparent" MouseRightButtonUp="TabArea_MouseRightButtonUp">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock
-                                Grid.Column="0"
-                                Margin="0,0,8,0"
-                                VerticalAlignment="Center"
-                                Text="{Binding Title, Mode=OneWay}"
-                                TextTrimming="CharacterEllipsis">
-                                <TextBlock.ToolTip>
-                                    <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
-                                </TextBlock.ToolTip>
-                            </TextBlock>
-                            <Button
-                                Grid.Column="1"
-                                Width="18"
-                                Height="18"
-                                Margin="4,0,0,0"
-                                Padding="2"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Command="{Binding DataContext.ViewModel.CloseTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}"
-                                Cursor="Hand"
-                                Opacity="0.7"
-                                Tag="CloseButton"
-                                ToolTip="タブを閉じる">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Opacity" Value="1.0" />
-                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                                <ui:SymbolIcon Symbol="Dismiss24" />
-                            </Button>
-                        </Grid>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Text="{Binding Title, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis">
+                            <TextBlock.ToolTip>
+                                <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
+                            </TextBlock.ToolTip>
+                        </TextBlock>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
                 <TabControl.ContentTemplate>
@@ -1103,163 +769,29 @@
             Visibility="{Binding ViewModel.IsSplitPaneEnabled, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
             AllowDrop="True"
             DragOver="TabControl_DragOver"
-            Drop="TabControl_Drop">
-            <TabControl.Template>
-                <ControlTemplate TargetType="TabControl">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <Grid Grid.Row="0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <TabPanel
-                                    x:Name="HeaderPanel"
-                                    Grid.IsSharedSizeScope="True"
-                                    IsItemsHost="True"
-                                    KeyboardNavigation.TabIndex="1" />
-                                <!--  スクロールボタンを非表示にする（エラー回避のため）  -->
-                                <RepeatButton
-                                    x:Name="PART_ButtonScrollLeft"
-                                    Width="0"
-                                    Height="0"
-                                    IsTabStop="False"
-                                    Visibility="Collapsed"
-                                    Content="{x:Static uiControls:SymbolRegular.ChevronLeft24}" />
-                                <RepeatButton
-                                    x:Name="PART_ButtonScrollRight"
-                                    Width="0"
-                                    Height="0"
-                                    IsTabStop="False"
-                                    Visibility="Collapsed"
-                                    Content="{x:Static uiControls:SymbolRegular.ChevronRight24}" />
-                                <ui:Button
-                                    Width="32"
-                                    Height="32"
-                                    Margin="4,2,0,0"
-                                    VerticalAlignment="Top"
-                                    Command="{Binding ViewModel.CreateNewTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    ToolTip="新しいタブ">
-                                    <ui:Button.Icon>
-                                        <ui:SymbolIcon Symbol="Add24" />
-                                    </ui:Button.Icon>
-                                </ui:Button>
-                            </StackPanel>
-                        </Grid>
-                        <Border
-                            x:Name="ContentPanel"
-                            Grid.Row="1"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            KeyboardNavigation.DirectionalNavigation="Contained"
-                            KeyboardNavigation.TabIndex="2"
-                            KeyboardNavigation.TabNavigation="Local">
-                            <ContentPresenter
-                                x:Name="PART_SelectedContentHost"
-                                Margin="{TemplateBinding Padding}"
-                                ContentSource="SelectedContent" />
-                        </Border>
-                    </Grid>
-                </ControlTemplate>
-            </TabControl.Template>
-            <TabControl.Resources>
-                <Style TargetType="TabItem">
-                    <Setter Property="Padding" Value="12,8" />
-                    <Setter Property="Margin" Value="2,0,0,0" />
-                    <Setter Property="MinHeight" Value="36" />
-                    <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
-                    <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
-                    <Setter Property="BorderThickness" Value="1,1,1,0" />
-                    <Setter Property="AllowDrop" Value="True" />
+            Drop="TabControl_Drop"
+            uiControls:TabControlExtensions.CanAddTabs="True"
+            uiControls:TabControlExtensions.CanReorderTabs="True"
+            uiControls:TabControlExtensions.TabAdding="TabControl_TabAdding"
+            uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing">
+            <TabControl.ItemContainerStyle>
+                <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
+                    <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                     <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="TabItem">
-                                <Border
-                                    x:Name="Border"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="4,4,0,0">
-                                    <ContentPresenter
-                                        Margin="{TemplateBinding Padding}"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        ContentSource="Header" />
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsSelected" Value="True">
-                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                        <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                        <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,2" />
-                                    </Trigger>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                    </Trigger>
-                                    <MultiTrigger>
-                                        <MultiTrigger.Conditions>
-                                            <Condition Property="IsSelected" Value="True" />
-                                            <Condition Property="IsMouseOver" Value="True" />
-                                        </MultiTrigger.Conditions>
-                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                                    </MultiTrigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
+                    <EventSetter Event="MouseRightButtonUp" Handler="TabArea_MouseRightButtonUp" />
                 </Style>
-            </TabControl.Resources>
+            </TabControl.ItemContainerStyle>
             <TabControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type models:ExplorerTab}">
-                    <Grid Background="Transparent" MouseRightButtonUp="TabArea_MouseRightButtonUp">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock
-                            Grid.Column="0"
-                            Margin="0,0,8,0"
-                            VerticalAlignment="Center"
-                            Text="{Binding Title, Mode=OneWay}"
-                            TextTrimming="CharacterEllipsis">
-                            <TextBlock.ToolTip>
-                                <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
-                            </TextBlock.ToolTip>
-                        </TextBlock>
-                        <Button
-                            Grid.Column="1"
-                            Width="18"
-                            Height="18"
-                            Margin="4,0,0,0"
-                            Padding="2"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Command="{Binding DataContext.ViewModel.CloseTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                            CommandParameter="{Binding}"
-                            Cursor="Hand"
-                            Opacity="0.7"
-                            Tag="CloseButton"
-                            ToolTip="タブを閉じる">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Opacity" Value="1.0" />
-                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                            <ui:SymbolIcon Symbol="Dismiss24" />
-                        </Button>
-                    </Grid>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Text="{Binding Title, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis">
+                        <TextBlock.ToolTip>
+                            <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
+                        </TextBlock.ToolTip>
+                    </TextBlock>
                 </DataTemplate>
             </TabControl.ItemTemplate>
             <TabControl.ContentTemplate>
@@ -1340,6 +872,7 @@
                                                         </Button.Style>
                                                         <TextBlock
                                                             VerticalAlignment="Center"
+                                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                                             Text="{Binding Name}"
                                                             TextTrimming="CharacterEllipsis" />
                                                     </Button>

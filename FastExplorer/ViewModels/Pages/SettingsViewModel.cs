@@ -1,4 +1,4 @@
-﻿using FastExplorer.Controls;
+using FastExplorer.Controls;
 using FastExplorer.Models;
 using FastExplorer.Services;
 using FastExplorer.Views.Pages;
@@ -240,6 +240,42 @@ namespace FastExplorer.ViewModels.Pages
                 // テーマ設定を保存
                 SaveTheme(theme);
                 
+                // テーマに応じてテーマカラーを適用またはリセット
+                if (theme == ApplicationTheme.Light)
+                {
+                    // ライトモードの場合は、保存されたテーマカラーを適用
+                    var settings = _windowSettingsService.GetSettings();
+                    var themeColorCode = settings.ThemeColorCode;
+                    if (!string.IsNullOrEmpty(themeColorCode))
+                    {
+                        App.ApplyThemeColorFromSettings(settings);
+                    }
+                }
+                else if (theme == ApplicationTheme.Dark)
+                {
+                    // ダークモードの場合は、デフォルトのダークテーマカラーにリセット
+                    App.ResetToDefaultDarkThemeColors();
+                }
+                else
+                {
+                    // システムテーマ（Unknown）の場合は、システムのテーマに応じて処理
+                    var systemTheme = ApplicationThemeManager.GetSystemTheme();
+                    if (systemTheme == SystemTheme.Light)
+                    {
+                        var settings = _windowSettingsService.GetSettings();
+                        var themeColorCode = settings.ThemeColorCode;
+                        if (!string.IsNullOrEmpty(themeColorCode))
+                        {
+                            App.ApplyThemeColorFromSettings(settings);
+                        }
+                    }
+                    else
+                    {
+                        // システムがダークモードの場合は、デフォルトのダークテーマカラーにリセット
+                        App.ResetToDefaultDarkThemeColors();
+                    }
+                }
+                
                 // リソースディクショナリーも即座に更新（起動時と同じ）
                 App.UpdateThemeResourcesInternal();
                 
@@ -284,13 +320,27 @@ namespace FastExplorer.ViewModels.Pages
 
             try
             {
+                // 現在のテーマがライトモードでない場合は、テーマカラーを適用しない
+                var currentTheme = ApplicationThemeManager.GetAppTheme();
+                if (currentTheme != ApplicationTheme.Light)
+                {
+                    // ダークモードの場合は、テーマカラーを保存するだけで適用しない
+                    var settings = _windowSettingsService.GetSettings();
+                    settings.ThemeColorName = themeColor.Name;
+                    settings.ThemeColorCode = themeColor.ColorCode;
+                    settings.ThemeSecondaryColorCode = themeColor.SecondaryColorCode;
+                    settings.ThemeThirdColorCode = themeColor.ThirdColorCode;
+                    _windowSettingsService.SaveSettings(settings);
+                    return;
+                }
+
                 // テーマカラーを保存
-                var settings = _windowSettingsService.GetSettings();
-                settings.ThemeColorName = themeColor.Name;
-                settings.ThemeColorCode = themeColor.ColorCode;
-                settings.ThemeSecondaryColorCode = themeColor.SecondaryColorCode;
-                settings.ThemeThirdColorCode = themeColor.ThirdColorCode;
-                _windowSettingsService.SaveSettings(settings);
+                var settings2 = _windowSettingsService.GetSettings();
+                settings2.ThemeColorName = themeColor.Name;
+                settings2.ThemeColorCode = themeColor.ColorCode;
+                settings2.ThemeSecondaryColorCode = themeColor.SecondaryColorCode;
+                settings2.ThemeThirdColorCode = themeColor.ThirdColorCode;
+                _windowSettingsService.SaveSettings(settings2);
 
                 // 色計算を1回だけ実行（高速なカスタム変換を使用）
                 var mainColor = Helpers.FastColorConverter.ParseHexColor(themeColor.ColorCode);
@@ -303,7 +353,7 @@ namespace FastExplorer.ViewModels.Pages
                 var statusBarTextBrush = new SolidColorBrush(statusBarTextColor);
 
                 // リソースを更新（計算済みの色を渡して重複計算を回避）
-                App.ApplyThemeColorFromSettings(settings, (mainColor, secondaryColor));
+                App.ApplyThemeColorFromSettings(settings2, (mainColor, secondaryColor));
 
                 System.Diagnostics.Debug.WriteLine($"Theme color applied: {themeColor.Name} - Main: {themeColor.ColorCode}, Secondary: {themeColor.SecondaryColorCode}");
 

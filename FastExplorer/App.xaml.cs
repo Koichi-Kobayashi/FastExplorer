@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -91,11 +91,11 @@ namespace FastExplorer
         private async void OnStartup(object sender, StartupEventArgs e)
         {
             // テーマを先に適用（起動時の高速化のため、同期的に実行）
-            //_darkThemeResources = new ResourceDictionary
-            //{
-            //    Source = new Uri("pack://application:,,,/Resources/DarkThemeResources.xaml", UriKind.Absolute)
-            //};
-            //LoadAndApplyThemeOnStartup();
+            _darkThemeResources = new ResourceDictionary
+            {
+                Source = new Uri("pack://application:,,,/Resources/DarkThemeResources.xaml", UriKind.Absolute)
+            };
+            LoadAndApplyThemeOnStartup();
             // リソース更新は既にLoadAndApplyThemeOnStartup内で実行されているため、ここでは実行しない
 
             // ウィンドウを表示
@@ -186,10 +186,37 @@ namespace FastExplorer
                 ApplicationThemeManager.Apply(themeToApply);
 
                 // 保存されたテーマカラーを先に適用（リソース更新の前に）
-                var themeColorCode = settings?.ThemeColorCode;
-                if (themeColorCode != null && themeColorCode.Length > 0)
+                // ライトモードの場合のみテーマカラーを適用
+                if (themeToApply == ApplicationTheme.Light)
                 {
-                    ApplyThemeColorOnStartup(settings!);
+                    var themeColorCode = settings?.ThemeColorCode;
+                    if (themeColorCode != null && themeColorCode.Length > 0)
+                    {
+                        ApplyThemeColorOnStartup(settings!);
+                    }
+                }
+                else if (themeToApply == ApplicationTheme.Dark)
+                {
+                    // ダークモードの場合は、デフォルトのダークテーマカラーにリセット
+                    ResetToDefaultDarkThemeColors();
+                }
+                else
+                {
+                    // システムテーマ（Unknown）の場合は、システムのテーマに応じて処理
+                    var systemTheme = ApplicationThemeManager.GetSystemTheme();
+                    if (systemTheme == SystemTheme.Light)
+                    {
+                        var themeColorCode = settings?.ThemeColorCode;
+                        if (themeColorCode != null && themeColorCode.Length > 0)
+                        {
+                            ApplyThemeColorOnStartup(settings!);
+                        }
+                    }
+                    else
+                    {
+                        // システムがダークモードの場合は、デフォルトのダークテーマカラーにリセット
+                        ResetToDefaultDarkThemeColors();
+                    }
                 }
 
                 // リソースを即座に更新（ウィンドウ表示前に確実に適用するため）
@@ -222,6 +249,26 @@ namespace FastExplorer
         {
             try
             {
+                // 現在のテーマがライトモードでない場合は、テーマカラーを適用しない
+                var currentTheme = ApplicationThemeManager.GetAppTheme();
+                if (currentTheme == ApplicationTheme.Dark)
+                {
+                    // ダークモードの場合は、デフォルトのダークテーマカラーにリセット
+                    ResetToDefaultDarkThemeColors();
+                    return;
+                }
+                else if (currentTheme == ApplicationTheme.Unknown)
+                {
+                    // システムテーマ（Unknown）の場合は、システムのテーマを確認
+                    var systemTheme = ApplicationThemeManager.GetSystemTheme();
+                    if (systemTheme != SystemTheme.Light)
+                    {
+                        // システムがダークモードの場合は、デフォルトのダークテーマカラーにリセット
+                        ResetToDefaultDarkThemeColors();
+                        return;
+                    }
+                }
+
                 if (Application.Current.Resources is ResourceDictionary mainDictionary)
                 {
                     Color mainColor;
@@ -311,6 +358,73 @@ namespace FastExplorer
         }
 
         /// <summary>
+        /// デフォルトのダークテーマカラーにリセットします
+        /// </summary>
+        public static void ResetToDefaultDarkThemeColors()
+        {
+            try
+            {
+                if (Application.Current.Resources is ResourceDictionary mainDictionary)
+                {
+                    // WPF-UIのデフォルトのダークテーマカラーを使用
+                    // 一般的なダークテーマの背景色
+                    var darkMainColor = Color.FromRgb(0x1E, 0x1E, 0x1E); // #1E1E1E
+                    var darkSecondaryColor = Color.FromRgb(0x25, 0x25, 0x26); // #252526
+                    var darkMainBrush = new SolidColorBrush(darkMainColor);
+                    var darkSecondaryBrush = new SolidColorBrush(darkSecondaryColor);
+
+                    // リソースを更新
+                    mainDictionary["ApplicationBackgroundBrush"] = darkMainBrush;
+                    mainDictionary["TabAndNavigationBackgroundBrush"] = darkSecondaryBrush;
+
+                    // アクセントカラー（タブとステータスバー用）を更新
+                    mainDictionary["AccentFillColorDefaultBrush"] = darkMainBrush;
+
+                    // アクセントカラー（セカンダリ、ホバー時など）を更新
+                    var accentSecondaryColor = Color.FromRgb(
+                        (byte)(darkMainColor.R > 20 ? darkMainColor.R - 20 : 0),
+                        (byte)(darkMainColor.G > 20 ? darkMainColor.G - 20 : 0),
+                        (byte)(darkMainColor.B > 20 ? darkMainColor.B - 20 : 0));
+                    var accentSecondaryBrush = new SolidColorBrush(accentSecondaryColor);
+                    mainDictionary["AccentFillColorSecondaryBrush"] = accentSecondaryBrush;
+
+                    // コントロールの背景色（タブの非選択時など）を更新
+                    mainDictionary["ControlFillColorDefaultBrush"] = darkSecondaryBrush;
+
+                    // コントロールの背景色（セカンダリ、ホバー時など）を更新
+                    var controlSecondaryColor = Color.FromRgb(
+                        (byte)(darkSecondaryColor.R < 245 ? darkSecondaryColor.R + 10 : 255),
+                        (byte)(darkSecondaryColor.G < 245 ? darkSecondaryColor.G + 10 : 255),
+                        (byte)(darkSecondaryColor.B < 245 ? darkSecondaryColor.B + 10 : 255));
+                    var controlSecondaryBrush = new SolidColorBrush(controlSecondaryColor);
+                    mainDictionary["ControlFillColorSecondaryBrush"] = controlSecondaryBrush;
+
+                    // ステータスバーの背景色を更新
+                    mainDictionary["StatusBarBackgroundBrush"] = darkSecondaryBrush;
+
+                    // ステータスバーの文字色（ダークモードでは白）
+                    var statusBarTextBrush = new SolidColorBrush(Colors.White);
+                    mainDictionary["StatusBarTextBrush"] = statusBarTextBrush;
+
+                    // 分割ペイン用の背景色を更新
+                    var unfocusedPaneColor = Color.FromRgb(0x2D, 0x2D, 0x30); // #2D2D30
+                    var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
+                    mainDictionary["UnfocusedPaneBackgroundBrush"] = unfocusedPaneBrush;
+
+                    // テキスト色を白に設定（ダークモード）
+                    var textPrimaryBrush = new SolidColorBrush(Colors.White);
+                    var textSecondaryBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)); // #CCCCCC
+                    mainDictionary["TextFillColorPrimaryBrush"] = textPrimaryBrush;
+                    mainDictionary["TextFillColorSecondaryBrush"] = textSecondaryBrush;
+                }
+            }
+            catch
+            {
+                // エラーハンドリング：デフォルトのダークテーマカラーの適用に失敗した場合は無視
+            }
+        }
+
+        /// <summary>
         /// ビジュアルツリー内の指定された型の子要素を検索します
         /// </summary>
         /// <typeparam name="T">検索する型</typeparam>
@@ -344,8 +458,17 @@ namespace FastExplorer
         /// </summary>
         public static void UpdateThemeResourcesInternal()
         {
-            if (Current is App app && app._darkThemeResources != null)
+            if (Current is App app)
             {
+                // _darkThemeResourcesが初期化されていない場合は初期化
+                if (app._darkThemeResources == null)
+                {
+                    app._darkThemeResources = new ResourceDictionary
+                    {
+                        Source = new Uri("pack://application:,,,/Resources/DarkThemeResources.xaml", UriKind.Absolute)
+                    };
+                }
+
                 if (Current.Resources is ResourceDictionary mainDictionary)
                 {
                     var mergedDictionaries = mainDictionary.MergedDictionaries;
@@ -378,20 +501,15 @@ namespace FastExplorer
                     bool resourceChanged = false;
                     if (isDark)
                     {
-                        // ダークモードの場合
-                        if (existingDarkTheme == null)
+                        // ダークモードの場合：既存のダークテーマリソースを削除してから追加することで、確実に優先されるようにする
+                        if (existingDarkTheme != null)
                         {
-                            // リソースが存在しない場合は追加
-                            mergedDictionaries.Add(app._darkThemeResources);
-                            resourceChanged = true;
-                        }
-                        else if (existingDarkTheme != app._darkThemeResources)
-                        {
-                            // 異なるインスタンスが存在する場合は置き換え
+                            // 既存のリソースを削除
                             mergedDictionaries.Remove(existingDarkTheme);
-                            mergedDictionaries.Add(app._darkThemeResources);
-                            resourceChanged = true;
                         }
+                        // ダークテーマのリソースを最後に追加（後から追加されたリソースが優先される）
+                        mergedDictionaries.Add(app._darkThemeResources);
+                        resourceChanged = true;
                     }
                     else
                     {
@@ -419,42 +537,80 @@ namespace FastExplorer
                         // エラーが発生した場合は無視
                     }
 
+                    // テキスト色を更新（ダークモード時は白に設定）
+                    try
+                    {
+                        if (isDark)
+                        {
+                            // ダークモード時はテキスト色を白に設定
+                            var textPrimaryBrush = new SolidColorBrush(Colors.White);
+                            var textSecondaryBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)); // #CCCCCC
+                            mainDictionary["TextFillColorPrimaryBrush"] = textPrimaryBrush;
+                            mainDictionary["TextFillColorSecondaryBrush"] = textSecondaryBrush;
+                            resourceChanged = true;
+                        }
+                        else
+                        {
+                            // ライトモード時はテキスト色を黒に設定
+                            var textPrimaryBrush = new SolidColorBrush(Colors.Black);
+                            var textSecondaryBrush = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)); // #666666
+                            mainDictionary["TextFillColorPrimaryBrush"] = textPrimaryBrush;
+                            mainDictionary["TextFillColorSecondaryBrush"] = textSecondaryBrush;
+                            resourceChanged = true;
+                        }
+                    }
+                    catch
+                    {
+                        // エラーが発生した場合は無視
+                    }
+
                     // 分割ペイン用の背景色を更新（テーマ切り替え時、現在のテーマカラーに基づいて計算）
                     try
                     {
-                        // 現在のテーマカラーを取得（保存されたThirdColorCodeを使用）
-                        try
+                        if (isDark)
                         {
-                            var windowSettingsService = Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
-                            if (windowSettingsService != null)
+                            // ダークモードの場合は、ダークモード用の色を優先
+                            var unfocusedPaneColor = Color.FromRgb(0x2D, 0x2D, 0x30); // #2D2D30
+                            var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
+                            mainDictionary["UnfocusedPaneBackgroundBrush"] = unfocusedPaneBrush;
+                            resourceChanged = true;
+                        }
+                        else
+                        {
+                            // ライトモードの場合は、現在のテーマカラーを取得（保存されたThirdColorCodeを使用）
+                            try
                             {
-                                var currentSettings = windowSettingsService.GetSettings();
-                                if (!string.IsNullOrEmpty(currentSettings.ThemeThirdColorCode))
+                                var windowSettingsService = Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
+                                if (windowSettingsService != null)
                                 {
-                                    // ThirdColorCodeが設定されている場合はそれを使用
-                                    var unfocusedPaneColor = Helpers.FastColorConverter.ParseHexColor(currentSettings.ThemeThirdColorCode);
-                                    var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
-                                    mainDictionary["UnfocusedPaneBackgroundBrush"] = unfocusedPaneBrush;
-                                    resourceChanged = true;
-                                }
-                                else
-                                {
-                                    // フォールバック：ThemeColorの計算メソッドを使用して現在のテーマカラーから計算
-                                    var currentMainBrush = mainDictionary["ApplicationBackgroundBrush"] as SolidColorBrush;
-                                    if (currentMainBrush != null)
+                                    var currentSettings = windowSettingsService.GetSettings();
+                                    if (!string.IsNullOrEmpty(currentSettings.ThemeThirdColorCode))
                                     {
-                                        var mainColor = currentMainBrush.Color;
-                                        var unfocusedPaneColor = Models.ThemeColor.CalculateLightColor(mainColor);
+                                        // ThirdColorCodeが設定されている場合はそれを使用
+                                        var unfocusedPaneColor = Helpers.FastColorConverter.ParseHexColor(currentSettings.ThemeThirdColorCode);
                                         var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
                                         mainDictionary["UnfocusedPaneBackgroundBrush"] = unfocusedPaneBrush;
                                         resourceChanged = true;
                                     }
+                                    else
+                                    {
+                                        // フォールバック：ThemeColorの計算メソッドを使用して現在のテーマカラーから計算
+                                        var currentMainBrush = mainDictionary["ApplicationBackgroundBrush"] as SolidColorBrush;
+                                        if (currentMainBrush != null)
+                                        {
+                                            var mainColor = currentMainBrush.Color;
+                                            var unfocusedPaneColor = Models.ThemeColor.CalculateLightColor(mainColor);
+                                            var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
+                                            mainDictionary["UnfocusedPaneBackgroundBrush"] = unfocusedPaneBrush;
+                                            resourceChanged = true;
+                                        }
+                                    }
                                 }
                             }
-                        }
-                        catch
-                        {
-                            // エラーが発生した場合は無視
+                            catch
+                            {
+                                // エラーが発生した場合は無視
+                            }
                         }
                     }
                     catch

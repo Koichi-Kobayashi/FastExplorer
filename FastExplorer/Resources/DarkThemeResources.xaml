@@ -14,5 +14,9 @@
     
     <!-- SVGアイコンの色（ダークモード） -->
     <SolidColorBrush x:Key="IconBrush" Color="#FFFFFF" />
+    
+    <!-- テキスト色（ダークモード） -->
+    <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#CCCCCC" />
 </ResourceDictionary>
 

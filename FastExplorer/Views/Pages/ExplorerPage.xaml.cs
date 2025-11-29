@@ -12,6 +12,12 @@ using FastExplorer.Models;
 using FastExplorer.Helpers;
 using FastExplorer.ShellContextMenu;
 using Wpf.Ui.Abstractions.Controls;
+using Wpf.Ui.Controls;
+using Wpf.Ui.Appearance;
+using ListView = Wpf.Ui.Controls.ListView;
+using ListViewItem = Wpf.Ui.Controls.ListViewItem;
+using Button = Wpf.Ui.Controls.Button;
+using TextBlock = Wpf.Ui.Controls.TextBlock;
 
 namespace FastExplorer.Views.Pages
 {
@@ -104,30 +110,55 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         private void UpdateListViewBackgroundColors()
         {
+            // 現在のテーマを確認（ダークモードかどうか）
+            var isDark = ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark;
+
             // WindowSettingsServiceをキャッシュ（パフォーマンス向上）
             if (_cachedWindowSettingsService == null)
             {
                 _cachedWindowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
             }
 
-            // フォーカスがないペインの背景色をThirdColorCodeから取得（最適化：キャッシュを活用）
+            // フォーカスがないペインの背景色を取得（最適化：キャッシュを活用）
             try
             {
-                if (_cachedWindowSettingsService != null)
+                if (isDark)
                 {
-                    var settings = _cachedWindowSettingsService.GetSettings();
-                    var thirdColorCode = settings.ThemeThirdColorCode;
-                    if (!string.IsNullOrEmpty(thirdColorCode))
+                    // ダークモードの場合は、ダークモード用の標準カラーを優先
+                    var unfocusedPaneColor = Color.FromRgb(0x2D, 0x2D, 0x30); // #2D2D30
+                    var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
+                    unfocusedPaneBrush.Freeze();
+                    _cachedUnfocusedBackground = unfocusedPaneBrush;
+                }
+                else
+                {
+                    // ライトモードの場合は、ThirdColorCodeから取得
+                    if (_cachedWindowSettingsService != null)
                     {
-                        // ThirdColorCodeが設定されている場合はそれを使用
-                        var thirdColor = Helpers.FastColorConverter.ParseHexColor(thirdColorCode);
-                        var thirdColorBrush = new SolidColorBrush(thirdColor);
-                        thirdColorBrush.Freeze();
-                        _cachedUnfocusedBackground = thirdColorBrush;
+                        var settings = _cachedWindowSettingsService.GetSettings();
+                        var thirdColorCode = settings.ThemeThirdColorCode;
+                        if (!string.IsNullOrEmpty(thirdColorCode))
+                        {
+                            // ThirdColorCodeが設定されている場合はそれを使用
+                            var thirdColor = Helpers.FastColorConverter.ParseHexColor(thirdColorCode);
+                            var thirdColorBrush = new SolidColorBrush(thirdColor);
+                            thirdColorBrush.Freeze();
+                            _cachedUnfocusedBackground = thirdColorBrush;
+                        }
+                        else
+                        {
+                            // ThirdColorCodeが設定されていない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
+                            if (_cachedUnfocusedPaneBackgroundBrush == null)
+                            {
+                                _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
+                            }
+                            _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ?? 
+                                (_cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush());
+                        }
                     }
                     else
                     {
-                        // ThirdColorCodeが設定されていない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
+                        // WindowSettingsServiceが取得できない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
                         if (_cachedUnfocusedPaneBackgroundBrush == null)
                         {
                             _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
@@ -136,16 +167,6 @@ namespace FastExplorer.Views.Pages
                             (_cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush());
                     }
                 }
-                else
-                {
-                    // WindowSettingsServiceが取得できない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
-                    if (_cachedUnfocusedPaneBackgroundBrush == null)
-                    {
-                        _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
-                    }
-                    _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ?? 
-                        (_cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush());
-                }
             }
             catch
             {
@@ -153,24 +174,46 @@ namespace FastExplorer.Views.Pages
                 _cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush();
             }
 
-            // フォーカスがあるペインの背景色をSecondaryColorCodeから取得（最適化：キャッシュを活用）
+            // フォーカスがあるペインの背景色を取得（最適化：キャッシュを活用）
             try
             {
-                if (_cachedWindowSettingsService != null)
+                if (isDark)
                 {
-                    var settings = _cachedWindowSettingsService.GetSettings();
-                    var secondaryColorCode = settings.ThemeSecondaryColorCode;
-                    if (!string.IsNullOrEmpty(secondaryColorCode))
+                    // ダークモードの場合は、ダークモード用の標準カラーを優先
+                    var focusedPaneColor = Color.FromRgb(0x25, 0x25, 0x26); // #252526
+                    var focusedPaneBrush = new SolidColorBrush(focusedPaneColor);
+                    focusedPaneBrush.Freeze();
+                    _cachedFocusedBackground = focusedPaneBrush;
+                }
+                else
+                {
+                    // ライトモードの場合は、SecondaryColorCodeから取得
+                    if (_cachedWindowSettingsService != null)
                     {
-                        // SecondaryColorCodeが設定されている場合はそれを使用
-                        var secondaryColor = Helpers.FastColorConverter.ParseHexColor(secondaryColorCode);
-                        var secondaryColorBrush = new SolidColorBrush(secondaryColor);
-                        secondaryColorBrush.Freeze();
-                        _cachedFocusedBackground = secondaryColorBrush;
+                        var settings = _cachedWindowSettingsService.GetSettings();
+                        var secondaryColorCode = settings.ThemeSecondaryColorCode;
+                        if (!string.IsNullOrEmpty(secondaryColorCode))
+                        {
+                            // SecondaryColorCodeが設定されている場合はそれを使用
+                            var secondaryColor = Helpers.FastColorConverter.ParseHexColor(secondaryColorCode);
+                            var secondaryColorBrush = new SolidColorBrush(secondaryColor);
+                            secondaryColorBrush.Freeze();
+                            _cachedFocusedBackground = secondaryColorBrush;
+                        }
+                        else
+                        {
+                            // SecondaryColorCodeが設定されていない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
+                            if (_cachedControlFillColorDefaultBrush == null)
+                            {
+                                _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
+                            }
+                            _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ?? 
+                                (_cachedFocusedBackground ??= CreateDefaultFocusedBrush());
+                        }
                     }
                     else
                     {
-                        // SecondaryColorCodeが設定されていない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
+                        // WindowSettingsServiceが取得できない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
                         if (_cachedControlFillColorDefaultBrush == null)
                         {
                             _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
@@ -178,16 +221,6 @@ namespace FastExplorer.Views.Pages
                         _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ?? 
                             (_cachedFocusedBackground ??= CreateDefaultFocusedBrush());
                     }
-                }
-                else
-                {
-                    // WindowSettingsServiceが取得できない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
-                    if (_cachedControlFillColorDefaultBrush == null)
-                    {
-                        _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
-                    }
-                    _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ?? 
-                        (_cachedFocusedBackground ??= CreateDefaultFocusedBrush());
                 }
             }
             catch
@@ -532,6 +565,7 @@ namespace FastExplorer.Views.Pages
                 return;
 
             // クリックされた位置がListViewItem上かどうかを確認（ビジュアルツリー走査を最適化）
+            System.Windows.Controls.ListViewItem? clickedItem = null;
             if (e.OriginalSource is DependencyObject source)
             {
                 DependencyObject? current = source;
@@ -544,37 +578,38 @@ namespace FastExplorer.Views.Pages
                         e.Handled = true;
                         return;
                     }
-                    if (current is ListViewItem)
+                    if (current is System.Windows.Controls.ListViewItem item)
                     {
                         // ListViewItem上でクリックされた場合は処理を続行
+                        clickedItem = item;
                         break;
                     }
                     current = VisualTreeHelper.GetParent(current);
                 }
-                
-                // ListViewItemが見つからなかった場合は空領域
-                if (current == null || !(current is ListViewItem))
-                {
-                    // 空領域（アイテムがない場所）をダブルクリックした場合は親フォルダーに移動
-                    targetTab.ViewModel.NavigateToParentCommand.Execute(null);
-                    e.Handled = true;
-                    return;
-                }
             }
-            else
+            
+            // ListViewItemが見つからなかった場合は空領域
+            if (clickedItem == null)
             {
-                // OriginalSourceがDependencyObjectでない場合は空領域として扱う
+                // 空領域（アイテムがない場所）をダブルクリックした場合は親フォルダーに移動
                 targetTab.ViewModel.NavigateToParentCommand.Execute(null);
                 e.Handled = true;
                 return;
             }
 
-            var selectedItem = targetTab.ViewModel.SelectedItem;
+            // クリックされたアイテムを取得
+            var clickedDataItem = clickedItem.DataContext as Models.FileSystemItem;
+            if (clickedDataItem == null)
+            {
+                // DataContextがFileSystemItemでない場合は処理しない
+                e.Handled = true;
+                return;
+            }
             
             // ディレクトリの場合は、新しいディレクトリに移動した後にスクロール位置を0に戻す
-            if (selectedItem != null && selectedItem.IsDirectory)
+            if (clickedDataItem.IsDirectory)
             {
-                targetTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
+                targetTab.ViewModel.NavigateToItemCommand.Execute(clickedDataItem);
                 
                 // 少し遅延してからスクロール位置を0に戻す（ItemsSourceが更新されるのを待つ）
                 Dispatcher.BeginInvoke(new System.Action(() =>
@@ -591,7 +626,8 @@ namespace FastExplorer.Views.Pages
             }
             else
             {
-                targetTab.ViewModel.NavigateToItemCommand.Execute(selectedItem);
+                // ファイルの場合は、ファイルを開く
+                targetTab.ViewModel.NavigateToItemCommand.Execute(clickedDataItem);
             }
         }
 
@@ -2397,6 +2433,57 @@ namespace FastExplorer.Views.Pages
 
             // Itemsコレクションで見つからない場合、ビジュアルツリーを走査
             return FindChild<System.Windows.Controls.TabItem>(tabControl, ti => ti.DataContext == dataContext);
+        }
+
+        /// <summary>
+        /// TabControlでタブが追加されようとしたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">タブ追加イベント引数</param>
+        private void TabControl_TabAdding(object sender, TabAddingEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.TabControl tabControl)
+                return;
+
+            // どのTabControlから呼ばれたかを判定
+            var column = Grid.GetColumn(tabControl);
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                if (column == 0)
+                {
+                    // 左ペイン
+                    ViewModel.CreateNewLeftPaneTabCommand.Execute(null);
+                }
+                else if (column == 2)
+                {
+                    // 右ペイン
+                    ViewModel.CreateNewRightPaneTabCommand.Execute(null);
+                }
+            }
+            else
+            {
+                // 通常モード
+                ViewModel.CreateNewTabCommand.Execute(null);
+            }
+
+            // イベントをキャンセル（WPFUI標準のタブ追加を防ぐ）
+            e.Cancel = true;
+        }
+
+        /// <summary>
+        /// TabControlでタブが閉じられようとしたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">タブ閉じるイベント引数</param>
+        private void TabControl_TabClosing(object sender, TabClosingEventArgs e)
+        {
+            if (e.TabItem?.DataContext is ExplorerTab tab)
+            {
+                // ViewModelのCloseTabCommandを実行
+                ViewModel.CloseTabCommand.Execute(tab);
+                // イベントをキャンセル（WPFUI標準のタブ閉じる処理を防ぐ）
+                e.Cancel = true;
+            }
         }
     }
 }
