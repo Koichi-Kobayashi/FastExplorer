@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -89,55 +89,21 @@ namespace FastExplorer.Views.Windows
                 // ViewModelにNavigationServiceを設定
                 viewModel.SetNavigationService(navigationService);
                 
-                // テーマカラーを適用（ウィンドウ表示前に適用することでチラつきを防ぐ）
-                var settings = _windowSettingsService.GetSettings();
-                var themeColorCode = settings.ThemeColorCode;
-                // 高速化：nullチェックとLengthチェックを1回に統合
-                if (themeColorCode != null && themeColorCode.Length != 0)
+                // テーマカラーはApp.xaml.csのApplyThemeColorOnStartupで適用されるため、
+                // ここではタブとListViewのスタイルを無効化するだけ（起動時のテーマ復元を確実にするため）
+                // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
+                // ContentRenderedイベントで実行（確実にExplorerPageが読み込まれた後）
+                void ContentRenderedHandler(object? s, EventArgs e)
                 {
-                    // 色計算を1回だけ実行（高速なカスタム変換を使用）
-                    var mainColor = Helpers.FastColorConverter.ParseHexColor(themeColorCode);
-                    var secondaryColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
-                    var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
-                    var secondaryBrush = new System.Windows.Media.SolidColorBrush(secondaryColor);
-                    // 輝度計算を最適化（定数を事前計算）
-                    var luminance = (0.299 * mainColor.R + 0.587 * mainColor.G + 0.114 * mainColor.B) * 0.00392156862745098; // 1/255を事前計算
-                    var statusBarTextColor = luminance > 0.5 ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White;
-                    var statusBarTextBrush = new System.Windows.Media.SolidColorBrush(statusBarTextColor);
-                    
-                    // リソースを更新（計算済みの色を渡して重複計算を回避）
-                    App.ApplyThemeColorFromSettings(settings, (mainColor, secondaryColor));
-                    
-                    // すべての色を同じタイミングで設定（リソース更新直後、計算済みの色を使用）
-                    // プロパティ設定を最適化（nullチェックを削除して高速化）
-                    Background = mainBrush;
-                    // FluentWindowのBackgroundを設定（型チェックを削除して高速化）
-                    var fluentWindow = this as Wpf.Ui.Controls.FluentWindow;
-                    if (fluentWindow != null)
+                    ContentRendered -= ContentRenderedHandler;
+                    // 遅延実行して起動を高速化（静的メソッド参照を使用してメモリアロケーションを削減）
+                    var window = this;
+                    _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new System.Action(() =>
                     {
-                        fluentWindow.Background = mainBrush;
-                    }
-                    // navは既に取得済みなので、nullチェックを削除（navがnullの場合は既にreturnしている）
-                    if (nav != null)
-                    {
-                        nav.Background = secondaryBrush;
-                    }
-
-                    // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
-                    // ContentRenderedイベントで実行（確実にExplorerPageが読み込まれた後）
-                    // 起動を高速化するため、さらに遅延実行（デリゲートのメモリアロケーションを削減）
-                    void ContentRenderedHandler(object? s, EventArgs e)
-                    {
-                        ContentRendered -= ContentRenderedHandler;
-                        // 遅延実行して起動を高速化（静的メソッド参照を使用してメモリアロケーションを削減）
-                        var window = this;
-                        _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new System.Action(() =>
-                        {
-                            InvalidateTabAndListViewStyles(window);
-                        }));
-                    }
-                    ContentRendered += ContentRenderedHandler;
+                        InvalidateTabAndListViewStyles(window);
+                    }));
                 }
+                ContentRendered += ContentRenderedHandler;
                 
                 // テーマカラー適用後にウィンドウを表示（チラつきを防ぐ）
                 // UpdateLayout()を削除して起動を高速化（レイアウトは自動的に更新される）

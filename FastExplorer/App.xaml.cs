@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
 using Wpf.Ui.DependencyInjection;
 
 namespace FastExplorer
@@ -237,7 +238,52 @@ namespace FastExplorer
         /// <param name="settings">ウィンドウ設定</param>
         private void ApplyThemeColorOnStartup(Services.WindowSettings settings)
         {
-            ApplyThemeColorFromSettings(settings);
+            // 色計算を1回だけ実行（高速なカスタム変換を使用）
+            var mainColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeColorCode ?? "#F5F5F5");
+            var secondaryColor = Helpers.FastColorConverter.ParseHexColor(settings.ThemeSecondaryColorCode ?? "#FCFCFC");
+            var mainBrush = new System.Windows.Media.SolidColorBrush(mainColor);
+            var secondaryBrush = new System.Windows.Media.SolidColorBrush(secondaryColor);
+            
+            // リソースを更新（計算済みの色を渡して重複計算を回避）
+            ApplyThemeColorFromSettings(settings, (mainColor, secondaryColor));
+            
+            // カラーを選択したときと同じ挙動でテーマを復元
+            // すべてのウィンドウの背景色を直接更新（ウィンドウが作成された後に実行）
+            Current.Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                // すべてのウィンドウの背景色を更新
+                foreach (Window window in Current.Windows)
+                {
+                    if (window != null)
+                    {
+                        // ウィンドウの背景色を直接設定
+                        window.Background = mainBrush;
+
+                        // FluentWindowの場合は、Backgroundプロパティも更新
+                        if (window is Wpf.Ui.Controls.FluentWindow fluentWindow)
+                        {
+                            fluentWindow.Background = mainBrush;
+                        }
+
+                        // ウィンドウ内のNavigationViewの背景色も更新
+                        var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(window);
+                        if (navigationView != null)
+                        {
+                            navigationView.Background = secondaryBrush;
+                        }
+
+                        // ウィンドウのリソースを無効化
+                        if (window is System.Windows.FrameworkElement fe)
+                        {
+                            fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                            fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
+                        }
+
+                        // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
+                        Views.Windows.MainWindow.InvalidateTabAndListViewStyles(window);
+                    }
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         /// <summary>

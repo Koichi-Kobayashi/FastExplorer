@@ -2155,7 +2155,7 @@ namespace FastExplorer.Views.Pages
             var isSplitPaneEnabled = ViewModel.IsSplitPaneEnabled;
 
             // ドロップ先のコレクションを取得（dropColumnをキャッシュして再利用）
-            ObservableCollection<ExplorerTab> dropTabs;
+            ObservableCollection<ExplorerTab>? dropTabs;
             int dropColumn = -1;
             if (isSplitPaneEnabled)
             {
@@ -2172,7 +2172,7 @@ namespace FastExplorer.Views.Pages
             }
 
             // ドラッグ元のコレクションを取得（高速化：キャッシュされたTabControlを使用）
-            ObservableCollection<ExplorerTab> sourceTabs;
+            ObservableCollection<ExplorerTab>? sourceTabs;
             if (isSplitPaneEnabled)
             {
                 // ドラッグ元のTabControlを特定（高速化：キャッシュを活用）
