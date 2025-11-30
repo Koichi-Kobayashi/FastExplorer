@@ -2827,7 +2827,7 @@ namespace FastExplorer.Views.Pages
                                 _draggedTabItem = null;
                                 _isTabDragging = false;
                             }
-                            catch (System.Exception ex)
+                            catch (System.Exception)
                             {
                                 // 例外が発生した場合、位置を指定せずに新しいウィンドウを作成
                                 try
@@ -2839,7 +2839,7 @@ namespace FastExplorer.Views.Pages
                                     _draggedTabItem = null;
                                     _isTabDragging = false;
                                 }
-                                catch (System.Exception ex2)
+                                catch (System.Exception)
                                 {
                                     // 失敗した場合も変数をクリア
                                     _draggedTab = null;
@@ -3223,7 +3223,7 @@ namespace FastExplorer.Views.Pages
                     new System.Action(() => _paneCache.Clear()),
                     System.Windows.Threading.DispatcherPriority.Loaded);
             }
-            catch (System.Exception ex)
+            catch (System.Exception)
             {
                 // ドロップ完了後に変数をクリア（例外が発生しても状態をリセット）
                 _draggedTab = null;

@@ -388,7 +388,7 @@ namespace FastExplorer.ViewModels.Pages
                     }
                 }), System.Windows.Threading.DispatcherPriority.Render);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
         }

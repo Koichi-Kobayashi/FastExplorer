@@ -17,38 +17,38 @@ namespace FastExplorer.ViewModels.Pages
         private readonly FileSystemService _fileSystemService;
         private readonly FavoriteService? _favoriteService;
         private readonly WindowSettingsService? _windowSettingsService;
-        
+
         // MainWindowViewModelをキャッシュ（パフォーマンス向上）
         private ViewModels.Windows.MainWindowViewModel? _cachedMainWindowViewModel;
-        
+
         // サービス取得の最適化（キャッシュ）
         private SettingsViewModel? _cachedSettingsViewModel;
         private WindowSettingsService? _cachedWindowSettingsService;
-        
+
         // 文字列定数（メモリ割り当てを削減）
         private const string HomeTitle = "ホーム";
         private const string ReadyStatus = "準備完了";
         private const string ItemSuffix = "個の項目";
-        
+
         // Dispatcherをキャッシュ（パフォーマンス向上）
         private System.Windows.Threading.Dispatcher? _cachedDispatcher;
-        
+
         // 型をキャッシュ（パフォーマンス向上）
         private static readonly Type WindowSettingsServiceType = typeof(WindowSettingsService);
         private static readonly Type SettingsViewModelType = typeof(SettingsViewModel);
         private static readonly Type MainWindowViewModelType = typeof(ViewModels.Windows.MainWindowViewModel);
-        
+
         // PropertyChangedイベントのプロパティ名を定数化（メモリ割り当てを削減）
         private const string CurrentPathPropertyName = "CurrentPath";
         private static readonly string CurrentPathPropertyNameFull = nameof(ExplorerViewModel.CurrentPath);
         private static readonly string ItemsPropertyName = nameof(ExplorerViewModel.Items);
-        
+
         // UpdateStatusBarデリゲートをキャッシュ（メモリ割り当てを削減）
         private System.Action? _cachedUpdateStatusBarAction;
-        
+
         // OnNavigatedToAsyncが初回実行されたかどうかを追跡
         private bool _hasNavigatedTo = false;
-        
+
         // ActivePaneの定数（パフォーマンス向上）
         private const int ActivePaneLeft = 0;
         private const int ActivePaneRight = 2;
@@ -130,9 +130,9 @@ namespace FastExplorer.ViewModels.Pages
         private void ToggleSplitPane()
         {
             // WindowSettingsServiceをキャッシュ（パフォーマンス向上）
-            var windowSettingsService = _windowSettingsService ?? 
+            var windowSettingsService = _windowSettingsService ??
                 (_cachedWindowSettingsService ??= App.Services.GetService(WindowSettingsServiceType) as WindowSettingsService);
-            
+
             if (windowSettingsService == null)
                 return;
 
@@ -140,7 +140,7 @@ namespace FastExplorer.ViewModels.Pages
             IsSplitPaneEnabled = !IsSplitPaneEnabled;
             settings.IsSplitPaneEnabled = IsSplitPaneEnabled;
             windowSettingsService.SaveSettings(settings);
-            
+
             // SettingsViewModelを更新（キャッシュを使用）
             if (_cachedSettingsViewModel == null)
             {
@@ -210,7 +210,7 @@ namespace FastExplorer.ViewModels.Pages
                     // タブは存在するが選択されていない場合は、最初のタブを選択
                     SelectedRightPaneTab = RightPaneTabs[0];
                 }
-                
+
                 // 分割ペインモードが有効になったとき、ActivePaneを初期化
                 // 最初は左ペインをデフォルトにする
                 if (SelectedLeftPaneTab != null)
@@ -227,21 +227,21 @@ namespace FastExplorer.ViewModels.Pages
                 // 分割モードから通常モードへ
                 // 左ペインのタブを通常のタブに移動
                 var selectedLeftTab = SelectedLeftPaneTab;
-                
+
                 // 選択タブを先にnullに設定してからClear()を呼び出す（バインディングエラーを防ぐため）
                 SelectedLeftPaneTab = null;
                 SelectedRightPaneTab = null;
-                
+
                 foreach (var tab in LeftPaneTabs)
                 {
                     Tabs.Add(tab);
                 }
                 LeftPaneTabs.Clear();
-                
+
                 // 右ペインのタブも通常のタブに移動（最初のタブのみ保持する場合は、ここで処理）
                 // 現在は右ペインのタブは保持しない
                 RightPaneTabs.Clear();
-                
+
                 // 選択タブを設定
                 if (selectedLeftTab != null)
                 {
@@ -284,15 +284,15 @@ namespace FastExplorer.ViewModels.Pages
         /// <returns>完了を表すタスク</returns>
         public Task OnNavigatedToAsync()
         {
+            // コマンドライン引数を一度だけ取得（パフォーマンス向上）
+            var startupPath = App.GetStartupPath();
+            var isSingleTabMode = App.IsSingleTabMode();
+
             // 初回実行時のみ初期化処理を実行
             if (!_hasNavigatedTo)
             {
                 _hasNavigatedTo = true;
-                
-                // コマンドライン引数で指定されたパスを取得
-                var startupPath = App.GetStartupPath();
-                var isSingleTabMode = App.IsSingleTabMode();
-                
+
                 // 単一タブモードの場合は、分割ペインを無効にする
                 if (isSingleTabMode)
                 {
@@ -313,7 +313,7 @@ namespace FastExplorer.ViewModels.Pages
                     {
                         // 保存されたタブ情報を復元
                         RestoreTabs();
-                        
+
                         // タブが復元されなかった場合は新しいタブを作成
                         // Countプロパティを再取得（RestoreTabs後）
                         if (LeftPaneTabs.Count == 0)
@@ -326,111 +326,132 @@ namespace FastExplorer.ViewModels.Pages
                         }
                     }
                 }
-            }
-            
-            // 初回実行時のみ実行する処理を続行
-            if (_hasNavigatedTo)
-            {
-                // コマンドライン引数で指定されたパスを取得
-                var startupPath = App.GetStartupPath();
-                var isSingleTabMode = App.IsSingleTabMode();
 
                 if (IsSplitPaneEnabled)
                 {
                     // 選択タブが設定されていない場合は、最初のタブを選択
-                    // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                    var leftPaneTabsCount2 = LeftPaneTabs.Count;
-                    if (SelectedLeftPaneTab == null && leftPaneTabsCount2 > 0)
-                    {
-                        SelectedLeftPaneTab = LeftPaneTabs[0];
-                    }
-                    var rightPaneTabsCount2 = RightPaneTabs.Count;
-                    if (SelectedRightPaneTab == null && rightPaneTabsCount2 > 0)
-                    {
-                        SelectedRightPaneTab = RightPaneTabs[0];
-                    }
-                    
+                    InitializeSelectedTabsForSplitPane();
+
                     // 起動時に分割ペインモードが有効な場合、ActivePaneを左ペインに設定
-                    if (SelectedLeftPaneTab != null)
-                    {
-                        ActivePane = ActivePaneLeft; // 左ペインをデフォルト
-                    }
-                    else if (SelectedRightPaneTab != null)
-                    {
-                        ActivePane = ActivePaneRight; // 左ペインが存在しない場合のみ右ペインをデフォルト
-                    }
-                    
+                    SetDefaultActivePane();
+
                     // コマンドライン引数で指定されたパスがある場合は、左ペインのタブに移動
-                    if (!string.IsNullOrEmpty(startupPath) && System.IO.Directory.Exists(startupPath) && SelectedLeftPaneTab != null)
-                    {
-                        SelectedLeftPaneTab.ViewModel.NavigateToPathCommand.Execute(startupPath);
-                    }
+                    NavigateToStartupPathIfExists(startupPath, SelectedLeftPaneTab);
                 }
                 else
                 {
                     // 単一タブモードの場合は、既存のタブを削除して新しいタブを作成
                     if (isSingleTabMode)
                     {
-                        // 既存のタブをすべて削除
-                        Tabs.Clear();
-                        SelectedTab = null;
-                        
-                        // コマンドライン引数で指定されたパスがある場合は、そのパスでタブを作成
-                        if (!string.IsNullOrEmpty(startupPath))
-                        {
-                            // パスが存在する場合は、そのパスでタブを作成
-                            if (System.IO.Directory.Exists(startupPath))
-                            {
-                                var tab = CreateTabInternal(startupPath);
-                                Tabs.Add(tab);
-                                SelectedTab = tab;
-                                // CreateTabInternal内でNavigateToPathCommandが実行されるが、
-                                // 確実にパスを設定するために再度実行
-                                tab.ViewModel.NavigateToPathCommand.Execute(startupPath);
-                                UpdateTabTitle(tab);
-                            }
-                            else
-                            {
-                                // パスが存在しない場合は、新しいタブを作成してホームに移動
-                                CreateNewTab();
-                                if (SelectedTab != null)
-                                {
-                                    SelectedTab.ViewModel.NavigateToHome();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // パスが指定されていない場合は、新しいタブを作成（ホームに移動）
-                            CreateNewTab();
-                        }
+                        InitializeSingleTabMode(startupPath);
                     }
                     else
                     {
                         // 通常モードの場合
-                        // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                        var tabsCount = Tabs.Count;
-                        if (tabsCount == 0)
-                        {
-                            // 保存されたタブ情報を復元
-                            RestoreTabs();
-                            
-                            // タブが復元されなかった場合は新しいタブを作成
-                            if (Tabs.Count == 0)
-                            {
-                                CreateNewTab();
-                            }
-                        }
-                        
-                        // コマンドライン引数で指定されたパスがある場合は、選択されているタブに移動
-                        if (!string.IsNullOrEmpty(startupPath) && System.IO.Directory.Exists(startupPath) && SelectedTab != null)
-                        {
-                            SelectedTab.ViewModel.NavigateToPathCommand.Execute(startupPath);
-                        }
+                        InitializeNormalMode(startupPath);
                     }
                 }
             }
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// 分割ペインモードの選択タブを初期化します
+        /// </summary>
+        private void InitializeSelectedTabsForSplitPane()
+        {
+            if (SelectedLeftPaneTab == null && LeftPaneTabs.Count > 0)
+            {
+                SelectedLeftPaneTab = LeftPaneTabs[0];
+            }
+            if (SelectedRightPaneTab == null && RightPaneTabs.Count > 0)
+            {
+                SelectedRightPaneTab = RightPaneTabs[0];
+            }
+        }
+
+        /// <summary>
+        /// デフォルトのアクティブペインを設定します
+        /// </summary>
+        private void SetDefaultActivePane()
+        {
+            if (SelectedLeftPaneTab != null)
+            {
+                ActivePane = ActivePaneLeft;
+            }
+            else if (SelectedRightPaneTab != null)
+            {
+                ActivePane = ActivePaneRight;
+            }
+        }
+
+        /// <summary>
+        /// 起動時のパスが存在する場合、タブを移動します
+        /// </summary>
+        private static void NavigateToStartupPathIfExists(string? startupPath, ExplorerTab? tab)
+        {
+            if (!string.IsNullOrEmpty(startupPath) && System.IO.Directory.Exists(startupPath) && tab != null)
+            {
+                tab.ViewModel.NavigateToPathCommand.Execute(startupPath);
+            }
+        }
+
+        /// <summary>
+        /// 単一タブモードを初期化します
+        /// </summary>
+        private void InitializeSingleTabMode(string? startupPath)
+        {
+            // 既存のタブをすべて削除
+            Tabs.Clear();
+            SelectedTab = null;
+
+            // コマンドライン引数で指定されたパスがある場合は、そのパスでタブを作成
+            if (!string.IsNullOrEmpty(startupPath))
+            {
+                // パスが存在する場合は、そのパスでタブを作成
+                if (System.IO.Directory.Exists(startupPath))
+                {
+                    var tab = CreateTabInternal(startupPath);
+                    Tabs.Add(tab);
+                    SelectedTab = tab;
+                    // CreateTabInternal内でNavigateToPathCommandが実行されるが、
+                    // 確実にパスを設定するために再度実行
+                    tab.ViewModel.NavigateToPathCommand.Execute(startupPath);
+                    UpdateTabTitle(tab);
+                }
+                else
+                {
+                    // パスが存在しない場合は、新しいタブを作成してホームに移動
+                    CreateNewTab();
+                    SelectedTab?.ViewModel.NavigateToHome();
+                }
+            }
+            else
+            {
+                // パスが指定されていない場合は、新しいタブを作成（ホームに移動）
+                CreateNewTab();
+            }
+        }
+
+        /// <summary>
+        /// 通常モードを初期化します
+        /// </summary>
+        private void InitializeNormalMode(string? startupPath)
+        {
+            if (Tabs.Count == 0)
+            {
+                // 保存されたタブ情報を復元
+                RestoreTabs();
+
+                // タブが復元されなかった場合は新しいタブを作成
+                if (Tabs.Count == 0)
+                {
+                    CreateNewTab();
+                }
+            }
+
+            // コマンドライン引数で指定されたパスがある場合は、選択されているタブに移動
+            NavigateToStartupPathIfExists(startupPath, SelectedTab);
         }
 
         /// <summary>
@@ -451,7 +472,7 @@ namespace FastExplorer.ViewModels.Pages
             {
                 pathToOpen = SelectedTab.ViewModel?.CurrentPath;
             }
-            
+
             var tab = CreateTabInternal(pathToOpen);
             Tabs.Add(tab);
             SelectedTab = tab;
@@ -474,7 +495,7 @@ namespace FastExplorer.ViewModels.Pages
             {
                 pathToOpen = SelectedRightPaneTab.ViewModel?.CurrentPath;
             }
-            
+
             var tab = CreateTabInternal(pathToOpen);
             LeftPaneTabs.Add(tab);
             SelectedLeftPaneTab = tab;
@@ -497,7 +518,7 @@ namespace FastExplorer.ViewModels.Pages
             {
                 pathToOpen = SelectedLeftPaneTab.ViewModel?.CurrentPath;
             }
-            
+
             var tab = CreateTabInternal(pathToOpen);
             RightPaneTabs.Add(tab);
             SelectedRightPaneTab = tab;
@@ -518,19 +539,28 @@ namespace FastExplorer.ViewModels.Pages
                 ViewModel = viewModel
             };
 
-            // CurrentPathが変更されたときにTitleとCurrentPathを更新
-            // イベントハンドラーを弱い参照で管理（メモリリーク防止）
+            // イベントハンドラーをアタッチ
+            AttachPropertyChangedHandler(tab, viewModel);
+
+            // タブを追加する前に初期化を完了させる
+            // これにより、タブが追加された直後にフォルダーをダブルクリックしても問題が発生しない
+            NavigateTabToPath(tab, pathToOpen);
+
+            return tab;
+        }
+
+        /// <summary>
+        /// ViewModelにPropertyChangedイベントハンドラーをアタッチします
+        /// </summary>
+        private void AttachPropertyChangedHandler(ExplorerTab tab, ExplorerViewModel viewModel)
+        {
             // UpdateStatusBarデリゲートをキャッシュ（メモリ割り当てを削減）
-            if (_cachedUpdateStatusBarAction == null)
-            {
-                _cachedUpdateStatusBarAction = UpdateStatusBar;
-            }
-            
+            _cachedUpdateStatusBarAction ??= UpdateStatusBar;
+
             // Dispatcherを事前にキャッシュ（イベントハンドラー内での取得を削減）
-            var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
-            
-            PropertyChangedEventHandler? handler = null;
-            handler = (s, e) =>
+            var dispatcher = _cachedDispatcher ??= System.Windows.Application.Current?.Dispatcher;
+
+            PropertyChangedEventHandler handler = (s, e) =>
             {
                 var propertyName = e.PropertyName;
                 // 文字列比較を最適化（定数を使用、早期リターン）
@@ -539,7 +569,6 @@ namespace FastExplorer.ViewModels.Pages
                     tab.CurrentPath = viewModel.CurrentPath;
                     UpdateTabTitle(tab);
                     // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                    // キャッシュされたデリゲートとDispatcherを使用（メモリ割り当てを削減）
                     dispatcher?.BeginInvoke(
                         System.Windows.Threading.DispatcherPriority.Background,
                         _cachedUpdateStatusBarAction);
@@ -547,19 +576,19 @@ namespace FastExplorer.ViewModels.Pages
                 else if (propertyName == ItemsPropertyName)
                 {
                     // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                    // キャッシュされたデリゲートとDispatcherを使用（メモリ割り当てを削減）
                     dispatcher?.BeginInvoke(
                         System.Windows.Threading.DispatcherPriority.Background,
                         _cachedUpdateStatusBarAction);
                 }
             };
             viewModel.PropertyChanged += handler;
-            
-            // タブが削除されたときにイベントハンドラーを解除するための参照を保持
-            // （ExplorerTabにDisposeメソッドを追加するか、タブ削除時に明示的に解除）
+        }
 
-            // タブを追加する前に初期化を完了させる
-            // これにより、タブが追加された直後にフォルダーをダブルクリックしても問題が発生しない
+        /// <summary>
+        /// タブを指定されたパスに移動します
+        /// </summary>
+        private void NavigateTabToPath(ExplorerTab tab, string? pathToOpen)
+        {
             if (!string.IsNullOrEmpty(pathToOpen) && System.IO.Directory.Exists(pathToOpen))
             {
                 // パスが指定されていて存在する場合は、そのパスに移動
@@ -570,8 +599,6 @@ namespace FastExplorer.ViewModels.Pages
                 // パスが指定されていない、または存在しない場合はホームに移動
                 tab.ViewModel.NavigateToHome();
             }
-            
-            return tab;
         }
 
         /// <summary>
@@ -594,65 +621,67 @@ namespace FastExplorer.ViewModels.Pages
 
             if (IsSplitPaneEnabled)
             {
-                // 左ペインのタブかチェック
-                // Contains()とIndexOf()を1回の呼び出しに統合（パフォーマンス向上）
+                // 左ペインのタブかチェック（IndexOfで存在確認とインデックス取得を同時に行う）
                 var leftPaneTabs = LeftPaneTabs;
                 var leftIndex = leftPaneTabs.IndexOf(tab);
                 if (leftIndex >= 0)
                 {
-                    // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                    var leftPaneTabsCount = leftPaneTabs.Count;
-                    if (leftPaneTabsCount <= 1)
+                    if (leftPaneTabs.Count <= 1)
                         return;
+
                     leftPaneTabs.RemoveAt(leftIndex);
-                    if (SelectedLeftPaneTab == tab)
-                    {
-                        if (leftIndex > 0)
-                            SelectedLeftPaneTab = leftPaneTabs[leftIndex - 1];
-                        else if (leftPaneTabs.Count > 0)
-                            SelectedLeftPaneTab = leftPaneTabs[0];
-                    }
+                    UpdateSelectedTabAfterRemoval(leftPaneTabs, leftIndex, tab,
+                        () => SelectedLeftPaneTab, t => SelectedLeftPaneTab = t);
+                    return;
                 }
+
                 // 右ペインのタブかチェック
-                else
+                var rightPaneTabs = RightPaneTabs;
+                var rightIndex = rightPaneTabs.IndexOf(tab);
+                if (rightIndex >= 0)
                 {
-                    var rightPaneTabs = RightPaneTabs;
-                    var rightIndex = rightPaneTabs.IndexOf(tab);
-                    if (rightIndex >= 0)
-                    {
-                        // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                        var rightPaneTabsCount = rightPaneTabs.Count;
-                        if (rightPaneTabsCount <= 1)
-                            return;
-                        rightPaneTabs.RemoveAt(rightIndex);
-                        if (SelectedRightPaneTab == tab)
-                        {
-                            if (rightIndex > 0)
-                                SelectedRightPaneTab = rightPaneTabs[rightIndex - 1];
-                            else if (rightPaneTabs.Count > 0)
-                                SelectedRightPaneTab = rightPaneTabs[0];
-                        }
-                    }
+                    if (rightPaneTabs.Count <= 1)
+                        return;
+
+                    rightPaneTabs.RemoveAt(rightIndex);
+                    UpdateSelectedTabAfterRemoval(rightPaneTabs, rightIndex, tab,
+                        () => SelectedRightPaneTab, t => SelectedRightPaneTab = t);
                 }
             }
             else
             {
                 var tabs = Tabs;
-                // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                var tabsCount = tabs.Count;
-                if (tabsCount <= 1)
+                if (tabs.Count <= 1)
                     return;
 
                 var index = tabs.IndexOf(tab);
-                tabs.Remove(tab);
+                if (index < 0)
+                    return;
 
-                if (SelectedTab == tab)
-                {
-                    if (index > 0)
-                        SelectedTab = tabs[index - 1];
-                    else if (tabs.Count > 0)
-                        SelectedTab = tabs[0];
-                }
+                tabs.RemoveAt(index);
+                UpdateSelectedTabAfterRemoval(tabs, index, tab,
+                    () => SelectedTab, t => SelectedTab = t);
+            }
+        }
+
+        /// <summary>
+        /// タブ削除後に選択タブを更新します
+        /// </summary>
+        private static void UpdateSelectedTabAfterRemoval(
+            ObservableCollection<ExplorerTab> tabs,
+            int removedIndex,
+            ExplorerTab removedTab,
+            Func<ExplorerTab?> getSelectedTab,
+            Action<ExplorerTab?> setSelectedTab)
+        {
+            if (getSelectedTab() == removedTab)
+            {
+                if (removedIndex > 0 && tabs.Count > 0)
+                    setSelectedTab(tabs[removedIndex - 1]);
+                else if (tabs.Count > 0)
+                    setSelectedTab(tabs[0]);
+                else
+                    setSelectedTab(null);
             }
         }
 
@@ -686,55 +715,11 @@ namespace FastExplorer.ViewModels.Pages
         /// <param name="tab">タイトルを更新するタブ</param>
         private void UpdateTabTitleIfNeeded(ExplorerTab tab)
         {
-            // 現在のタイトルとパスをキャッシュ（高速化）
-            var currentTitle = tab.Title;
-            var currentPath = tab.ViewModel?.CurrentPath;
-            
-            // 早期リターン: パスがnullまたは空で、タイトルが既にHomeTitleの場合は何もしない
-            if (string.IsNullOrEmpty(currentPath))
+            var expectedTitle = GetTabTitleFromPath(tab.ViewModel?.CurrentPath);
+            if (tab.Title != expectedTitle)
             {
-                if (currentTitle == HomeTitle)
-                    return;
-                tab.Title = HomeTitle;
-                return;
+                tab.Title = expectedTitle;
             }
-            
-            // フォルダー名を取得（高速化：Spanを使用してメモリ割り当てを削減）
-            var folderName = Path.GetFileName(currentPath);
-            if (!string.IsNullOrEmpty(folderName))
-            {
-                // フォルダー名が取得できた場合
-                if (currentTitle == folderName)
-                    return;
-                tab.Title = folderName;
-                return;
-            }
-            
-            // ルートディレクトリの場合
-            var root = Path.GetPathRoot(currentPath);
-            if (string.IsNullOrEmpty(root))
-            {
-                if (currentTitle == currentPath)
-                    return;
-                tab.Title = currentPath;
-                return;
-            }
-            
-            // ルートパスの末尾のバックスラッシュを削除
-            var rootLength = root.Length;
-            string expectedTitle;
-            if (rootLength > 0 && root[rootLength - 1] == '\\')
-            {
-                expectedTitle = root.Substring(0, rootLength - 1);
-            }
-            else
-            {
-                expectedTitle = root;
-            }
-            
-            if (currentTitle == expectedTitle)
-                return;
-            tab.Title = expectedTitle;
         }
 
         /// <summary>
@@ -743,44 +728,7 @@ namespace FastExplorer.ViewModels.Pages
         /// <param name="tab">タイトルを更新するタブ</param>
         private void UpdateTabTitle(ExplorerTab tab)
         {
-            // ViewModel.CurrentPathを一度だけ取得してキャッシュ（パフォーマンス向上）
-            var currentPath = tab.ViewModel.CurrentPath;
-            if (string.IsNullOrEmpty(currentPath))
-            {
-                tab.Title = HomeTitle;
-            }
-            else
-            {
-                // フォルダー名のみを表示（パス全体ではなく）
-                var folderName = Path.GetFileName(currentPath);
-                // ルートディレクトリ（例：C:\）の場合は、パス自体を表示
-                if (string.IsNullOrEmpty(folderName))
-                {
-                    var root = Path.GetPathRoot(currentPath);
-                    // 文字列操作を最適化（TrimEnd()の結果を直接使用）
-                    if (string.IsNullOrEmpty(root))
-                    {
-                        tab.Title = currentPath;
-                    }
-                    else
-                    {
-                        // TrimEnd()を最適化（末尾のバックスラッシュのみをチェック）
-                        var rootLength = root.Length;
-                        if (rootLength > 0 && root[rootLength - 1] == '\\')
-                        {
-                            tab.Title = root.Substring(0, rootLength - 1);
-                        }
-                        else
-                        {
-                            tab.Title = root;
-                        }
-                    }
-                }
-                else
-                {
-                    tab.Title = folderName;
-                }
-            }
+            tab.Title = GetTabTitleFromPath(tab.ViewModel.CurrentPath);
         }
 
         /// <summary>
@@ -793,14 +741,14 @@ namespace FastExplorer.ViewModels.Pages
             var selectedTab = SelectedTab;
             if (selectedTab == null)
                 return;
-            
+
             var path = selectedTab.ViewModel.CurrentPath;
             if (string.IsNullOrEmpty(path))
                 return;
             var name = Path.GetFileName(path) ?? path;
-            
+
             _favoriteService?.AddFavorite(name, path);
-            
+
             // MainWindowViewModelを更新（キャッシュを使用）
             if (_cachedMainWindowViewModel == null)
             {
@@ -821,7 +769,7 @@ namespace FastExplorer.ViewModels.Pages
                 return;
 
             var (drivePath, pane) = parameter.Value;
-            
+
             // 早期リターン：ドライブパスチェック
             if (string.IsNullOrEmpty(drivePath))
                 return;
@@ -835,7 +783,7 @@ namespace FastExplorer.ViewModels.Pages
                 // 分割ペインモードの場合、プロパティを一度だけ取得してキャッシュ
                 var selectedLeftPaneTab = SelectedLeftPaneTab;
                 var selectedRightPaneTab = SelectedRightPaneTab;
-                
+
                 if (pane.HasValue)
                 {
                     // ペイン番号が指定されている場合は、そのペインのタブを使用
@@ -917,7 +865,7 @@ namespace FastExplorer.ViewModels.Pages
             var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
             if (dispatcher == null)
                 return;
-                
+
             if (value != null)
             {
                 // タイトル更新を非同期で遅延実行（UIスレッドをブロックしない）
@@ -941,7 +889,7 @@ namespace FastExplorer.ViewModels.Pages
             var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
             if (dispatcher == null)
                 return;
-                
+
             if (value != null)
             {
                 // タイトル更新を非同期で遅延実行（UIスレッドをブロックしない）
@@ -965,7 +913,7 @@ namespace FastExplorer.ViewModels.Pages
             var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
             if (dispatcher == null)
                 return;
-                
+
             if (value != null)
             {
                 // タイトル更新を非同期で遅延実行（UIスレッドをブロックしない）
@@ -1025,7 +973,7 @@ namespace FastExplorer.ViewModels.Pages
         {
             // プロパティアクセスを一度だけ取得してキャッシュ（パフォーマンス向上）
             var isSplitPaneEnabled = IsSplitPaneEnabled;
-            
+
             // 分割ペインの場合は、左右のペインそれぞれのステータスバーを更新
             if (isSplitPaneEnabled)
             {
@@ -1053,11 +1001,11 @@ namespace FastExplorer.ViewModels.Pages
 
             // ViewModelのプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
             var itemCount = viewModel.Items.Count;
-            
+
             // 文字列補間を最適化（ZString.Concatを使用してメモリ割り当てを削減）
             // 項目数のみを表示（パスはパンくずリストで確認可能）
             var statusText = ZString.Concat(itemCount, ItemSuffix);
-            
+
             // 値が変更された場合のみ更新（不要なPropertyChangedイベントを削減）
             if (viewModel.StatusBarText != statusText)
             {
@@ -1073,9 +1021,9 @@ namespace FastExplorer.ViewModels.Pages
             try
             {
                 // WindowSettingsServiceをキャッシュ（パフォーマンス向上）
-                var windowSettingsService = _windowSettingsService ?? 
+                var windowSettingsService = _windowSettingsService ??
                     (_cachedWindowSettingsService ??= App.Services.GetService(WindowSettingsServiceType) as WindowSettingsService);
-                
+
                 if (windowSettingsService == null)
                     return;
 
@@ -1104,9 +1052,9 @@ namespace FastExplorer.ViewModels.Pages
             {
                 // WindowSettingsServiceを取得（コンストラクタで取得できなかった場合はApp.Servicesから取得）
                 // WindowSettingsServiceをキャッシュ（パフォーマンス向上）
-                var windowSettingsService = _windowSettingsService ?? 
+                var windowSettingsService = _windowSettingsService ??
                     (_cachedWindowSettingsService ??= App.Services.GetService(WindowSettingsServiceType) as WindowSettingsService);
-                
+
                 if (windowSettingsService == null)
                     return;
 
@@ -1121,7 +1069,7 @@ namespace FastExplorer.ViewModels.Pages
                 else
                 {
                     // 通常モードの場合は従来通り
-                var tabPaths = settings.TabPaths;
+                    var tabPaths = settings.TabPaths;
                     if (tabPaths == null || tabPaths.Count == 0)
                         return;
 
@@ -1139,104 +1087,53 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private void RestorePaneTabs(List<string> tabPaths, ObservableCollection<ExplorerTab> tabs, Action<ExplorerTab> setSelectedTab)
         {
-                if (tabPaths == null || tabPaths.Count == 0)
-                    return;
+            if (tabPaths == null || tabPaths.Count == 0)
+                return;
 
-                foreach (var path in tabPaths)
+            foreach (var path in tabPaths)
+            {
+                var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
+                var tab = new ExplorerTab
                 {
-                    var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
-                    // フォルダー名のみを表示（パス全体ではなく）
-                    string tabTitle;
-                    if (string.IsNullOrEmpty(path))
-                    {
-                        tabTitle = HomeTitle;
-                    }
-                    else
-                    {
-                        var folderName = Path.GetFileName(path);
-                        // ルートディレクトリ（例：C:\）の場合は、パス自体を表示
-                        if (string.IsNullOrEmpty(folderName))
-                        {
-                            var root = Path.GetPathRoot(path);
-                            tabTitle = string.IsNullOrEmpty(root) ? path : root.TrimEnd('\\');
-                        }
-                        else
-                        {
-                            tabTitle = folderName;
-                        }
-                    }
-                    var tab = new ExplorerTab
-                    {
-                        Title = tabTitle,
-                        CurrentPath = path ?? string.Empty,
-                        ViewModel = viewModel
-                    };
+                    Title = GetTabTitleFromPath(path),
+                    CurrentPath = path ?? string.Empty,
+                    ViewModel = viewModel
+                };
 
-                    // CurrentPathが変更されたときにTitleとCurrentPathを更新
-                    // イベントハンドラーを弱い参照で管理（メモリリーク防止）
-                    // UpdateStatusBarデリゲートをキャッシュ（メモリ割り当てを削減）
-                    if (_cachedUpdateStatusBarAction == null)
-                    {
-                        _cachedUpdateStatusBarAction = UpdateStatusBar;
-                    }
-                    
-                    // Dispatcherを事前にキャッシュ（イベントハンドラー内での取得を削減）
-                    var dispatcher3 = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
-                    
-                    PropertyChangedEventHandler? handler = null;
-                    handler = (s, e) =>
-                    {
-                        var propertyName = e.PropertyName;
-                        // 文字列比較を最適化（定数を使用、早期リターン）
-                        if (propertyName == CurrentPathPropertyName || propertyName == CurrentPathPropertyNameFull)
-                        {
-                            tab.CurrentPath = viewModel.CurrentPath;
-                            UpdateTabTitle(tab);
-                            // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                            // キャッシュされたデリゲートとDispatcherを使用（メモリ割り当てを削減）
-                            dispatcher3?.BeginInvoke(
-                                System.Windows.Threading.DispatcherPriority.Background,
-                                _cachedUpdateStatusBarAction);
-                        }
-                        else if (propertyName == ItemsPropertyName)
-                        {
-                            // UpdateStatusBarは遅延実行して頻繁な呼び出しを削減
-                            // キャッシュされたデリゲートとDispatcherを使用（メモリ割り当てを削減）
-                            dispatcher3?.BeginInvoke(
-                                System.Windows.Threading.DispatcherPriority.Background,
-                                _cachedUpdateStatusBarAction);
-                        }
-                    };
-                    viewModel.PropertyChanged += handler;
+                // イベントハンドラーをアタッチ
+                AttachPropertyChangedHandler(tab, viewModel);
 
-                    // パスが空の場合はホームに、そうでない場合は指定されたパスに移動
-                    if (string.IsNullOrEmpty(path))
-                    {
-                        tab.ViewModel.NavigateToHome();
-                    }
-                    else
-                    {
-                        // パスが存在するか確認してから移動
-                        if (System.IO.Directory.Exists(path))
-                        {
-                            tab.ViewModel.NavigateToPathCommand.Execute(path);
-                        }
-                        else
-                        {
-                            // パスが存在しない場合はホームに移動
-                            tab.ViewModel.NavigateToHome();
-                        }
-                    }
+                // タブをパスに移動
+                NavigateTabToPath(tab, path);
 
                 tabs.Add(tab);
-                    UpdateTabTitle(tab);
-                }
+                UpdateTabTitle(tab);
+            }
 
-                // 最初のタブを選択
+            // 最初のタブを選択
             if (tabs.Count > 0)
-                {
+            {
                 setSelectedTab(tabs[0]);
             }
+        }
+
+        /// <summary>
+        /// パスからタブのタイトルを取得します
+        /// </summary>
+        private string GetTabTitleFromPath(string? path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return HomeTitle;
+
+            var folderName = Path.GetFileName(path);
+            // ルートディレクトリ（例：C:\）の場合は、パス自体を表示
+            if (string.IsNullOrEmpty(folderName))
+            {
+                var root = Path.GetPathRoot(path);
+                return string.IsNullOrEmpty(root) ? path : root.TrimEnd('\\');
+            }
+
+            return folderName;
         }
 
         /// <summary>
@@ -1250,38 +1147,37 @@ namespace FastExplorer.ViewModels.Pages
                 return;
 
             var pathToOpen = tab.ViewModel?.CurrentPath;
-            ExplorerTab newTab;
+            ExplorerTab newTab = CreateTabInternal(pathToOpen);
 
             if (IsSplitPaneEnabled)
             {
-                // 分割ペインモードの場合、同じペインに追加
+                // 分割ペインモードの場合、同じペインに追加（IndexOfで存在確認）
                 var leftPaneTabs = LeftPaneTabs;
-                var rightPaneTabs = RightPaneTabs;
-                
-                if (leftPaneTabs.Contains(tab))
+                if (leftPaneTabs.IndexOf(tab) >= 0)
                 {
-                    newTab = CreateTabInternal(pathToOpen);
                     leftPaneTabs.Add(newTab);
                     SelectedLeftPaneTab = newTab;
                 }
-                else if (rightPaneTabs.Contains(tab))
-                {
-                    newTab = CreateTabInternal(pathToOpen);
-                    rightPaneTabs.Add(newTab);
-                    SelectedRightPaneTab = newTab;
-                }
                 else
                 {
-                    return;
+                    var rightPaneTabs = RightPaneTabs;
+                    if (rightPaneTabs.IndexOf(tab) >= 0)
+                    {
+                        rightPaneTabs.Add(newTab);
+                        SelectedRightPaneTab = newTab;
+                    }
+                    else
+                    {
+                        return;
+                    }
                 }
             }
             else
             {
-                newTab = CreateTabInternal(pathToOpen);
                 Tabs.Add(newTab);
                 SelectedTab = newTab;
             }
-            
+
             UpdateTabTitle(newTab);
         }
 
@@ -1296,6 +1192,38 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
+        /// 移動するアクティブなタブを取得します
+        /// </summary>
+        private ExplorerTab GetActiveTabForMove(ExplorerTab tab)
+        {
+            if (IsSplitPaneEnabled)
+            {
+                var leftPaneTabs = LeftPaneTabs;
+                var rightPaneTabs = RightPaneTabs;
+
+                if (leftPaneTabs.IndexOf(tab) >= 0)
+                {
+                    // 左ペインの選択タブを使用（存在しない場合はドラッグされたタブ）
+                    var activeTab = SelectedLeftPaneTab;
+                    return (activeTab != null && leftPaneTabs.IndexOf(activeTab) >= 0) ? activeTab : tab;
+                }
+
+                if (rightPaneTabs.IndexOf(tab) >= 0)
+                {
+                    // 右ペインの選択タブを使用（存在しない場合はドラッグされたタブ）
+                    var activeTab = SelectedRightPaneTab;
+                    return (activeTab != null && rightPaneTabs.IndexOf(activeTab) >= 0) ? activeTab : tab;
+                }
+
+                return tab;
+            }
+
+            // 通常モード
+            var selectedTab = SelectedTab;
+            return (selectedTab != null && Tabs.IndexOf(selectedTab) >= 0) ? selectedTab : tab;
+        }
+
+        /// <summary>
         /// 新しいウィンドウにタブを移動します（マウス位置を指定）
         /// </summary>
         /// <param name="tab">移動するタブ</param>
@@ -1306,66 +1234,11 @@ namespace FastExplorer.ViewModels.Pages
                 return;
 
             // 【重要】削除・移動するのはアクティブタブ
-            // ドラッグされたタブではなく、現在選択されているタブを使用
-            ExplorerTab? activeTab = null;
-            if (IsSplitPaneEnabled)
-            {
-                // 分割ペインモードの場合、ドラッグされたタブがどちらのコレクションにあるか確認
-                var leftPaneTabs = LeftPaneTabs;
-                var rightPaneTabs = RightPaneTabs;
-                
-                if (leftPaneTabs.Contains(tab))
-                {
-                    // ドラッグされたタブが左ペインにある場合、左ペインの選択タブを取得
-                    activeTab = SelectedLeftPaneTab;
-                    
-                    // 選択タブがない、またはコレクションにない場合は、ドラッグされたタブを使用
-                    if (activeTab == null || !leftPaneTabs.Contains(activeTab))
-                    {
-                        activeTab = tab;
-                    }
-                }
-                else if (rightPaneTabs.Contains(tab))
-                {
-                    // ドラッグされたタブが右ペインにある場合、右ペインの選択タブを取得
-                    activeTab = SelectedRightPaneTab;
-                    
-                    // 選択タブがない、またはコレクションにない場合は、ドラッグされたタブを使用
-                    if (activeTab == null || !rightPaneTabs.Contains(activeTab))
-                    {
-                        activeTab = tab;
-                    }
-                }
-                else
-                {
-                    // ドラッグされたタブがどちらのペインにもない場合は、ドラッグされたタブを使用
-                    activeTab = tab;
-                }
-            }
-            else
-            {
-                // 通常モードの場合、SelectedTabを使用
-                activeTab = SelectedTab;
-                
-                // 選択タブがない、またはコレクションにない場合は、ドラッグされたタブを使用
-                if (activeTab == null || !Tabs.Contains(activeTab))
-                {
-                    activeTab = tab;
-                }
-            }
-            
-            // アクティブタブが取得できない場合は、ドラッグされたタブを使用
-            if (activeTab == null)
-            {
-                activeTab = tab;
-            }
-            
-            // この後、activeTabを使用して処理を進める
-            tab = activeTab;
+            tab = GetActiveTabForMove(tab);
 
             // タブのパスを取得（削除する前に取得する必要がある）
             var pathToOpen = tab.ViewModel?.CurrentPath;
-            
+
             // CurrentPathが空またはnullの場合、ホームディレクトリを使用
             if (string.IsNullOrEmpty(pathToOpen))
             {
@@ -1374,71 +1247,24 @@ namespace FastExplorer.ViewModels.Pages
 
             try
             {
-                // 現在のアプリケーションのEXEパスを取得
-                string? exePath = null;
-                
-                // .NET 6以降では、Environment.ProcessPathを使用
-                if (Environment.ProcessPath != null && System.IO.File.Exists(Environment.ProcessPath))
-                {
-                    exePath = Environment.ProcessPath;
-                }
-                
-                // 取得できない場合は、EntryAssemblyから取得を試みる
+                var exePath = GetApplicationExecutablePath();
                 if (string.IsNullOrEmpty(exePath))
-                {
-                    var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
-                    if (entryAssembly != null)
-                    {
-                        exePath = entryAssembly.Location;
-                    }
-                }
-                
-                // 取得できない場合は、GetExecutingAssemblyを使用
-                if (string.IsNullOrEmpty(exePath))
-                {
-                    var executingAssembly = System.Reflection.Assembly.GetExecutingAssembly();
-                    exePath = executingAssembly.Location;
-                }
-                
-                // それでも取得できない場合は、Process.GetCurrentProcess().MainModuleを使用
-                if (string.IsNullOrEmpty(exePath))
-                {
-                    try
-                    {
-                        var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
-                        exePath = currentProcess.MainModule?.FileName;
-                    }
-                    catch
-                    {
-                        // MainModuleの取得に失敗した場合は無視
-                    }
-                }
-
-                // EXEパスが取得できなかった場合、またはファイルが存在しない場合は終了
-                if (string.IsNullOrEmpty(exePath) || !System.IO.File.Exists(exePath))
                     return;
 
                 // コマンドライン引数を構築（--single-tabフラグを追加）
                 var arguments = "--single-tab";
-                
+
                 // ドロップ位置がある場合は、コマンドライン引数に追加
                 if (dropPosition.HasValue)
                 {
                     arguments += $" --position {dropPosition.Value.X},{dropPosition.Value.Y}";
                 }
-                
+
                 // パスをコマンドライン引数として渡す（pathToOpenは既に設定されている）
-                if (!string.IsNullOrEmpty(pathToOpen))
+                var pathArgument = BuildPathArgument(pathToOpen);
+                if (!string.IsNullOrEmpty(pathArgument))
                 {
-                    // パスをコマンドライン引数として渡す（スペースがある場合は引用符で囲む）
-                    if (pathToOpen.Contains(" "))
-                    {
-                        arguments += $" \"{pathToOpen}\"";
-                    }
-                    else
-                    {
-                        arguments += $" {pathToOpen}";
-                    }
+                    arguments += $" {pathArgument}";
                 }
 
                 // 元のウィンドウからタブを削除（新しいプロセス起動前に実行して、即座にUIを更新）
@@ -1449,20 +1275,21 @@ namespace FastExplorer.ViewModels.Pages
                     {
                         var leftPaneTabs = LeftPaneTabs;
                         var rightPaneTabs = RightPaneTabs;
-                        
-                        if (leftPaneTabs.Contains(tab))
+
+                        var leftIndex = leftPaneTabs.IndexOf(tab);
+                        if (leftIndex >= 0)
                         {
-                            var index = leftPaneTabs.IndexOf(tab);
+                            var index = leftIndex;
                             // タブを削除する前に、タブが1つだけかどうかを確認
                             bool wasOnlyTab = leftPaneTabs.Count == 1;
-                            
+
                             leftPaneTabs.RemoveAt(index);
-                            
+
                             // 選択タブを更新（削除されたタブが選択されていなくても更新）
                             bool wasSelected = (SelectedLeftPaneTab == tab);
-                            
+
                             // 削除されたタブが選択されていた場合、または選択タブがない場合
-                            if (wasSelected || SelectedLeftPaneTab == null || !leftPaneTabs.Contains(SelectedLeftPaneTab))
+                            if (wasSelected || SelectedLeftPaneTab == null || leftPaneTabs.IndexOf(SelectedLeftPaneTab) < 0)
                             {
                                 if (index > 0 && leftPaneTabs.Count > 0)
                                 {
@@ -1482,7 +1309,7 @@ namespace FastExplorer.ViewModels.Pages
                                 // 選択タブが変更されなくても、コレクションが変更されたのでUIを強制更新
                                 OnPropertyChanged(nameof(SelectedLeftPaneTab));
                             }
-                            
+
                             // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
                             if (wasOnlyTab && leftPaneTabs.Count == 0)
                             {
@@ -1494,7 +1321,7 @@ namespace FastExplorer.ViewModels.Pages
                                 // CreateTabInternal内で既にNavigateToHome()が呼ばれているが、
                                 // 確実にホームページが表示されるように再度呼び出す
                                 newTab.ViewModel.NavigateToHome();
-                                
+
                                 // 左ペインにフォーカスを設定
                                 ActivePane = ActivePaneLeft;
                             }
@@ -1510,148 +1337,152 @@ namespace FastExplorer.ViewModels.Pages
                                         ActivePane = ActivePaneNone;
                                     }
                                     ActivePane = ActivePaneLeft;
-                                    
+
                                     // 明示的にPropertyChangedを発火させる
                                     OnPropertyChanged(nameof(SelectedLeftPaneTab));
                                 }
                             }
                         }
-                        else if (rightPaneTabs.Contains(tab))
-                        {
-                            var index = rightPaneTabs.IndexOf(tab);
-                            // タブを削除する前に、タブが1つだけかどうかを確認
-                            bool wasOnlyTab = rightPaneTabs.Count == 1;
-                            
-                            rightPaneTabs.RemoveAt(index);
-                            
-                            // 選択タブを更新（削除されたタブが選択されていなくても更新）
-                            bool wasSelected = (SelectedRightPaneTab == tab);
-                            
-                            // 削除されたタブが選択されていた場合、または選択タブがない場合
-                            if (wasSelected || SelectedRightPaneTab == null || !rightPaneTabs.Contains(SelectedRightPaneTab))
-                            {
-                                if (index > 0 && rightPaneTabs.Count > 0)
-                                {
-                                    SelectedRightPaneTab = rightPaneTabs[index - 1];
-                                }
-                                else if (rightPaneTabs.Count > 0)
-                                {
-                                    SelectedRightPaneTab = rightPaneTabs[0];
-                                }
-                                else
-                                {
-                                    SelectedRightPaneTab = null;
-                                }
-                            }
-                            else
-                            {
-                                // 選択タブが変更されなくても、コレクションが変更されたのでUIを強制更新
-                                OnPropertyChanged(nameof(SelectedRightPaneTab));
-                            }
-                            
-                            // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
-                            if (wasOnlyTab && rightPaneTabs.Count == 0)
-                            {
-                                // 新しいタブを作成（pathToOpenをnullにして、ホームページを表示）
-                                var newTab = CreateTabInternal(null);
-                                rightPaneTabs.Add(newTab);
-                                SelectedRightPaneTab = newTab;
-                                UpdateTabTitle(newTab);
-                                // CreateTabInternal内で既にNavigateToHome()が呼ばれているが、
-                                // 確実にホームページが表示されるように再度呼び出す
-                                newTab.ViewModel.NavigateToHome();
-                                
-                                // 右ペインにフォーカスを設定
-                                ActivePane = ActivePaneRight;
-                            }
-                            else
-                            {
-                                // タブが複数あった場合でも、右ペインにフォーカスを設定してUIを更新
-                                if (rightPaneTabs.Count > 0)
-                                {
-                                    // ActivePaneが既にRightの場合でも、強制的にUIを更新するため、一度別の値に設定してから戻す
-                                    var currentActivePane = ActivePane;
-                                    if (currentActivePane == ActivePaneRight)
-                                    {
-                                        ActivePane = ActivePaneNone;
-                                    }
-                                    ActivePane = ActivePaneRight;
-                                    
-                                    // 明示的にPropertyChangedを発火させる
-                                    OnPropertyChanged(nameof(SelectedRightPaneTab));
-                                }
-                            }
-                        }
                         else
                         {
-                            // タブが左ペインにも右ペインにも見つからない場合、通常モードのTabsコレクションを確認
-                            
-                            // 通常モードのTabsコレクションにタブがあるか確認
-                            var tabs = Tabs;
-                            var tabIndex = tabs.IndexOf(tab);
-                            if (tabIndex >= 0)
+                            var rightIndex = rightPaneTabs.IndexOf(tab);
+                            if (rightIndex >= 0)
                             {
-                                // 通常モードのTabsコレクションからタブを削除
-                                tabs.RemoveAt(tabIndex);
-                                
-                                // 選択タブを更新
-                                if (SelectedTab == tab)
+                                var index = rightIndex;
+                                // タブを削除する前に、タブが1つだけかどうかを確認
+                                bool wasOnlyTab = rightPaneTabs.Count == 1;
+
+                                rightPaneTabs.RemoveAt(index);
+
+                                // 選択タブを更新（削除されたタブが選択されていなくても更新）
+                                bool wasSelected = (SelectedRightPaneTab == tab);
+
+                                // 削除されたタブが選択されていた場合、または選択タブがない場合
+                                if (wasSelected || SelectedRightPaneTab == null || rightPaneTabs.IndexOf(SelectedRightPaneTab) < 0)
                                 {
-                                    if (tabIndex > 0 && tabs.Count > 0)
+                                    if (index > 0 && rightPaneTabs.Count > 0)
                                     {
-                                        SelectedTab = tabs[tabIndex - 1];
+                                        SelectedRightPaneTab = rightPaneTabs[index - 1];
                                     }
-                                    else if (tabs.Count > 0)
+                                    else if (rightPaneTabs.Count > 0)
                                     {
-                                        SelectedTab = tabs[0];
+                                        SelectedRightPaneTab = rightPaneTabs[0];
                                     }
                                     else
                                     {
-                                        SelectedTab = null;
+                                        SelectedRightPaneTab = null;
                                     }
                                 }
-                            }
-                            else
-                            {
-                                // 通常モードのTabsコレクションにも見つからない場合
-                                
-                                // 左ペインと右ペインのタブ数を確認して、どちらかが空の場合は新しいタブを作成
-                                bool leftPaneWasEmpty = false;
-                                bool rightPaneWasEmpty = false;
-                                
-                                if (leftPaneTabs.Count == 0)
+                                else
                                 {
-                                    var newTab = CreateTabInternal(null);
-                                    leftPaneTabs.Add(newTab);
-                                    SelectedLeftPaneTab = newTab;
-                                    UpdateTabTitle(newTab);
-                                    newTab.ViewModel.NavigateToHome();
-                                    leftPaneWasEmpty = true;
+                                    // 選択タブが変更されなくても、コレクションが変更されたのでUIを強制更新
+                                    OnPropertyChanged(nameof(SelectedRightPaneTab));
                                 }
-                                if (rightPaneTabs.Count == 0)
+
+                                // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
+                                if (wasOnlyTab && rightPaneTabs.Count == 0)
                                 {
+                                    // 新しいタブを作成（pathToOpenをnullにして、ホームページを表示）
                                     var newTab = CreateTabInternal(null);
                                     rightPaneTabs.Add(newTab);
                                     SelectedRightPaneTab = newTab;
                                     UpdateTabTitle(newTab);
+                                    // CreateTabInternal内で既にNavigateToHome()が呼ばれているが、
+                                    // 確実にホームページが表示されるように再度呼び出す
                                     newTab.ViewModel.NavigateToHome();
-                                    rightPaneWasEmpty = true;
-                                }
-                                
-                                // 両方のペインが空だった場合は左ペインにフォーカスを設定
-                                // 左ペインのみが空だった場合は左ペインにフォーカスを設定
-                                // 右ペインのみが空だった場合は右ペインにフォーカスを設定
-                                if (leftPaneWasEmpty && rightPaneWasEmpty)
-                                {
-                                    ActivePane = ActivePaneLeft;
-                                }
-                                else if (leftPaneWasEmpty)
-                                {
-                                    ActivePane = ActivePaneLeft;
-                                }
-                                else if (rightPaneWasEmpty)
-                                {
+
+                                    // 右ペインにフォーカスを設定
                                     ActivePane = ActivePaneRight;
+                                }
+                                else
+                                {
+                                    // タブが複数あった場合でも、右ペインにフォーカスを設定してUIを更新
+                                    if (rightPaneTabs.Count > 0)
+                                    {
+                                        // ActivePaneが既にRightの場合でも、強制的にUIを更新するため、一度別の値に設定してから戻す
+                                        var currentActivePane = ActivePane;
+                                        if (currentActivePane == ActivePaneRight)
+                                        {
+                                            ActivePane = ActivePaneNone;
+                                        }
+                                        ActivePane = ActivePaneRight;
+
+                                        // 明示的にPropertyChangedを発火させる
+                                        OnPropertyChanged(nameof(SelectedRightPaneTab));
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // タブが左ペインにも右ペインにも見つからない場合、通常モードのTabsコレクションを確認
+
+                                // 通常モードのTabsコレクションにタブがあるか確認
+                                var tabs = Tabs;
+                                var tabIndex = tabs.IndexOf(tab);
+                                if (tabIndex >= 0)
+                                {
+                                    // 通常モードのTabsコレクションからタブを削除
+                                    tabs.RemoveAt(tabIndex);
+
+                                    // 選択タブを更新
+                                    if (SelectedTab == tab)
+                                    {
+                                        if (tabIndex > 0 && tabs.Count > 0)
+                                        {
+                                            SelectedTab = tabs[tabIndex - 1];
+                                        }
+                                        else if (tabs.Count > 0)
+                                        {
+                                            SelectedTab = tabs[0];
+                                        }
+                                        else
+                                        {
+                                            SelectedTab = null;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    // 通常モードのTabsコレクションにも見つからない場合
+
+                                    // 左ペインと右ペインのタブ数を確認して、どちらかが空の場合は新しいタブを作成
+                                    bool leftPaneWasEmpty = false;
+                                    bool rightPaneWasEmpty = false;
+
+                                    if (leftPaneTabs.Count == 0)
+                                    {
+                                        var newTab = CreateTabInternal(null);
+                                        leftPaneTabs.Add(newTab);
+                                        SelectedLeftPaneTab = newTab;
+                                        UpdateTabTitle(newTab);
+                                        newTab.ViewModel.NavigateToHome();
+                                        leftPaneWasEmpty = true;
+                                    }
+                                    if (rightPaneTabs.Count == 0)
+                                    {
+                                        var newTab = CreateTabInternal(null);
+                                        rightPaneTabs.Add(newTab);
+                                        SelectedRightPaneTab = newTab;
+                                        UpdateTabTitle(newTab);
+                                        newTab.ViewModel.NavigateToHome();
+                                        rightPaneWasEmpty = true;
+                                    }
+
+                                    // 両方のペインが空だった場合は左ペインにフォーカスを設定
+                                    // 左ペインのみが空だった場合は左ペインにフォーカスを設定
+                                    // 右ペインのみが空だった場合は右ペインにフォーカスを設定
+                                    if (leftPaneWasEmpty && rightPaneWasEmpty)
+                                    {
+                                        ActivePane = ActivePaneLeft;
+                                    }
+                                    else if (leftPaneWasEmpty)
+                                    {
+                                        ActivePane = ActivePaneLeft;
+                                    }
+                                    else if (rightPaneWasEmpty)
+                                    {
+                                        ActivePane = ActivePaneRight;
+                                    }
                                 }
                             }
                         }
@@ -1664,14 +1495,14 @@ namespace FastExplorer.ViewModels.Pages
                         {
                             // タブを削除する前に、タブが1つだけかどうかを確認
                             bool wasOnlyTab = tabs.Count == 1;
-                            
+
                             tabs.RemoveAt(index);
-                            
+
                             // 選択タブを更新（削除されたタブが選択されていなくても更新）
                             bool wasSelected = (SelectedTab == tab);
-                            
+
                             // 削除されたタブが選択されていた場合、または選択タブがない場合
-                            if (wasSelected || SelectedTab == null || !tabs.Contains(SelectedTab))
+                            if (wasSelected || SelectedTab == null || tabs.IndexOf(SelectedTab) < 0)
                             {
                                 if (index > 0 && tabs.Count > 0)
                                 {
@@ -1691,7 +1522,7 @@ namespace FastExplorer.ViewModels.Pages
                                 // 選択タブが変更されなくても、コレクションが変更されたのでUIを強制更新
                                 OnPropertyChanged(nameof(SelectedTab));
                             }
-                            
+
                             // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
                             if (wasOnlyTab && tabs.Count == 0)
                             {
@@ -1707,46 +1538,30 @@ namespace FastExplorer.ViewModels.Pages
                         }
                     }
                 }
-                
+
                 // 【重要】先にタブを削除（新しいウィンドウを作成する前に元のウィンドウから削除）
                 // タブが複数ある場合: タブを削除して次のタブを選択
                 // タブが1つだけの場合: タブを削除してホームタブを作成
                 RemoveTabFromCurrentWindow();
-                
+
                 // UIの更新を強制的に処理（新しいウィンドウを作成する前にUIを更新）
                 System.Windows.Application.Current.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Background);
-                
-                // この後、新しいプロセスを起動して新しいウィンドウを作成
-                var processStartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = exePath,
-                    Arguments = arguments,
-                    UseShellExecute = true,
-                    WorkingDirectory = System.IO.Path.GetDirectoryName(exePath) ?? string.Empty
-                };
 
-                System.Diagnostics.Process? newProcess = null;
+                // この後、新しいプロセスを起動して新しいウィンドウを作成
                 try
                 {
-                    newProcess = System.Diagnostics.Process.Start(processStartInfo);
+                    StartNewProcess(exePath, arguments);
                 }
-                catch (System.Exception ex)
+                catch
                 {
                     // プロセス起動に失敗した場合でも、既にタブは削除されている
-                    newProcess = null;
-                }
-                
-                if (newProcess == null)
-                {
-                    // プロセスの起動に失敗した場合でも、タブは既に削除されている
-                    return;
                 }
             }
-            catch (System.ComponentModel.Win32Exception ex)
+            catch (System.ComponentModel.Win32Exception)
             {
                 // Win32Exceptionの場合は、詳細なエラー情報をログに記録（デバッグ用）
             }
-            catch (System.Exception ex)
+            catch (System.Exception)
             {
                 // その他の例外もログに記録（デバッグ用）
             }
@@ -1766,90 +1581,95 @@ namespace FastExplorer.ViewModels.Pages
 
             try
             {
-                // 現在のアプリケーションのEXEパスを取得
-                string? exePath = null;
-                
-                // .NET 6以降では、Environment.ProcessPathを使用
-                if (Environment.ProcessPath != null && System.IO.File.Exists(Environment.ProcessPath))
-                {
-                    exePath = Environment.ProcessPath;
-                }
-                
-                // 取得できない場合は、EntryAssemblyから取得を試みる
+                var exePath = GetApplicationExecutablePath();
                 if (string.IsNullOrEmpty(exePath))
-                {
-                    var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
-                    if (entryAssembly != null)
-                    {
-                        exePath = entryAssembly.Location;
-                    }
-                }
-                
-                // 取得できない場合は、GetExecutingAssemblyを使用
-                if (string.IsNullOrEmpty(exePath))
-                {
-                    var executingAssembly = System.Reflection.Assembly.GetExecutingAssembly();
-                    exePath = executingAssembly.Location;
-                }
-                
-                // それでも取得できない場合は、Process.GetCurrentProcess().MainModuleを使用
-                if (string.IsNullOrEmpty(exePath))
-                {
-                    try
-                    {
-                        var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
-                        exePath = currentProcess.MainModule?.FileName;
-                    }
-                    catch
-                    {
-                        // MainModuleの取得に失敗した場合は無視
-                    }
-                }
-
-                // EXEパスが取得できなかった場合、またはファイルが存在しない場合は終了
-                if (string.IsNullOrEmpty(exePath) || !System.IO.File.Exists(exePath))
                     return;
 
                 // コマンドライン引数を構築
-                var arguments = string.Empty;
-                if (!string.IsNullOrEmpty(pathToOpen) && System.IO.Directory.Exists(pathToOpen))
-                {
-                    // パスをコマンドライン引数として渡す（既に引用符で囲まれている場合はそのまま使用）
-                    // パスにスペースが含まれている場合は引用符で囲む
-                    if (pathToOpen.Contains(" "))
-                    {
-                        arguments = $"\"{pathToOpen}\"";
-                    }
-                    else
-                    {
-                        arguments = pathToOpen;
-                    }
-                }
+                var arguments = BuildPathArgument(pathToOpen);
 
                 // 新しいプロセスを起動
-                var processStartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = exePath,
-                    Arguments = arguments,
-                    UseShellExecute = true,
-                    WorkingDirectory = System.IO.Path.GetDirectoryName(exePath) ?? string.Empty
-                };
-
-                var newProcess = System.Diagnostics.Process.Start(processStartInfo);
-                if (newProcess == null)
-                {
-                    // プロセスの起動に失敗した場合
-                    return;
-                }
+                StartNewProcess(exePath, arguments);
             }
-            catch (System.ComponentModel.Win32Exception ex)
+            catch (System.ComponentModel.Win32Exception)
             {
                 // Win32Exceptionの場合は、詳細なエラー情報をログに記録（デバッグ用）
             }
-            catch (System.Exception ex)
+            catch (System.Exception)
             {
                 // その他の例外もログに記録（デバッグ用）
             }
+        }
+
+        /// <summary>
+        /// 現在のアプリケーションの実行ファイルパスを取得します
+        /// </summary>
+        private static string? GetApplicationExecutablePath()
+        {
+            // .NET 6以降では、Environment.ProcessPathを使用
+            if (Environment.ProcessPath != null && System.IO.File.Exists(Environment.ProcessPath))
+            {
+                return Environment.ProcessPath;
+            }
+
+            // EntryAssemblyから取得を試みる
+            var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
+            if (entryAssembly != null && !string.IsNullOrEmpty(entryAssembly.Location))
+            {
+                return entryAssembly.Location;
+            }
+
+            // GetExecutingAssemblyを使用
+            var executingAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+            if (!string.IsNullOrEmpty(executingAssembly.Location))
+            {
+                return executingAssembly.Location;
+            }
+
+            // Process.GetCurrentProcess().MainModuleを使用
+            try
+            {
+                var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                var exePath = currentProcess.MainModule?.FileName;
+                if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
+                {
+                    return exePath;
+                }
+            }
+            catch
+            {
+                // MainModuleの取得に失敗した場合は無視
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// パスからコマンドライン引数を構築します
+        /// </summary>
+        private static string BuildPathArgument(string? pathToOpen)
+        {
+            if (string.IsNullOrEmpty(pathToOpen) || !System.IO.Directory.Exists(pathToOpen))
+                return string.Empty;
+
+            // パスにスペースが含まれている場合は引用符で囲む（IndexOfの方がContainsより高速）
+            return pathToOpen.IndexOf(' ') >= 0 ? $"\"{pathToOpen}\"" : pathToOpen;
+        }
+
+        /// <summary>
+        /// 新しいプロセスを起動します
+        /// </summary>
+        private static void StartNewProcess(string exePath, string arguments)
+        {
+            var processStartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exePath,
+                Arguments = arguments,
+                UseShellExecute = true,
+                WorkingDirectory = System.IO.Path.GetDirectoryName(exePath) ?? string.Empty
+            };
+
+            System.Diagnostics.Process.Start(processStartInfo);
         }
 
         /// <summary>
@@ -1865,37 +1685,32 @@ namespace FastExplorer.ViewModels.Pages
             if (IsSplitPaneEnabled)
             {
                 var leftPaneTabs = LeftPaneTabs;
-                var rightPaneTabs = RightPaneTabs;
-                
-                if (leftPaneTabs.Contains(tab))
+                var leftIndex = leftPaneTabs.IndexOf(tab);
+                if (leftIndex > 0)
                 {
-                    var index = leftPaneTabs.IndexOf(tab);
-                    if (index > 0)
+                    // 左側のタブをすべて削除
+                    for (int i = leftIndex - 1; i >= 0; i--)
                     {
-                        // 左側のタブをすべて削除
-                        for (int i = index - 1; i >= 0; i--)
-                        {
-                            leftPaneTabs.RemoveAt(i);
-                        }
-                        // 基準となるタブを選択状態にする（インデックスが0に変わる）
-                        SelectedLeftPaneTab = tab;
-                        ActivePane = 0;
+                        leftPaneTabs.RemoveAt(i);
                     }
+                    // 基準となるタブを選択状態にする（インデックスが0に変わる）
+                    SelectedLeftPaneTab = tab;
+                    ActivePane = ActivePaneLeft;
+                    return;
                 }
-                else if (rightPaneTabs.Contains(tab))
+
+                var rightPaneTabs = RightPaneTabs;
+                var rightIndex = rightPaneTabs.IndexOf(tab);
+                if (rightIndex > 0)
                 {
-                    var index = rightPaneTabs.IndexOf(tab);
-                    if (index > 0)
+                    // 左側のタブをすべて削除
+                    for (int i = rightIndex - 1; i >= 0; i--)
                     {
-                        // 左側のタブをすべて削除
-                        for (int i = index - 1; i >= 0; i--)
-                        {
-                            rightPaneTabs.RemoveAt(i);
-                        }
-                        // 基準となるタブを選択状態にする（インデックスが0に変わる）
-                        SelectedRightPaneTab = tab;
-                        ActivePane = 2;
+                        rightPaneTabs.RemoveAt(i);
                     }
+                    // 基準となるタブを選択状態にする（インデックスが0に変わる）
+                    SelectedRightPaneTab = tab;
+                    ActivePane = ActivePaneRight;
                 }
             }
             else
@@ -1928,38 +1743,39 @@ namespace FastExplorer.ViewModels.Pages
             if (IsSplitPaneEnabled)
             {
                 var leftPaneTabs = LeftPaneTabs;
-                var rightPaneTabs = RightPaneTabs;
-                
-                if (leftPaneTabs.Contains(tab))
+                var leftIndex = leftPaneTabs.IndexOf(tab);
+                if (leftIndex >= 0)
                 {
-                    var index = leftPaneTabs.IndexOf(tab);
                     var count = leftPaneTabs.Count;
-                    if (index < count - 1)
+                    if (leftIndex < count - 1)
                     {
                         // 右側のタブをすべて削除
-                        for (int i = count - 1; i > index; i--)
+                        for (int i = count - 1; i > leftIndex; i--)
                         {
                             leftPaneTabs.RemoveAt(i);
                         }
                         // 基準となるタブを選択状態にする
                         SelectedLeftPaneTab = tab;
-                        ActivePane = 0;
+                        ActivePane = ActivePaneLeft;
                     }
+                    return;
                 }
-                else if (rightPaneTabs.Contains(tab))
+
+                var rightPaneTabs = RightPaneTabs;
+                var rightIndex = rightPaneTabs.IndexOf(tab);
+                if (rightIndex >= 0)
                 {
-                    var index = rightPaneTabs.IndexOf(tab);
                     var count = rightPaneTabs.Count;
-                    if (index < count - 1)
+                    if (rightIndex < count - 1)
                     {
                         // 右側のタブをすべて削除
-                        for (int i = count - 1; i > index; i--)
+                        for (int i = count - 1; i > rightIndex; i--)
                         {
                             rightPaneTabs.RemoveAt(i);
                         }
                         // 基準となるタブを選択状態にする
                         SelectedRightPaneTab = tab;
-                        ActivePane = 2;
+                        ActivePane = ActivePaneRight;
                     }
                 }
             }
@@ -1994,9 +1810,7 @@ namespace FastExplorer.ViewModels.Pages
             if (IsSplitPaneEnabled)
             {
                 var leftPaneTabs = LeftPaneTabs;
-                var rightPaneTabs = RightPaneTabs;
-                
-                if (leftPaneTabs.Contains(tab))
+                if (leftPaneTabs.IndexOf(tab) >= 0)
                 {
                     // 左ペインの他のタブをすべて削除
                     for (int i = leftPaneTabs.Count - 1; i >= 0; i--)
@@ -2007,8 +1821,11 @@ namespace FastExplorer.ViewModels.Pages
                         }
                     }
                     SelectedLeftPaneTab = tab;
+                    return;
                 }
-                else if (rightPaneTabs.Contains(tab))
+
+                var rightPaneTabs = RightPaneTabs;
+                if (rightPaneTabs.IndexOf(tab) >= 0)
                 {
                     // 右ペインの他のタブをすべて削除
                     for (int i = rightPaneTabs.Count - 1; i >= 0; i--)
@@ -2037,4 +1854,3 @@ namespace FastExplorer.ViewModels.Pages
         }
     }
 }
-
