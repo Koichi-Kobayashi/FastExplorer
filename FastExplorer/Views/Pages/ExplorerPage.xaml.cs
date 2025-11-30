@@ -2012,6 +2012,9 @@ namespace FastExplorer.Views.Pages
                     case "DuplicateTabToNewWindowMenuItem":
                         ViewModel.DuplicateTabToNewWindowCommand.Execute(tab);
                         break;
+                    case "MoveTabToNewWindowMenuItem":
+                        ViewModel.MoveTabToNewWindowCommand.Execute(tab);
+                        break;
                     case "CloseTabsToLeftMenuItem":
                         ViewModel.CloseTabsToLeftCommand.Execute(tab);
                         break;

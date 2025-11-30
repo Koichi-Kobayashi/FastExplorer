@@ -84,6 +84,11 @@ namespace FastExplorer
             get { return _host.Services; }
         }
 
+        // コマンドライン引数で指定されたパスを保存
+        private static string? _startupPath = null;
+        // 単一タブモードで起動するかどうか（タブを移動する場合）
+        private static bool _isSingleTabMode = false;
+
         /// <summary>
         /// アプリケーションが読み込まれるときに呼び出されます
         /// </summary>
@@ -91,6 +96,39 @@ namespace FastExplorer
         /// <param name="e">スタートアップイベント引数</param>
         private async void OnStartup(object sender, StartupEventArgs e)
         {
+            // コマンドライン引数を処理
+            if (e.Args != null && e.Args.Length > 0)
+            {
+                var firstArg = e.Args[0];
+                if (!string.IsNullOrEmpty(firstArg))
+                {
+                    // "--single-tab"フラグをチェック
+                    if (firstArg == "--single-tab" && e.Args.Length > 1)
+                    {
+                        _isSingleTabMode = true;
+                        var pathArg = e.Args[1];
+                        // 引用符を削除（コマンドライン引数が引用符で囲まれている場合）
+                        if (!string.IsNullOrEmpty(pathArg))
+                        {
+                            pathArg = pathArg.Trim('"');
+                            if (!string.IsNullOrEmpty(pathArg))
+                            {
+                                _startupPath = pathArg;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // 引用符を削除
+                        firstArg = firstArg.Trim('"');
+                        if (!string.IsNullOrEmpty(firstArg))
+                        {
+                            _startupPath = firstArg;
+                        }
+                    }
+                }
+            }
+
             // テーマを先に適用（起動時の高速化のため、同期的に実行）
             _darkThemeResources = new ResourceDictionary
             {
@@ -101,6 +139,24 @@ namespace FastExplorer
 
             // ウィンドウを表示
             await _host.StartAsync();
+        }
+
+        /// <summary>
+        /// 起動時に指定されたパスを取得します
+        /// </summary>
+        /// <returns>起動時に指定されたパス、指定されていない場合はnull</returns>
+        public static string? GetStartupPath()
+        {
+            return _startupPath;
+        }
+
+        /// <summary>
+        /// 単一タブモードで起動するかどうかを取得します
+        /// </summary>
+        /// <returns>単一タブモードの場合はtrue、それ以外の場合はfalse</returns>
+        public static bool IsSingleTabMode()
+        {
+            return _isSingleTabMode;
         }
 
         /// <summary>

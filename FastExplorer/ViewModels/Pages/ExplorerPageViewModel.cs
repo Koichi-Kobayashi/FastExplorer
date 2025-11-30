@@ -281,8 +281,20 @@ namespace FastExplorer.ViewModels.Pages
         /// <returns>完了を表すタスク</returns>
         public Task OnNavigatedToAsync()
         {
-            // 分割ペインの設定を読み込む
-            LoadSplitPaneSettings();
+            // コマンドライン引数で指定されたパスを取得
+            var startupPath = App.GetStartupPath();
+            var isSingleTabMode = App.IsSingleTabMode();
+            
+            // 単一タブモードの場合は、分割ペインを無効にする
+            if (isSingleTabMode)
+            {
+                IsSplitPaneEnabled = false;
+            }
+            else
+            {
+                // 分割ペインの設定を読み込む
+                LoadSplitPaneSettings();
+            }
 
             if (IsSplitPaneEnabled)
             {
@@ -327,20 +339,70 @@ namespace FastExplorer.ViewModels.Pages
                 {
                     ActivePane = ActivePaneRight; // 左ペインが存在しない場合のみ右ペインをデフォルト
                 }
+                
+                // コマンドライン引数で指定されたパスがある場合は、左ペインのタブに移動
+                if (!string.IsNullOrEmpty(startupPath) && System.IO.Directory.Exists(startupPath) && SelectedLeftPaneTab != null)
+                {
+                    SelectedLeftPaneTab.ViewModel.NavigateToPathCommand.Execute(startupPath);
+                }
             }
             else
             {
-            // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-            var tabsCount = Tabs.Count;
-            if (tabsCount == 0)
-            {
-                // 保存されたタブ情報を復元
-                RestoreTabs();
-                
-                // タブが復元されなかった場合は新しいタブを作成
-                if (Tabs.Count == 0)
+                // 単一タブモードの場合は、既存のタブを削除して新しいタブを作成
+                if (isSingleTabMode)
                 {
-                    CreateNewTab();
+                    // 既存のタブをすべて削除
+                    Tabs.Clear();
+                    SelectedTab = null;
+                    
+                    // コマンドライン引数で指定されたパスがある場合は、そのパスでタブを作成
+                    if (!string.IsNullOrEmpty(startupPath))
+                    {
+                        // パスが存在する場合は、そのパスでタブを作成
+                        if (System.IO.Directory.Exists(startupPath))
+                        {
+                            var tab = CreateTabInternal(startupPath);
+                            Tabs.Add(tab);
+                            SelectedTab = tab;
+                            UpdateTabTitle(tab);
+                        }
+                        else
+                        {
+                            // パスが存在しない場合は、新しいタブを作成してホームに移動
+                            CreateNewTab();
+                            if (SelectedTab != null)
+                            {
+                                SelectedTab.ViewModel.NavigateToHome();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // パスが指定されていない場合は、新しいタブを作成（ホームに移動）
+                        CreateNewTab();
+                    }
+                }
+                else
+                {
+                    // 通常モードの場合
+                    // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                    var tabsCount = Tabs.Count;
+                    if (tabsCount == 0)
+                    {
+                        // 保存されたタブ情報を復元
+                        RestoreTabs();
+                        
+                        // タブが復元されなかった場合は新しいタブを作成
+                        if (Tabs.Count == 0)
+                        {
+                            CreateNewTab();
+                        }
+                    }
+                    
+                    // コマンドライン引数で指定されたパスがある場合は、選択されているタブに移動
+                    if (!string.IsNullOrEmpty(startupPath) && System.IO.Directory.Exists(startupPath) && SelectedTab != null)
+                    {
+                        SelectedTab.ViewModel.NavigateToPathCommand.Execute(startupPath);
                     }
                 }
             }
@@ -1200,6 +1262,174 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
+        /// 新しいウィンドウにタブを移動します
+        /// </summary>
+        /// <param name="tab">移動するタブ</param>
+        [RelayCommand]
+        private void MoveTabToNewWindow(ExplorerTab? tab)
+        {
+            if (tab == null)
+                return;
+
+            var pathToOpen = tab.ViewModel?.CurrentPath ?? string.Empty;
+
+            try
+            {
+                // 現在のアプリケーションのEXEパスを取得
+                string? exePath = null;
+                
+                // .NET 6以降では、Environment.ProcessPathを使用
+                if (Environment.ProcessPath != null && System.IO.File.Exists(Environment.ProcessPath))
+                {
+                    exePath = Environment.ProcessPath;
+                }
+                
+                // 取得できない場合は、EntryAssemblyから取得を試みる
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
+                    if (entryAssembly != null)
+                    {
+                        exePath = entryAssembly.Location;
+                    }
+                }
+                
+                // 取得できない場合は、GetExecutingAssemblyを使用
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    var executingAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    exePath = executingAssembly.Location;
+                }
+                
+                // それでも取得できない場合は、Process.GetCurrentProcess().MainModuleを使用
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    try
+                    {
+                        var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                        exePath = currentProcess.MainModule?.FileName;
+                    }
+                    catch
+                    {
+                        // MainModuleの取得に失敗した場合は無視
+                    }
+                }
+
+                // EXEパスが取得できなかった場合、またはファイルが存在しない場合は終了
+                if (string.IsNullOrEmpty(exePath) || !System.IO.File.Exists(exePath))
+                    return;
+
+                // コマンドライン引数を構築（--single-tabフラグを追加）
+                var arguments = "--single-tab";
+                // パスが空の場合は、ホームディレクトリを使用
+                if (string.IsNullOrEmpty(pathToOpen))
+                {
+                    pathToOpen = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                }
+                
+                // パスをコマンドライン引数として渡す（存在しない場合でも渡す）
+                if (!string.IsNullOrEmpty(pathToOpen))
+                {
+                    // パスをコマンドライン引数として渡す（スペースがある場合は引用符で囲む）
+                    if (pathToOpen.Contains(" "))
+                    {
+                        arguments += $" \"{pathToOpen}\"";
+                    }
+                    else
+                    {
+                        arguments += $" {pathToOpen}";
+                    }
+                }
+
+                // 新しいプロセスを起動
+                var processStartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exePath,
+                    Arguments = arguments,
+                    UseShellExecute = true,
+                    WorkingDirectory = System.IO.Path.GetDirectoryName(exePath) ?? string.Empty
+                };
+
+                var newProcess = System.Diagnostics.Process.Start(processStartInfo);
+                if (newProcess == null)
+                {
+                    // プロセスの起動に失敗した場合
+                    return;
+                }
+
+                // 元のウィンドウからタブを削除
+                if (IsSplitPaneEnabled)
+                {
+                    var leftPaneTabs = LeftPaneTabs;
+                    var rightPaneTabs = RightPaneTabs;
+                    
+                    if (leftPaneTabs.Contains(tab))
+                    {
+                        var index = leftPaneTabs.IndexOf(tab);
+                        leftPaneTabs.RemoveAt(index);
+                        
+                        // 選択タブを更新
+                        if (SelectedLeftPaneTab == tab)
+                        {
+                            if (index > 0 && leftPaneTabs.Count > 0)
+                                SelectedLeftPaneTab = leftPaneTabs[index - 1];
+                            else if (leftPaneTabs.Count > 0)
+                                SelectedLeftPaneTab = leftPaneTabs[0];
+                            else
+                                SelectedLeftPaneTab = null;
+                        }
+                    }
+                    else if (rightPaneTabs.Contains(tab))
+                    {
+                        var index = rightPaneTabs.IndexOf(tab);
+                        rightPaneTabs.RemoveAt(index);
+                        
+                        // 選択タブを更新
+                        if (SelectedRightPaneTab == tab)
+                        {
+                            if (index > 0 && rightPaneTabs.Count > 0)
+                                SelectedRightPaneTab = rightPaneTabs[index - 1];
+                            else if (rightPaneTabs.Count > 0)
+                                SelectedRightPaneTab = rightPaneTabs[0];
+                            else
+                                SelectedRightPaneTab = null;
+                        }
+                    }
+                }
+                else
+                {
+                    var tabs = Tabs;
+                    var index = tabs.IndexOf(tab);
+                    if (index >= 0)
+                    {
+                        tabs.RemoveAt(index);
+                        
+                        // 選択タブを更新
+                        if (SelectedTab == tab)
+                        {
+                            if (index > 0 && tabs.Count > 0)
+                                SelectedTab = tabs[index - 1];
+                            else if (tabs.Count > 0)
+                                SelectedTab = tabs[0];
+                            else
+                                SelectedTab = null;
+                        }
+                    }
+                }
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                // Win32Exceptionの場合は、詳細なエラー情報をログに記録（デバッグ用）
+                System.Diagnostics.Debug.WriteLine($"新しいプロセスの起動に失敗しました: {ex.Message}");
+            }
+            catch (System.Exception ex)
+            {
+                // その他の例外もログに記録（デバッグ用）
+                System.Diagnostics.Debug.WriteLine($"新しいプロセスの起動中にエラーが発生しました: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 新しいウィンドウにタブを複製します
         /// </summary>
         /// <param name="tab">複製するタブ</param>
@@ -1211,98 +1441,94 @@ namespace FastExplorer.ViewModels.Pages
 
             var pathToOpen = tab.ViewModel?.CurrentPath ?? string.Empty;
 
-            // 新しいウィンドウを作成
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(
-                System.Windows.Threading.DispatcherPriority.Normal,
-                new System.Action(() =>
+            try
+            {
+                // 現在のアプリケーションのEXEパスを取得
+                string? exePath = null;
+                
+                // .NET 6以降では、Environment.ProcessPathを使用
+                if (Environment.ProcessPath != null && System.IO.File.Exists(Environment.ProcessPath))
+                {
+                    exePath = Environment.ProcessPath;
+                }
+                
+                // 取得できない場合は、EntryAssemblyから取得を試みる
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
+                    if (entryAssembly != null)
+                    {
+                        exePath = entryAssembly.Location;
+                    }
+                }
+                
+                // 取得できない場合は、GetExecutingAssemblyを使用
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    var executingAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    exePath = executingAssembly.Location;
+                }
+                
+                // それでも取得できない場合は、Process.GetCurrentProcess().MainModuleを使用
+                if (string.IsNullOrEmpty(exePath))
                 {
                     try
                     {
-                        // サービスを取得
-                        var favoriteService = App.Services.GetService(typeof(FavoriteService)) as FavoriteService;
-                        var navigationViewPageProvider = App.Services.GetService(typeof(Wpf.Ui.Abstractions.INavigationViewPageProvider)) as Wpf.Ui.Abstractions.INavigationViewPageProvider;
-                        var windowSettingsService = App.Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
-
-                        if (favoriteService == null || navigationViewPageProvider == null || windowSettingsService == null)
-                            return;
-
-                        // MainWindowViewModelの新しいインスタンスを作成
-                        var newMainWindowViewModel = new ViewModels.Windows.MainWindowViewModel(favoriteService);
-                        
-                        // NavigationServiceの新しいインスタンスを作成
-                        var newNavigationService = new Wpf.Ui.NavigationService(navigationViewPageProvider);
-
-                        // 新しいMainWindowを作成
-                        var newWindow = new Views.Windows.MainWindow(
-                            newMainWindowViewModel,
-                            navigationViewPageProvider,
-                            newNavigationService,
-                            windowSettingsService
-                        );
-
-                        // 新しいウィンドウを表示
-                        newWindow.Show();
-
-                        // 新しいウィンドウのExplorerPageViewModelを取得してタブを作成
-                        // 新しいウィンドウが読み込まれた後にExplorerPageViewModelを取得
-                        newWindow.Loaded += (s, e) =>
-                        {
-                            // 新しいウィンドウのExplorerPageViewModelを取得
-                            // MainWindowのLoadedイベントでExplorerPageViewModelが初期化されるため、
-                            // 少し遅延してから取得
-                            System.Windows.Threading.DispatcherTimer? timer = null;
-                            timer = new System.Windows.Threading.DispatcherTimer
-                            {
-                                Interval = TimeSpan.FromMilliseconds(300)
-                            };
-                            timer.Tick += (s2, e2) =>
-                            {
-                                timer.Stop();
-                                
-                                // 新しいウィンドウのExplorerPageViewModelを取得
-                                // 新しいウィンドウには新しいExplorerPageViewModelインスタンスが必要
-                                // サービスを取得して新しいインスタンスを作成
-                                var fileSystemService = App.Services.GetService(typeof(FileSystemService)) as FileSystemService;
-                                var favoriteService2 = App.Services.GetService(typeof(FavoriteService)) as FavoriteService;
-                                var windowSettingsService2 = App.Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
-                                
-                                if (fileSystemService == null || favoriteService2 == null || windowSettingsService2 == null)
-                                    return;
-                                
-                                // 新しいExplorerPageViewModelインスタンスを作成
-                                var newExplorerPageViewModel = new ExplorerPageViewModel(fileSystemService, favoriteService2, windowSettingsService2);
-                                
-                                // 新しいタブを作成して指定されたパスに移動
-                                if (!string.IsNullOrEmpty(pathToOpen) && System.IO.Directory.Exists(pathToOpen))
-                                {
-                                    if (newExplorerPageViewModel.IsSplitPaneEnabled)
-                                    {
-                                        newExplorerPageViewModel.CreateNewLeftPaneTabCommand.Execute(null);
-                                        var newTab = newExplorerPageViewModel.SelectedLeftPaneTab;
-                                        if (newTab != null)
-                                        {
-                                            newTab.ViewModel.NavigateToPathCommand.Execute(pathToOpen);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        newExplorerPageViewModel.CreateNewTabCommand.Execute(null);
-                                        var newTab = newExplorerPageViewModel.SelectedTab;
-                                        if (newTab != null)
-                                        {
-                                            newTab.ViewModel.NavigateToPathCommand.Execute(pathToOpen);
-                                        }
-                                    }
-                                }
-                            };
-                            timer.Start();
-                        };
+                        var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                        exePath = currentProcess.MainModule?.FileName;
                     }
                     catch
                     {
-                        // エラーハンドリング：新しいウィンドウの作成に失敗した場合は無視
+                        // MainModuleの取得に失敗した場合は無視
                     }
-                }));
+                }
+
+                // EXEパスが取得できなかった場合、またはファイルが存在しない場合は終了
+                if (string.IsNullOrEmpty(exePath) || !System.IO.File.Exists(exePath))
+                    return;
+
+                // コマンドライン引数を構築
+                var arguments = string.Empty;
+                if (!string.IsNullOrEmpty(pathToOpen) && System.IO.Directory.Exists(pathToOpen))
+                {
+                    // パスをコマンドライン引数として渡す（既に引用符で囲まれている場合はそのまま使用）
+                    // パスにスペースが含まれている場合は引用符で囲む
+                    if (pathToOpen.Contains(" "))
+                    {
+                        arguments = $"\"{pathToOpen}\"";
+                    }
+                    else
+                    {
+                        arguments = pathToOpen;
+                    }
+                }
+
+                // 新しいプロセスを起動
+                var processStartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exePath,
+                    Arguments = arguments,
+                    UseShellExecute = true,
+                    WorkingDirectory = System.IO.Path.GetDirectoryName(exePath) ?? string.Empty
+                };
+
+                var newProcess = System.Diagnostics.Process.Start(processStartInfo);
+                if (newProcess == null)
+                {
+                    // プロセスの起動に失敗した場合
+                    return;
+                }
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                // Win32Exceptionの場合は、詳細なエラー情報をログに記録（デバッグ用）
+                System.Diagnostics.Debug.WriteLine($"新しいプロセスの起動に失敗しました: {ex.Message}");
+            }
+            catch (System.Exception ex)
+            {
+                // その他の例外もログに記録（デバッグ用）
+                System.Diagnostics.Debug.WriteLine($"新しいプロセスの起動中にエラーが発生しました: {ex.Message}");
+            }
         }
 
         /// <summary>

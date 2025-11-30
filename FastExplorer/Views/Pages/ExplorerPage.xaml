@@ -652,6 +652,7 @@
         <ContextMenu x:Key="TabContextMenu" x:Shared="False" Opened="TabContextMenu_Opened">
             <MenuItem x:Name="DuplicateTabMenuItem" Header="タブを複製" Click="TabContextMenuItem_Click" />
             <MenuItem x:Name="DuplicateTabToNewWindowMenuItem" Header="新しいウィンドウにタブを複製" Click="TabContextMenuItem_Click" />
+            <MenuItem x:Name="MoveTabToNewWindowMenuItem" Header="新しいウィンドウにタブを移動" Click="TabContextMenuItem_Click" />
             <Separator />
             <MenuItem x:Name="CloseTabsToLeftMenuItem" Header="これより左のタブを閉じる" Click="TabContextMenuItem_Click" />
             <MenuItem x:Name="CloseTabsToRightMenuItem" Header="これより右のタブを閉じる" Click="TabContextMenuItem_Click" />
