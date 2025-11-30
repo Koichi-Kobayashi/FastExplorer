@@ -105,6 +105,15 @@ namespace FastExplorer.Views.Windows
                 }
                 ContentRendered += ContentRenderedHandler;
                 
+                // コマンドライン引数で指定されたウィンドウ位置を設定
+                var windowPosition = App.GetWindowPosition();
+                if (windowPosition.HasValue)
+                {
+                    Left = windowPosition.Value.X;
+                    Top = windowPosition.Value.Y;
+                    WindowStartupLocation = WindowStartupLocation.Manual;
+                }
+                
                 // テーマカラー適用後にウィンドウを表示（チラつきを防ぐ）
                 // UpdateLayout()を削除して起動を高速化（レイアウトは自動的に更新される）
                 if (Visibility == Visibility.Hidden)
@@ -123,6 +132,20 @@ namespace FastExplorer.Views.Windows
                 }));
             }
             Loaded += InitializeHandler;
+            
+            // ウィンドウ外へのタブドロップを処理するために、ウィンドウのDropイベントを処理
+            this.Drop += MainWindow_Drop;
+        }
+        
+        /// <summary>
+        /// ウィンドウにドロップされたときに呼び出されます（タブがウィンドウ外にドロップされた場合の処理）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ドラッグイベント引数</param>
+        private void MainWindow_Drop(object sender, DragEventArgs e)
+        {
+            // タブのドロップ処理はExplorerPageで処理されるため、ここでは何もしない
+            // ウィンドウ外へのドロップは、ExplorerPageのTabItem_PreviewMouseMoveで処理される
         }
 
 

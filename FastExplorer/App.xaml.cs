@@ -88,6 +88,8 @@ namespace FastExplorer
         private static string? _startupPath = null;
         // 単一タブモードで起動するかどうか（タブを移動する場合）
         private static bool _isSingleTabMode = false;
+        // ウィンドウの位置（ドロップ位置）
+        private static System.Windows.Point? _windowPosition = null;
 
         /// <summary>
         /// アプリケーションが読み込まれるときに呼び出されます
@@ -103,17 +105,42 @@ namespace FastExplorer
                 if (!string.IsNullOrEmpty(firstArg))
                 {
                     // "--single-tab"フラグをチェック
-                    if (firstArg == "--single-tab" && e.Args.Length > 1)
+                    if (firstArg == "--single-tab")
                     {
                         _isSingleTabMode = true;
-                        var pathArg = e.Args[1];
-                        // 引用符を削除（コマンドライン引数が引用符で囲まれている場合）
-                        if (!string.IsNullOrEmpty(pathArg))
+                        
+                        // 引数を順番に処理
+                        for (int i = 1; i < e.Args.Length; i++)
                         {
-                            pathArg = pathArg.Trim('"');
-                            if (!string.IsNullOrEmpty(pathArg))
+                            var arg = e.Args[i];
+                            if (string.IsNullOrEmpty(arg))
+                                continue;
+                            
+                            // "--position"フラグをチェック
+                            if (arg == "--position" && i + 1 < e.Args.Length)
                             {
-                                _startupPath = pathArg;
+                                var positionArg = e.Args[i + 1];
+                                if (!string.IsNullOrEmpty(positionArg))
+                                {
+                                    // 位置を解析（例: "100,200"）
+                                    var parts = positionArg.Split(',');
+                                    if (parts.Length == 2 &&
+                                        double.TryParse(parts[0], out double x) &&
+                                        double.TryParse(parts[1], out double y))
+                                    {
+                                        _windowPosition = new System.Windows.Point(x, y);
+                                    }
+                                }
+                                i++; // 次の引数も処理済み
+                            }
+                            else if (string.IsNullOrEmpty(_startupPath))
+                            {
+                                // パス引数（最初の非フラグ引数）
+                                arg = arg.Trim('"');
+                                if (!string.IsNullOrEmpty(arg))
+                                {
+                                    _startupPath = arg;
+                                }
                             }
                         }
                     }
@@ -157,6 +184,15 @@ namespace FastExplorer
         public static bool IsSingleTabMode()
         {
             return _isSingleTabMode;
+        }
+
+        /// <summary>
+        /// ウィンドウの位置を取得します
+        /// </summary>
+        /// <returns>ウィンドウの位置（指定されていない場合はnull）</returns>
+        public static System.Windows.Point? GetWindowPosition()
+        {
+            return _windowPosition;
         }
 
         /// <summary>

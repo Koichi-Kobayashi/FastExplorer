@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Runtime.InteropServices;
 using FastExplorer.ViewModels.Pages;
 using FastExplorer.Services;
 using FastExplorer.Models;
@@ -44,6 +46,17 @@ namespace FastExplorer.Views.Pages
         private System.Windows.Controls.TabControl? _cachedLeftTabControl;
         private System.Windows.Controls.TabControl? _cachedRightTabControl;
         private System.Windows.Controls.TabControl? _cachedSingleTabControl;
+        
+        // 選択タブのViewModelのPropertyChangedイベントハンドラーを追跡
+        private System.ComponentModel.PropertyChangedEventHandler? _selectedTabViewModelPropertyChangedHandler;
+        // 以前の選択タブを追跡
+        private Models.ExplorerTab? _previousSelectedTab = null;
+        // 分割ペイン用：左右のペインのタブのViewModelのPropertyChangedイベントハンドラーを追跡
+        private System.ComponentModel.PropertyChangedEventHandler? _selectedLeftPaneTabViewModelPropertyChangedHandler;
+        private System.ComponentModel.PropertyChangedEventHandler? _selectedRightPaneTabViewModelPropertyChangedHandler;
+        // 以前の選択タブを追跡
+        private Models.ExplorerTab? _previousSelectedLeftPaneTab = null;
+        private Models.ExplorerTab? _previousSelectedRightPaneTab = null;
 
         /// <summary>
         /// <see cref="ExplorerPage"/>クラスの新しいインスタンスを初期化します
@@ -58,7 +71,180 @@ namespace FastExplorer.Views.Pages
 
             // ActivePaneの変更を監視して、ListViewの背景色を更新
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+            
+            // 選択タブの変更を監視して、タブのViewModelのIsHomePageプロパティの変更を監視
+            ViewModel.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(ExplorerPageViewModel.SelectedLeftPaneTab) ||
+                    e.PropertyName == nameof(ExplorerPageViewModel.SelectedRightPaneTab) ||
+                    e.PropertyName == nameof(ExplorerPageViewModel.SelectedTab))
+                {
+                    SubscribeToSelectedTabViewModel();
+                }
+            };
+            
             Loaded += ExplorerPage_Loaded;
+            
+            // 初期の選択タブのViewModelのPropertyChangedイベントを購読
+            SubscribeToSelectedTabViewModel();
+        }
+        
+        /// <summary>
+        /// 現在の選択タブのViewModelのPropertyChangedイベントを購読します
+        /// </summary>
+        private void SubscribeToSelectedTabViewModel()
+        {
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                // 分割ペインの場合、左右両方のペインのタブのViewModelのPropertyChangedイベントを購読
+                
+                // 左ペインのタブのViewModelのPropertyChangedイベントを購読
+                if (_previousSelectedLeftPaneTab?.ViewModel != null && _selectedLeftPaneTabViewModelPropertyChangedHandler != null)
+                {
+                    _previousSelectedLeftPaneTab.ViewModel.PropertyChanged -= _selectedLeftPaneTabViewModelPropertyChangedHandler;
+                }
+                
+                var newLeftTab = ViewModel.SelectedLeftPaneTab;
+                _previousSelectedLeftPaneTab = newLeftTab;
+                
+                if (newLeftTab?.ViewModel != null)
+                {
+                    _selectedLeftPaneTabViewModelPropertyChangedHandler = (s2, e2) =>
+                    {
+                        HandleTabViewModelPropertyChanged(newLeftTab, e2);
+                    };
+                    newLeftTab.ViewModel.PropertyChanged += _selectedLeftPaneTabViewModelPropertyChangedHandler;
+                }
+                
+                // 右ペインのタブのViewModelのPropertyChangedイベントを購読
+                if (_previousSelectedRightPaneTab?.ViewModel != null && _selectedRightPaneTabViewModelPropertyChangedHandler != null)
+                {
+                    _previousSelectedRightPaneTab.ViewModel.PropertyChanged -= _selectedRightPaneTabViewModelPropertyChangedHandler;
+                }
+                
+                var newRightTab = ViewModel.SelectedRightPaneTab;
+                _previousSelectedRightPaneTab = newRightTab;
+                
+                if (newRightTab?.ViewModel != null)
+                {
+                    _selectedRightPaneTabViewModelPropertyChangedHandler = (s2, e2) =>
+                    {
+                        HandleTabViewModelPropertyChanged(newRightTab, e2);
+                    };
+                    newRightTab.ViewModel.PropertyChanged += _selectedRightPaneTabViewModelPropertyChangedHandler;
+                }
+            }
+            else
+            {
+                // 単一ペインの場合、選択タブのViewModelのPropertyChangedイベントを購読
+                if (_previousSelectedTab?.ViewModel != null && _selectedTabViewModelPropertyChangedHandler != null)
+                {
+                    _previousSelectedTab.ViewModel.PropertyChanged -= _selectedTabViewModelPropertyChangedHandler;
+                }
+                
+                var newTab = ViewModel.SelectedTab;
+                _previousSelectedTab = newTab;
+                
+                if (newTab?.ViewModel != null)
+                {
+                    _selectedTabViewModelPropertyChangedHandler = (s2, e2) =>
+                    {
+                        HandleTabViewModelPropertyChanged(newTab, e2);
+                    };
+                    newTab.ViewModel.PropertyChanged += _selectedTabViewModelPropertyChangedHandler;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// タブのViewModelのPropertyChangedイベントを処理します
+        /// </summary>
+        private void HandleTabViewModelPropertyChanged(Models.ExplorerTab newTab, System.ComponentModel.PropertyChangedEventArgs e2)
+        {
+            if (newTab?.ViewModel == null)
+                return;
+                
+            if (e2.PropertyName == "IsHomePage" || e2.PropertyName == "CurrentPath")
+            {
+                    // IsHomePageプロパティが変更された場合、背景色を更新
+                    if (e2.PropertyName == "IsHomePage")
+                    {
+                        // IsHomePageがfalseになった場合（ホームタブから通常のディレクトリビューに切り替わった場合）
+                        // そのタブが属するペインをアクティブにする
+                        if (ViewModel.IsSplitPaneEnabled && newTab != null && newTab.ViewModel != null)
+                        {
+                            // IsHomePageがfalseになった場合のみアクティブにする
+                            if (!newTab.ViewModel.IsHomePage)
+                            {
+                                // タブがどのペインに属しているかを判定
+                                int? targetPane = null;
+                                if (ViewModel.SelectedLeftPaneTab == newTab)
+                                {
+                                    // 左ペインのタブがホームから通常のディレクトリビューに切り替わった場合
+                                    targetPane = 0;
+                                }
+                                else if (ViewModel.SelectedRightPaneTab == newTab)
+                                {
+                                    // 右ペインのタブがホームから通常のディレクトリビューに切り替わった場合
+                                    targetPane = 2;
+                                }
+                                
+                                if (targetPane.HasValue)
+                                {
+                                    // アクティブペインを設定
+                                    ViewModel.ActivePane = targetPane.Value;
+                                }
+                            }
+                        }
+                        
+                        // ListViewのキャッシュをクリアして、背景色を更新
+                        _cachedLeftListView = null;
+                        _cachedRightListView = null;
+                        _cachedSinglePaneListView = null;
+                        
+                        // UI構築完了後に背景色を更新（IsHomePageが変更された後、ListViewが表示されるまで少し時間がかかる可能性があるため）
+                        UpdateListViewBackgroundColorsDelayed();
+                    }
+                    // CurrentPathプロパティが変更された場合（ホームタブでドライブをクリックした場合など）
+                    else if (e2.PropertyName == "CurrentPath")
+                    {
+                        // ホームタブの状態でドライブをクリックした場合、そのタブが属するペインをアクティブにする
+                        if (ViewModel.IsSplitPaneEnabled && newTab != null && newTab.ViewModel != null)
+                        {
+                            // CurrentPathが設定されている場合
+                            if (!string.IsNullOrEmpty(newTab.ViewModel.CurrentPath))
+                            {
+                                // タブがどのペインに属しているかを判定
+                                int? targetPane = null;
+                                if (ViewModel.SelectedLeftPaneTab == newTab)
+                                {
+                                    targetPane = 0;
+                                }
+                                else if (ViewModel.SelectedRightPaneTab == newTab)
+                                {
+                                    targetPane = 2;
+                                }
+                                
+                                if (targetPane.HasValue)
+                                {
+                                    // アクティブペインを設定
+                                    ViewModel.ActivePane = targetPane.Value;
+                                    
+                                    // IsHomePageがfalseの場合（既にListViewが表示されている場合）、すぐに背景色を更新
+                                    if (!newTab.ViewModel.IsHomePage)
+                                    {
+                                        _cachedLeftListView = null;
+                                        _cachedRightListView = null;
+                                        _cachedSinglePaneListView = null;
+                                        UpdateListViewBackgroundColorsDelayed();
+                                    }
+                                    // IsHomePageがtrueの場合（ホームタブの状態）、IsHomePageがfalseになるまで待つ
+                                    // IsHomePageがfalseになったときに背景色が更新される（IsHomePage変更時の処理で対応）
+                                }
+                            }
+                        }
+                    }
+            }
         }
 
         /// <summary>
@@ -66,11 +252,11 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         private void ExplorerPage_Loaded(object sender, RoutedEventArgs e)
         {
-            // 初期状態の背景色を更新（UI構築完了後に実行、1回のみで十分）
-            Dispatcher.BeginInvoke(new System.Action(() =>
-            {
-                UpdateListViewBackgroundColors();
-            }), System.Windows.Threading.DispatcherPriority.Loaded);
+            // 初期状態の背景色を更新（UI構築完了後に実行）
+            UpdateListViewBackgroundColorsDelayed();
+            
+            // 初期の選択タブのViewModelのPropertyChangedイベントを購読（Loaded後に実行）
+            SubscribeToSelectedTabViewModel();
         }
 
         /// <summary>
@@ -82,8 +268,24 @@ namespace FastExplorer.Views.Pages
             var propertyName = e.PropertyName;
             if (propertyName == nameof(ExplorerPageViewModel.ActivePane))
             {
-                // ActivePaneが変更された場合のみ更新
-                UpdateListViewBackgroundColors();
+                // ActivePaneが変更された場合、ListViewのキャッシュをクリアして、背景色を更新
+                // キャッシュをクリアすることで、確実に最新のListViewを取得できるようにする
+                _cachedLeftListView = null;
+                _cachedRightListView = null;
+                _cachedSinglePaneListView = null;
+                
+                // UIスレッドで背景色を更新
+                // Dispatcher.BeginInvokeを使用して、UI更新後に確実に実行されるようにする
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    UpdateListViewBackgroundColors();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+                
+                // さらに、Render優先度でも実行（ListViewが表示された後に確実に更新されるようにする）
+                Dispatcher.BeginInvoke(new System.Action(() =>
+                {
+                    UpdateListViewBackgroundColors();
+                }), System.Windows.Threading.DispatcherPriority.Render);
             }
             else if (propertyName == nameof(ExplorerPageViewModel.IsSplitPaneEnabled))
             {
@@ -106,6 +308,27 @@ namespace FastExplorer.Views.Pages
 
 
         /// <summary>
+        /// ListViewの背景色を遅延更新します（複数の優先度で実行して確実に更新）
+        /// </summary>
+        private void UpdateListViewBackgroundColorsDelayed()
+        {
+            // Loaded優先度で実行
+            Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                _cachedLeftListView = null;
+                _cachedRightListView = null;
+                _cachedSinglePaneListView = null;
+                UpdateListViewBackgroundColors();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+            
+            // Render優先度でも実行（ListViewが表示された後に確実に更新されるようにする）
+            Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                UpdateListViewBackgroundColors();
+            }), System.Windows.Threading.DispatcherPriority.Render);
+        }
+
+        /// <summary>
         /// 左右のペインのListViewの背景色を更新します
         /// </summary>
         private void UpdateListViewBackgroundColors()
@@ -118,6 +341,13 @@ namespace FastExplorer.Views.Pages
             {
                 _cachedWindowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
             }
+            
+            // 背景色のキャッシュをクリアして、最新のテーマ設定を反映する
+            // これにより、テーマが変更された場合や、初期表示時に正しい色が適用される
+            _cachedFocusedBackground = null;
+            _cachedUnfocusedBackground = null;
+            _cachedControlFillColorDefaultBrush = null;
+            _cachedUnfocusedPaneBackgroundBrush = null;
 
             // フォーカスがないペインの背景色を取得（最適化：キャッシュを活用）
             try
@@ -237,6 +467,7 @@ namespace FastExplorer.Views.Pages
             {
                 // 分割ペインモードの場合
                 // ListViewの参照を取得またはキャッシュから取得（最適化：一度だけ検索）
+                // キャッシュがnullの場合は再検索（IsHomePageが変更された後など）
                 if (_cachedLeftListView == null)
                 {
                     _cachedLeftListView = FindListViewInPane(0);
@@ -256,33 +487,220 @@ namespace FastExplorer.Views.Pages
                 }
 
                 // 背景色を事前に決定（条件分岐を削減、nullチェックも含める）
+                // アクティブなペインには薄い色（_cachedFocusedBackground）、非アクティブなペインには濃い色（_cachedUnfocusedBackground）を設定
                 var leftBackground = activePane == 0 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
                 var rightBackground = activePane == 2 ? _cachedFocusedBackground : _cachedUnfocusedBackground;
 
-                // 左ペインの背景色を更新（nullチェックと値の変更チェックで不要な更新を回避）
-                if (_cachedLeftListView != null && leftBackground != null && _cachedLeftListView.Background != leftBackground)
+                // 左ペインの背景色を更新
+                if (_cachedLeftListView == null)
+                {
+                    _cachedLeftListView = FindListViewInPane(0);
+                }
+                if (_cachedLeftListView != null && leftBackground != null)
                 {
                     _cachedLeftListView.Background = leftBackground;
                 }
 
-                // 右ペインの背景色を更新（nullチェックと値の変更チェックで不要な更新を回避）
-                if (_cachedRightListView != null && rightBackground != null && _cachedRightListView.Background != rightBackground)
+                // 右ペインの背景色を更新
+                if (_cachedRightListView == null)
+                {
+                    _cachedRightListView = FindListViewInPane(2);
+                }
+                if (_cachedRightListView != null && rightBackground != null)
                 {
                     _cachedRightListView.Background = rightBackground;
                 }
+                
+                // 分割ペインモードの場合、ホームページScrollViewerの背景色も更新
+                // 左ペインと右ペインのそれぞれでホームページScrollViewerを検索
+                UpdateHomePageScrollViewerBackground(0, leftBackground);
+                UpdateHomePageScrollViewerBackground(2, rightBackground);
             }
             else
             {
                 // 単一ペインモードの場合、ListViewの背景色をSecondaryColorCodeに設定
                 // キャッシュから取得（高速化）
-                var singlePaneListView = _cachedSinglePaneListView ?? FindListViewInSinglePane();
-                if (singlePaneListView != null && _cachedFocusedBackground != null && singlePaneListView.Background != _cachedFocusedBackground)
+                if (_cachedSinglePaneListView == null)
                 {
-                    // SecondaryColorCodeを取得（既に_cachedFocusedBackgroundに設定されている）
-                    // 背景色を強制的に更新（値が変更されている場合のみ）
-                    singlePaneListView.Background = _cachedFocusedBackground;
+                    _cachedSinglePaneListView = FindListViewInSinglePane();
+                }
+                
+                // 背景色がnullでない場合、強制的に設定（キャッシュが古い可能性があるため）
+                if (_cachedSinglePaneListView != null && _cachedFocusedBackground != null)
+                {
+                    _cachedSinglePaneListView.Background = _cachedFocusedBackground;
+                }
+                else if (_cachedSinglePaneListView == null && _cachedFocusedBackground != null)
+                {
+                    // ListViewが見つからない場合は、再検索を試みる
+                    _cachedSinglePaneListView = FindListViewInSinglePane();
+                    if (_cachedSinglePaneListView != null)
+                    {
+                        _cachedSinglePaneListView.Background = _cachedFocusedBackground;
+                    }
+                }
+                
+                // 単一ペインモードの場合、ホームページScrollViewerの背景色も更新
+                // SinglePaneHomePageScrollViewerはDataTemplate内にあるため、ビジュアルツリーを走査して検索
+                var singlePaneTabControl = _cachedSingleTabControl ?? FindChild<System.Windows.Controls.TabControl>(this, null);
+                if (singlePaneTabControl != null && _cachedSingleTabControl == null)
+                {
+                    _cachedSingleTabControl = singlePaneTabControl;
+                }
+                if (singlePaneTabControl != null)
+                {
+                    var singlePaneHomePageScrollViewer = FindHomePageScrollViewerInTabControl(singlePaneTabControl);
+                    if (singlePaneHomePageScrollViewer != null && _cachedFocusedBackground != null && singlePaneHomePageScrollViewer.Background != _cachedFocusedBackground)
+                    {
+                        singlePaneHomePageScrollViewer.Background = _cachedFocusedBackground;
+                    }
                 }
             }
+        }
+        
+        /// <summary>
+        /// 指定されたペインのホームページScrollViewerの背景色を更新します
+        /// </summary>
+        /// <param name="paneIndex">ペインのインデックス（0=左ペイン、2=右ペイン）</param>
+        /// <param name="background">設定する背景色</param>
+        private void UpdateHomePageScrollViewerBackground(int paneIndex, Brush? background)
+        {
+            if (background == null)
+                return;
+                
+            try
+            {
+                // 指定されたペインのTabControlを取得
+                System.Windows.Controls.TabControl? tabControl = null;
+                if (paneIndex == 0)
+                {
+                    tabControl = _cachedLeftTabControl ?? FindTabControlInPane(0);
+                    if (tabControl != null && _cachedLeftTabControl == null)
+                    {
+                        _cachedLeftTabControl = tabControl;
+                    }
+                }
+                else if (paneIndex == 2)
+                {
+                    tabControl = _cachedRightTabControl ?? FindTabControlInPane(2);
+                    if (tabControl != null && _cachedRightTabControl == null)
+                    {
+                        _cachedRightTabControl = tabControl;
+                    }
+                }
+                
+                if (tabControl == null)
+                    return;
+                
+                // TabControl内のホームページScrollViewerを検索
+                var scrollViewer = FindHomePageScrollViewerInTabControl(tabControl);
+                if (scrollViewer != null && scrollViewer.Background != background)
+                {
+                    scrollViewer.Background = background;
+                }
+            }
+            catch
+            {
+                // エラーが発生した場合は無視
+            }
+        }
+        
+        /// <summary>
+        /// TabControl内のホームページScrollViewerを検索します
+        /// </summary>
+        /// <param name="tabControl">検索対象のTabControl</param>
+        /// <returns>ホームページScrollViewer、見つからない場合はnull</returns>
+        private System.Windows.Controls.ScrollViewer? FindHomePageScrollViewerInTabControl(System.Windows.Controls.TabControl tabControl)
+        {
+            // ビジュアルツリーを走査してScrollViewerを検索
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(tabControl); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(tabControl, i);
+                var scrollViewer = FindHomePageScrollViewerRecursive(child as System.Windows.DependencyObject);
+                if (scrollViewer != null)
+                    return scrollViewer;
+            }
+            return null;
+        }
+        
+        /// <summary>
+        /// 再帰的にホームページScrollViewerを検索します
+        /// </summary>
+        /// <param name="element">検索開始要素</param>
+        /// <returns>ホームページScrollViewer、見つからない場合はnull</returns>
+        private System.Windows.Controls.ScrollViewer? FindHomePageScrollViewerRecursive(System.Windows.DependencyObject? element)
+        {
+            if (element == null)
+                return null;
+                
+            // ScrollViewerを確認
+            if (element is System.Windows.Controls.ScrollViewer scrollViewer)
+            {
+                // VisibilityがIsHomePageにバインドされているScrollViewerを探す
+                // または、名前がSinglePaneHomePageScrollViewerまたはSplitPaneHomePageScrollViewerのScrollViewerを探す
+                if (scrollViewer.Name == "SinglePaneHomePageScrollViewer" || 
+                    scrollViewer.Name == "SplitPaneHomePageScrollViewer" ||
+                    (scrollViewer.Visibility == System.Windows.Visibility.Visible && 
+                     BindingOperations.GetBinding(scrollViewer, System.Windows.UIElement.VisibilityProperty) != null))
+                {
+                    return scrollViewer;
+                }
+            }
+            
+            // 子要素を再帰的に検索
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(element); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
+                var result = FindHomePageScrollViewerRecursive(child);
+                if (result != null)
+                    return result;
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// 指定されたペインのTabControlを検索します（キャッシュ付き）
+        /// </summary>
+        /// <param name="pane">ペイン番号（0=左、2=右）</param>
+        /// <returns>TabControl、見つからない場合はnull</returns>
+        private System.Windows.Controls.TabControl? FindTabControlInPane(int pane)
+        {
+            // キャッシュを確認
+            if (pane == 0)
+            {
+                if (_cachedLeftTabControl != null)
+                {
+                    return _cachedLeftTabControl;
+                }
+            }
+            else if (pane == 2)
+            {
+                if (_cachedRightTabControl != null)
+                {
+                    return _cachedRightTabControl;
+                }
+            }
+
+            // キャッシュにない場合は検索
+            // 分割ペインのTabControlを検索（Grid.Columnで判定）
+            var tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc => 
+            {
+                var column = Grid.GetColumn(tc);
+                return column == pane;
+            });
+
+            // キャッシュに保存
+            if (pane == 0)
+            {
+                _cachedLeftTabControl = tabControl;
+            }
+            else if (pane == 2)
+            {
+                _cachedRightTabControl = tabControl;
+            }
+
+            return tabControl;
         }
 
         /// <summary>
@@ -707,7 +1125,17 @@ namespace FastExplorer.Views.Pages
             if (pane == 0 || pane == 2)
             {
                 // ViewModelのActivePaneプロパティを更新（これによりPropertyChangedが発火し、背景色が更新される）
+                var previousActivePane = ViewModel.ActivePane;
                 ViewModel.ActivePane = pane;
+                
+                // ActivePaneが変更されなかった場合（既に同じ値の場合）、手動で背景色を更新
+                if (previousActivePane == pane)
+                {
+                    _cachedLeftListView = null;
+                    _cachedRightListView = null;
+                    _cachedSinglePaneListView = null;
+                    UpdateListViewBackgroundColorsDelayed();
+                }
             }
         }
 
@@ -730,7 +1158,17 @@ namespace FastExplorer.Views.Pages
             if (pane == 0 || pane == 2)
             {
                 // ViewModelのActivePaneプロパティを更新（これによりPropertyChangedが発火し、背景色が更新される）
+                var previousActivePane = ViewModel.ActivePane;
                 ViewModel.ActivePane = pane;
+                
+                // ActivePaneが変更されなかった場合（既に同じ値の場合）、手動で背景色を更新
+                if (previousActivePane == pane)
+                {
+                    _cachedLeftListView = null;
+                    _cachedRightListView = null;
+                    _cachedSinglePaneListView = null;
+                    UpdateListViewBackgroundColorsDelayed();
+                }
             }
         }
 
@@ -804,15 +1242,35 @@ namespace FastExplorer.Views.Pages
                 {
                     // 左ペイン
                     targetTab = ViewModel.SelectedLeftPaneTab;
-                    // ActivePaneを更新
+                    // ActivePaneを更新（必ずアクティブにする）
+                    var previousActivePane = ViewModel.ActivePane;
                     ViewModel.ActivePane = 0;
+                    
+                    // ActivePaneが変更されなかった場合（既に同じ値の場合）、手動で背景色を更新
+                    if (previousActivePane == 0)
+                    {
+                        _cachedLeftListView = null;
+                        _cachedRightListView = null;
+                        _cachedSinglePaneListView = null;
+                        UpdateListViewBackgroundColorsDelayed();
+                    }
                 }
                 else if (pane == 2)
                 {
                     // 右ペイン
                     targetTab = ViewModel.SelectedRightPaneTab;
-                    // ActivePaneを更新
+                    // ActivePaneを更新（必ずアクティブにする）
+                    var previousActivePane = ViewModel.ActivePane;
                     ViewModel.ActivePane = 2;
+                    
+                    // ActivePaneが変更されなかった場合（既に同じ値の場合）、手動で背景色を更新
+                    if (previousActivePane == 2)
+                    {
+                        _cachedLeftListView = null;
+                        _cachedRightListView = null;
+                        _cachedSinglePaneListView = null;
+                        UpdateListViewBackgroundColorsDelayed();
+                    }
                 }
                 else
                 {
@@ -2105,7 +2563,269 @@ namespace FastExplorer.Views.Pages
                 (deltaY > minDragDistance || deltaY < -minDragDistance))
             {
                 _isTabDragging = true;
-                DragDrop.DoDragDrop(_draggedTabItem, _draggedTabItem, DragDropEffects.Move);
+                
+                // TabControl_Dropが呼ばれたかどうかを追跡
+                bool dropHandled = false;
+                DragEventHandler? dropHandler = null;
+                dropHandler = (s, e) =>
+                {
+                    dropHandled = true;
+                };
+                
+                // すべてのTabControlのDropイベントを監視
+                var tabControls = new List<System.Windows.Controls.TabControl>();
+                FindVisualChildrenRecursive(this, tabControls);
+                
+                foreach (var tabControl in tabControls)
+                {
+                    tabControl.Drop += dropHandler;
+                }
+                
+                // ウィンドウを取得
+                var window = Window.GetWindow(_draggedTabItem);
+                var windowHandle = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
+                
+                // ウィンドウ外へのドロップを検出するためのフラグ
+                bool droppedOutsideWindow = false;
+                // 最後に検出されたマウス位置（ウィンドウ外判定の精度向上のため）
+                System.Windows.Point? lastMousePosition = null;
+                
+                // GiveFeedbackイベントでマウス位置を追跡（デフォルトの禁止マークを表示するため、特別な処理は不要）
+                GiveFeedbackEventHandler? giveFeedbackHandler = null;
+                if (_draggedTabItem != null && windowHandle != IntPtr.Zero)
+                {
+                    giveFeedbackHandler = (s, e) =>
+                    {
+                        // 現在のマウス位置を取得（ウィンドウ外判定のため）
+                        POINT mousePos;
+                        if (GetCursorPos(out mousePos))
+                        {
+                            lastMousePosition = new System.Windows.Point(mousePos.X, mousePos.Y);
+                            
+                            // ウィンドウの境界を取得（毎回取得して最新の状態を反映）
+                            RECT windowRect;
+                            if (GetWindowRect(windowHandle, out windowRect))
+                            {
+                                // マウス位置がウィンドウ外にあるかどうかをチェック
+                                // 境界を含めない（境界上はウィンドウ内とみなす）
+                                bool isOutsideWindow = mousePos.X < windowRect.Left || mousePos.X > windowRect.Right ||
+                                                       mousePos.Y < windowRect.Top || mousePos.Y > windowRect.Bottom;
+                                
+                                // ウィンドウ外にいる場合、デフォルトの禁止マークを表示（UseDefaultCursors = trueでデフォルト動作）
+                                // ウィンドウ内にいる場合も、デフォルトのカーソルを使用
+                                e.UseDefaultCursors = true;
+                            }
+                            else
+                            {
+                                // ウィンドウの境界取得に失敗した場合、デフォルトカーソルを使用
+                                e.UseDefaultCursors = true;
+                            }
+                        }
+                        else
+                        {
+                            // マウス位置の取得に失敗した場合、デフォルトカーソルを使用
+                            e.UseDefaultCursors = true;
+                        }
+                    };
+                    _draggedTabItem.GiveFeedback += giveFeedbackHandler;
+                }
+                
+                // QueryContinueDragイベントでウィンドウ外へのドロップを検出
+                QueryContinueDragEventHandler? queryContinueDragHandler = null;
+                if (_draggedTabItem != null && windowHandle != IntPtr.Zero)
+                {
+                    queryContinueDragHandler = (s, e) =>
+                    {
+                        // ドラッグ中にマウス位置を追跡
+                        if (e.Action == DragAction.Continue || e.Action == DragAction.Drop)
+                        {
+                            // 現在のマウス位置を取得
+                            POINT mousePos;
+                            if (GetCursorPos(out mousePos))
+                            {
+                                lastMousePosition = new System.Windows.Point(mousePos.X, mousePos.Y);
+                                
+                                // ウィンドウの境界を取得（毎回取得して最新の状態を反映）
+                                RECT windowRect;
+                                if (GetWindowRect(windowHandle, out windowRect))
+                                {
+                                    // マウス位置がウィンドウ外にあるかどうかをチェック
+                                    // 境界を含めない（境界上はウィンドウ内とみなす）
+                                    bool isOutsideWindow = mousePos.X < windowRect.Left || mousePos.X > windowRect.Right ||
+                                                           mousePos.Y < windowRect.Top || mousePos.Y > windowRect.Bottom;
+                                    
+                                    // デバッグ出力：マウス座標とアクション
+                                    System.Diagnostics.Debug.WriteLine($"[QueryContinueDrag] Action: {e.Action}, マウス座標: ({mousePos.X}, {mousePos.Y}), ウィンドウ外: {isOutsideWindow}, ウィンドウ境界: ({windowRect.Left}, {windowRect.Top}) - ({windowRect.Right}, {windowRect.Bottom})");
+                                    
+                                    if (isOutsideWindow)
+                                    {
+                                        if (e.Action == DragAction.Drop)
+                                        {
+                                            droppedOutsideWindow = true;
+                                            System.Diagnostics.Debug.WriteLine($"[QueryContinueDrag] ウィンドウ外にドロップ検出: droppedOutsideWindow = true");
+                                        }
+                                        // カーソルは変更しない（GiveFeedbackで禁止マークをポップアップ表示）
+                                    }
+                                }
+                            }
+                        }
+                    };
+                    _draggedTabItem.QueryContinueDrag += queryContinueDragHandler;
+                }
+                
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop] ドラッグ開始");
+                    var dragResult = DragDrop.DoDragDrop(_draggedTabItem, _draggedTabItem, DragDropEffects.Move);
+                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop] ドラッグ終了: dragResult = {dragResult}, dropHandled = {dropHandled}, droppedOutsideWindow = {droppedOutsideWindow}");
+                    
+                    // ウィンドウ外にドロップされた場合、またはTabControl_Dropが呼ばれなかった場合
+                    if (!dropHandled && _draggedTab != null)
+                    {
+                        // ドロップ時のマウス位置を再取得して確認
+                        System.Windows.Point? dropPosition = null;
+                        bool isOutsideWindow = droppedOutsideWindow; // QueryContinueDragで検出された値を優先
+                        
+                        if (windowHandle != IntPtr.Zero)
+                        {
+                            POINT mousePos;
+                            if (GetCursorPos(out mousePos))
+                            {
+                                RECT windowRect;
+                                if (GetWindowRect(windowHandle, out windowRect))
+                                {
+                                    // マウス位置がウィンドウ外にあるかどうかを再確認
+                                    // ただし、QueryContinueDragで既に検出されている場合はそれを優先
+                                    bool currentIsOutsideWindow = mousePos.X < windowRect.Left || mousePos.X > windowRect.Right ||
+                                                                  mousePos.Y < windowRect.Top || mousePos.Y > windowRect.Bottom;
+                                    
+                                    // QueryContinueDragで検出されていない場合のみ、現在のマウス位置で判定
+                                    if (!droppedOutsideWindow)
+                                    {
+                                        isOutsideWindow = currentIsOutsideWindow;
+                                    }
+                                    
+                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] マウス座標: ({mousePos.X}, {mousePos.Y}), ウィンドウ外: {isOutsideWindow} (droppedOutsideWindow={droppedOutsideWindow}, currentIsOutsideWindow={currentIsOutsideWindow}), ウィンドウ境界: ({windowRect.Left}, {windowRect.Top}) - ({windowRect.Right}, {windowRect.Bottom})");
+                                    
+                                    if (isOutsideWindow)
+                                    {
+                                        dropPosition = new System.Windows.Point(mousePos.X, mousePos.Y);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // ドロップが処理されなかった場合、デスクトップにドロップされたかどうかを判定
+                        bool isDroppedOnDesktop = false;
+                        if (isOutsideWindow || droppedOutsideWindow) // droppedOutsideWindowも考慮
+                        {
+                            // ウィンドウ外にドロップされた場合
+                            if (dropPosition.HasValue)
+                            {
+                                // ドロップ位置の下にあるウィンドウを取得
+                                POINT dropPoint = new POINT { X = (int)dropPosition.Value.X, Y = (int)dropPosition.Value.Y };
+                                IntPtr windowUnderPoint = WindowFromPoint(dropPoint);
+                                
+                                // デスクトップのウィンドウハンドルを取得
+                                IntPtr desktopWindow = GetDesktopWindow();
+                                
+                                System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: windowUnderPoint={windowUnderPoint}, desktopWindow={desktopWindow}, windowHandle={windowHandle}");
+                                
+                                // ドロップ位置の下にあるウィンドウが現在のアプリケーションのウィンドウでない場合
+                                if (windowUnderPoint != windowHandle)
+                                {
+                                    // ウィンドウ外にドロップされ、かつ現在のアプリケーションのウィンドウでない場合
+                                    // dragResultがNoneの場合、別のアプリケーションがドロップを受け取らなかったことを意味する
+                                    // したがって、デスクトップにドロップされたとみなす
+                                    if (dragResult == DragDropEffects.None)
+                                    {
+                                        // デスクトップまたはデスクトップの子ウィンドウにドロップされたとみなす
+                                        isDroppedOnDesktop = true;
+                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ ウィンドウ外 → デスクトップと判定");
+                                    }
+                                    else
+                                    {
+                                        // dragResultがNoneでない場合、別のアプリケーションがドロップを受け取った可能性がある
+                                        // この場合は、新しいウィンドウを作成しない
+                                        isDroppedOnDesktop = false;
+                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult={dragResult} → 別アプリがドロップを受け取った可能性");
+                                    }
+                                }
+                                else
+                                {
+                                    // 現在のアプリケーションのウィンドウの上にドロップされた場合は、デスクトップではない
+                                    isDroppedOnDesktop = false;
+                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: 現在のアプリのウィンドウ上 → デスクトップではない");
+                                }
+                            }
+                            else
+                            {
+                                // dropPositionが取得できない場合でも、ウィンドウ外にドロップされ、dragResultがNoneの場合はデスクトップとみなす
+                                if (dragResult == DragDropEffects.None)
+                                {
+                                    isDroppedOnDesktop = true;
+                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dropPositionなし かつ dragResult=None → デスクトップと判定");
+                                }
+                                else
+                                {
+                                    isDroppedOnDesktop = false;
+                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dropPositionなし かつ dragResult={dragResult} → デスクトップではない");
+                                }
+                            }
+                        }
+                        
+                        // デスクトップにドロップされた場合のみ、新しいウィンドウを作成
+                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] 判定: droppedOutsideWindow={droppedOutsideWindow}, dragResult={dragResult}, isOutsideWindow={isOutsideWindow}, isDroppedOnDesktop={isDroppedOnDesktop}");
+                        if (isDroppedOnDesktop)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップにドロップされたと判定: 新しいウィンドウを作成 (dropPosition: {dropPosition ?? lastMousePosition})");
+                            try
+                            {
+                                // デスクトップにドロップされた場合、新しいウィンドウを作成（ドロップ位置を指定）
+                                // dropPositionがnullの場合は、lastMousePositionを使用、それもnullの場合は位置を指定しない
+                                ViewModel.MoveTabToNewWindow(_draggedTab, dropPosition ?? lastMousePosition);
+                            }
+                            catch (System.Exception ex)
+                            {
+                                // 例外が発生した場合、位置を指定せずに新しいウィンドウを作成
+                                System.Diagnostics.Debug.WriteLine($"デスクトップへのドロップ処理中にエラーが発生しました: {ex.Message}");
+                                try
+                                {
+                                    ViewModel.MoveTabToNewWindow(_draggedTab, null);
+                                }
+                                catch (System.Exception ex2)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"新しいウィンドウの作成に失敗しました: {ex2.Message}");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] ウィンドウ内にドロップされたと判定: 処理をスキップ");
+                        }
+                    }
+                }
+                finally
+                {
+                    // Dropイベントを削除
+                    foreach (var tabControl in tabControls)
+                    {
+                        tabControl.Drop -= dropHandler;
+                    }
+                    
+                    // GiveFeedbackイベントを削除
+                    if (_draggedTabItem != null && giveFeedbackHandler != null)
+                    {
+                        _draggedTabItem.GiveFeedback -= giveFeedbackHandler;
+                    }
+                    
+                    // QueryContinueDragイベントを削除
+                    if (_draggedTabItem != null && queryContinueDragHandler != null)
+                    {
+                        _draggedTabItem.QueryContinueDrag -= queryContinueDragHandler;
+                    }
+                }
+                
                 _isTabDragging = false;
             }
         }
@@ -2208,253 +2928,267 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">ドラッグイベント引数</param>
         private void TabControl_Drop(object sender, DragEventArgs e)
         {
-            // 早期リターン: 必要な変数がnullの場合は処理しない
-            if (_draggedTabItem == null || _draggedTab == null || sender is not System.Windows.Controls.TabControl dropTabControl)
-                return;
-
-            // ViewModelプロパティを一度だけ取得してキャッシュ（高速化）
-            var isSplitPaneEnabled = ViewModel.IsSplitPaneEnabled;
-
-            // ドロップ先のコレクションを取得（dropColumnをキャッシュして再利用）
-            ObservableCollection<ExplorerTab>? dropTabs;
-            int dropColumn = -1;
-            if (isSplitPaneEnabled)
+            try
             {
-                dropColumn = Grid.GetColumn(dropTabControl);
-                dropTabs = dropColumn == 0 ? ViewModel.LeftPaneTabs
-                    : dropColumn == 2 ? ViewModel.RightPaneTabs
-                    : null;
-                if (dropTabs == null)
+                // 早期リターン: 必要な変数がnullの場合は処理しない
+                if (_draggedTabItem == null || _draggedTab == null || sender is not System.Windows.Controls.TabControl dropTabControl)
                     return;
-            }
-            else
-            {
-                dropTabs = ViewModel.Tabs;
-            }
 
-            // ドラッグ元のコレクションを取得（高速化：キャッシュされたTabControlを使用）
-            ObservableCollection<ExplorerTab>? sourceTabs;
-            if (isSplitPaneEnabled)
-            {
-                // ドラッグ元のTabControlを特定（高速化：キャッシュを活用）
-                System.Windows.Controls.TabControl? sourceTabControl = null;
-                if (_draggedTabItem != null && !_tabControlCache.TryGetValue(_draggedTabItem, out sourceTabControl))
+                // ViewModelプロパティを一度だけ取得してキャッシュ（高速化）
+                var isSplitPaneEnabled = ViewModel.IsSplitPaneEnabled;
+
+                // ドロップ先のコレクションを取得（dropColumnをキャッシュして再利用）
+                ObservableCollection<ExplorerTab>? dropTabs;
+                int dropColumn = -1;
+                if (isSplitPaneEnabled)
                 {
-                    sourceTabControl = FindAncestor<System.Windows.Controls.TabControl>(_draggedTabItem);
-                    if (_draggedTabItem != null)
-                    {
-                        _tabControlCache[_draggedTabItem] = sourceTabControl;
-                    }
+                    dropColumn = Grid.GetColumn(dropTabControl);
+                    dropTabs = dropColumn == 0 ? ViewModel.LeftPaneTabs
+                        : dropColumn == 2 ? ViewModel.RightPaneTabs
+                        : null;
+                    if (dropTabs == null)
+                        return;
                 }
-                if (sourceTabControl == null)
-                    return;
-                    
-                int sourceColumn = Grid.GetColumn(sourceTabControl);
-                sourceTabs = sourceColumn == 0 ? ViewModel.LeftPaneTabs
-                    : sourceColumn == 2 ? ViewModel.RightPaneTabs
-                    : null;
-                if (sourceTabs == null)
-                    return;
-            }
-            else
-            {
-                sourceTabs = ViewModel.Tabs;
-            }
-
-            // ペイン間での移動か、同じペイン内での移動かを判定
-            bool isCrossPaneMove = sourceTabs != dropTabs;
-
-            // HitTestを一度だけ実行して結果を再利用（高速化）
-            Point dropPosition = e.GetPosition(dropTabControl);
-            HitTestResult? hitTestResult = VisualTreeHelper.HitTest(dropTabControl, dropPosition);
-            
-            // ドロップ位置のTabItemを取得（高速化：一度だけ実行）
-            System.Windows.Controls.TabItem? targetTabItem = null;
-            ExplorerTab? targetTab = null;
-            if (hitTestResult?.VisualHit != null)
-            {
-                targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
-                if (targetTabItem != null && targetTabItem.DataContext is ExplorerTab tab)
+                else
                 {
-                    targetTab = tab;
+                    dropTabs = ViewModel.Tabs;
                 }
-            }
 
-            // HitTestが失敗した場合、ドロップ位置から挿入位置を計算（フォールバック）
-            if (targetTab == null && dropTabs.Count > 0)
-            {
-                // TabPanelを取得してタブの位置を計算
-                var tabPanel = FindChild<System.Windows.Controls.Primitives.TabPanel>(dropTabControl, null);
-                if (tabPanel != null)
+                // ドラッグ元のコレクションを取得（高速化：キャッシュされたTabControlを使用）
+                ObservableCollection<ExplorerTab>? sourceTabs;
+                if (isSplitPaneEnabled)
                 {
-                    // 各TabItemの位置を確認して、ドロップ位置に最も近いタブを探す
-                    double minDistance = double.MaxValue;
-                    System.Windows.Controls.TabItem? closestTabItem = null;
-                    
-                    for (int i = 0; i < dropTabControl.Items.Count; i++)
+                    // ドラッグ元のTabControlを特定（高速化：キャッシュを活用）
+                    System.Windows.Controls.TabControl? sourceTabControl = null;
+                    if (_draggedTabItem != null && !_tabControlCache.TryGetValue(_draggedTabItem, out sourceTabControl))
                     {
-                        if (dropTabControl.ItemContainerGenerator.ContainerFromIndex(i) is System.Windows.Controls.TabItem item)
+                        sourceTabControl = FindAncestor<System.Windows.Controls.TabControl>(_draggedTabItem);
+                        if (_draggedTabItem != null)
                         {
-                            var itemPosition = item.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
-                            var itemCenterX = itemPosition.X + item.ActualWidth / 2;
-                            var distance = Math.Abs(dropPosition.X - itemCenterX);
-                            
-                            if (distance < minDistance)
-                            {
-                                minDistance = distance;
-                                closestTabItem = item;
-                            }
+                            _tabControlCache[_draggedTabItem] = sourceTabControl;
                         }
                     }
-                    
-                    if (closestTabItem != null && closestTabItem.DataContext is ExplorerTab closestTab)
-                    {
-                        targetTabItem = closestTabItem;
-                        targetTab = closestTab;
+                    if (sourceTabControl == null)
+                        return;
                         
-                        // ドロップ位置がタブの右側にある場合は、次の位置に挿入
-                        var closestPosition = closestTabItem.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
-                        var closestCenterX = closestPosition.X + closestTabItem.ActualWidth / 2;
-                        if (dropPosition.X > closestCenterX)
+                    int sourceColumn = Grid.GetColumn(sourceTabControl);
+                    sourceTabs = sourceColumn == 0 ? ViewModel.LeftPaneTabs
+                        : sourceColumn == 2 ? ViewModel.RightPaneTabs
+                        : null;
+                    if (sourceTabs == null)
+                        return;
+                }
+                else
+                {
+                    sourceTabs = ViewModel.Tabs;
+                }
+
+                // ペイン間での移動か、同じペイン内での移動かを判定
+                bool isCrossPaneMove = sourceTabs != dropTabs;
+
+                // HitTestを一度だけ実行して結果を再利用（高速化）
+                Point dropPosition = e.GetPosition(dropTabControl);
+                HitTestResult? hitTestResult = VisualTreeHelper.HitTest(dropTabControl, dropPosition);
+                
+                // ドロップ位置のTabItemを取得（高速化：一度だけ実行）
+                System.Windows.Controls.TabItem? targetTabItem = null;
+                ExplorerTab? targetTab = null;
+                if (hitTestResult?.VisualHit != null)
+                {
+                    targetTabItem = FindParent<System.Windows.Controls.TabItem>(hitTestResult.VisualHit);
+                    if (targetTabItem != null && targetTabItem.DataContext is ExplorerTab tab)
+                    {
+                        targetTab = tab;
+                    }
+                }
+
+                // HitTestが失敗した場合、ドロップ位置から挿入位置を計算（フォールバック）
+                if (targetTab == null && dropTabs.Count > 0)
+                {
+                    // TabPanelを取得してタブの位置を計算
+                    var tabPanel = FindChild<System.Windows.Controls.Primitives.TabPanel>(dropTabControl, null);
+                    if (tabPanel != null)
+                    {
+                        // 各TabItemの位置を確認して、ドロップ位置に最も近いタブを探す
+                        double minDistance = double.MaxValue;
+                        System.Windows.Controls.TabItem? closestTabItem = null;
+                        
+                        for (int i = 0; i < dropTabControl.Items.Count; i++)
                         {
-                            // 右側にドロップされた場合は、次のタブの位置を探す
-                            int closestIndex = dropTabs.IndexOf(closestTab);
-                            if (closestIndex >= 0 && closestIndex < dropTabs.Count - 1)
+                            if (dropTabControl.ItemContainerGenerator.ContainerFromIndex(i) is System.Windows.Controls.TabItem item)
                             {
-                                targetTab = dropTabs[closestIndex + 1];
-                            }
-                        }
-                    }
-                }
-            }
-
-            // コレクション変更を高速化するため、UI更新を最小限に抑制
-            if (isCrossPaneMove)
-            {
-                // ペイン間での移動: ドラッグ元から削除して、ドロップ先に追加
-                int sourceIndex = sourceTabs.IndexOf(_draggedTab);
-                if (sourceIndex < 0)
-                    return;
-
-                int insertIndex = dropTabs.Count; // デフォルトは最後に追加
-
-                // ターゲットタブが見つかった場合は、その位置に挿入
-                if (targetTab != null)
-                {
-                    int targetIndex = dropTabs.IndexOf(targetTab);
-                    if (targetIndex >= 0)
-                    {
-                        insertIndex = targetIndex;
-                    }
-                }
-
-                // コレクションの変更を実行（同期的に実行して、SelectedItemが正しく設定されるようにする）
-                sourceTabs.RemoveAt(sourceIndex);
-                dropTabs.Insert(insertIndex, _draggedTab);
-                
-                // ペイン間でタブを移動した場合、移動先のペインをアクティブにする（SelectedItemを設定する前に実行）
-                // これにより、背景色が正しく更新される
-                if (isSplitPaneEnabled && dropColumn >= 0)
-                {
-                    // ActivePaneを先に設定（背景色の更新を確実にするため）
-                    ViewModel.ActivePane = dropColumn;
-                    // ListViewのキャッシュをクリア（タブ移動後、ListViewが再構築される可能性があるため）
-                    _cachedLeftListView = null;
-                    _cachedRightListView = null;
-                    // 背景色を明示的に更新（UI構築完了後に実行、PropertyChangedイベントに依存せず確実に更新するため）
-                    Dispatcher.BeginInvoke(new System.Action(() =>
-                    {
-                        UpdateListViewBackgroundColors();
-                    }), System.Windows.Threading.DispatcherPriority.Normal);
-                }
-                
-                // SelectedItemを同期的に設定（ListViewが表示されるようにする）
-                dropTabControl.SelectedItem = _draggedTab;
-                
-                // ViewModelの選択タブも明示的に更新（タブ移動後のペイン判定を正しくするため）
-                // dropColumnは既に取得済み（上記の処理で使用）なので再利用
-                if (isSplitPaneEnabled && dropColumn >= 0)
-                {
-                    // switch式を使用してパフォーマンス向上
-                    switch (dropColumn)
-                    {
-                        case 0:
-                            ViewModel.SelectedLeftPaneTab = _draggedTab;
-                            break;
-                        case 2:
-                            ViewModel.SelectedRightPaneTab = _draggedTab;
-                            break;
-                    }
-                }
-            }
-            else
-            {
-                // 同じペイン内での移動
-                int draggedIndex = dropTabs.IndexOf(_draggedTab);
-                if (draggedIndex < 0)
-                    return;
-                
-                // ターゲットタブが見つからない場合は、ドロップ位置から挿入位置を決定
-                if (targetTab == null || targetTab == _draggedTab)
-                {
-                    // ドロップ位置が最後のタブより右側にある場合は、最後に追加
-                    if (dropTabs.Count > 0)
-                    {
-                        var lastTab = dropTabs[dropTabs.Count - 1];
-                        if (dropTabControl.ItemContainerGenerator.ContainerFromItem(lastTab) is System.Windows.Controls.TabItem lastItem)
-                        {
-                            var lastPosition = lastItem.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
-                            if (dropPosition.X > lastPosition.X + lastItem.ActualWidth)
-                            {
-                                // 最後のタブより右側にドロップされた場合は、最後に移動
-                                int lastIndex = dropTabs.Count - 1;
-                                if (draggedIndex != lastIndex)
+                                var itemPosition = item.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
+                                var itemCenterX = itemPosition.X + item.ActualWidth / 2;
+                                var distance = Math.Abs(dropPosition.X - itemCenterX);
+                                
+                                if (distance < minDistance)
                                 {
-                                    // Moveメソッドを使用してUI更新を1回に削減
-                                    dropTabs.Move(draggedIndex, lastIndex);
-                                    dropTabControl.SelectedItem = _draggedTab;
+                                    minDistance = distance;
+                                    closestTabItem = item;
                                 }
-                                return;
+                            }
+                        }
+                        
+                        if (closestTabItem != null && closestTabItem.DataContext is ExplorerTab closestTab)
+                        {
+                            targetTabItem = closestTabItem;
+                            targetTab = closestTab;
+                            
+                            // ドロップ位置がタブの右側にある場合は、次の位置に挿入
+                            var closestPosition = closestTabItem.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
+                            var closestCenterX = closestPosition.X + closestTabItem.ActualWidth / 2;
+                            if (dropPosition.X > closestCenterX)
+                            {
+                                // 右側にドロップされた場合は、次のタブの位置を探す
+                                int closestIndex = dropTabs.IndexOf(closestTab);
+                                if (closestIndex >= 0 && closestIndex < dropTabs.Count - 1)
+                                {
+                                    targetTab = dropTabs[closestIndex + 1];
+                                }
                             }
                         }
                     }
-                    // それ以外の場合は移動しない（既に正しい位置にある可能性がある）
-                    return;
                 }
 
-                // ターゲットタブがドラッグ中のタブと同じ場合は移動しない
-                if (targetTabItem == _draggedTabItem)
-                    return;
+                // コレクション変更を高速化するため、UI更新を最小限に抑制
+                if (isCrossPaneMove)
+                {
+                    // ペイン間での移動: ドラッグ元から削除して、ドロップ先に追加
+                    int sourceIndex = sourceTabs.IndexOf(_draggedTab);
+                    if (sourceIndex < 0)
+                        return;
 
-                // タブの並び替えを直接実行（最適化: Moveメソッドを使用してUI更新を1回に削減）
-                int targetIndex = dropTabs.IndexOf(targetTab);
-                if (targetIndex < 0 || draggedIndex == targetIndex)
-                    return;
+                    int insertIndex = dropTabs.Count; // デフォルトは最後に追加
+
+                    // ターゲットタブが見つかった場合は、その位置に挿入
+                    if (targetTab != null)
+                    {
+                        int targetIndex = dropTabs.IndexOf(targetTab);
+                        if (targetIndex >= 0)
+                        {
+                            insertIndex = targetIndex;
+                        }
+                    }
+
+                    // コレクションの変更を実行（同期的に実行して、SelectedItemが正しく設定されるようにする）
+                    sourceTabs.RemoveAt(sourceIndex);
+                    dropTabs.Insert(insertIndex, _draggedTab);
+                    
+                    // ペイン間でタブを移動した場合、移動先のペインをアクティブにする（SelectedItemを設定する前に実行）
+                    // これにより、背景色が正しく更新される
+                    if (isSplitPaneEnabled && dropColumn >= 0)
+                    {
+                        // ActivePaneを先に設定（背景色の更新を確実にするため）
+                        ViewModel.ActivePane = dropColumn;
+                        // ListViewのキャッシュをクリア（タブ移動後、ListViewが再構築される可能性があるため）
+                        _cachedLeftListView = null;
+                        _cachedRightListView = null;
+                        // 背景色を明示的に更新（UI構築完了後に実行、PropertyChangedイベントに依存せず確実に更新するため）
+                        Dispatcher.BeginInvoke(new System.Action(() =>
+                        {
+                            UpdateListViewBackgroundColors();
+                        }), System.Windows.Threading.DispatcherPriority.Normal);
+                    }
+                    
+                    // SelectedItemを同期的に設定（ListViewが表示されるようにする）
+                    dropTabControl.SelectedItem = _draggedTab;
+                    
+                    // ViewModelの選択タブも明示的に更新（タブ移動後のペイン判定を正しくするため）
+                    // dropColumnは既に取得済み（上記の処理で使用）なので再利用
+                    if (isSplitPaneEnabled && dropColumn >= 0)
+                    {
+                        // switch式を使用してパフォーマンス向上
+                        switch (dropColumn)
+                        {
+                            case 0:
+                                ViewModel.SelectedLeftPaneTab = _draggedTab;
+                                break;
+                            case 2:
+                                ViewModel.SelectedRightPaneTab = _draggedTab;
+                                break;
+                        }
+                    }
+                }
+                else
+                {
+                    // 同じペイン内での移動
+                    int draggedIndex = dropTabs.IndexOf(_draggedTab);
+                    if (draggedIndex < 0)
+                        return;
+                    
+                    // ターゲットタブが見つからない場合は、ドロップ位置から挿入位置を決定
+                    if (targetTab == null || targetTab == _draggedTab)
+                    {
+                        // ドロップ位置が最後のタブより右側にある場合は、最後に追加
+                        if (dropTabs.Count > 0)
+                        {
+                            var lastTab = dropTabs[dropTabs.Count - 1];
+                            if (dropTabControl.ItemContainerGenerator.ContainerFromItem(lastTab) is System.Windows.Controls.TabItem lastItem)
+                            {
+                                var lastPosition = lastItem.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
+                                if (dropPosition.X > lastPosition.X + lastItem.ActualWidth)
+                                {
+                                    // 最後のタブより右側にドロップされた場合は、最後に移動
+                                    int lastIndex = dropTabs.Count - 1;
+                                    if (draggedIndex != lastIndex)
+                                    {
+                                        // Moveメソッドを使用してUI更新を1回に削減
+                                        dropTabs.Move(draggedIndex, lastIndex);
+                                        dropTabControl.SelectedItem = _draggedTab;
+                                    }
+                                    return;
+                                }
+                            }
+                        }
+                        // それ以外の場合は移動しない（既に正しい位置にある可能性がある）
+                        return;
+                    }
+
+                    // ターゲットタブがドラッグ中のタブと同じ場合は移動しない
+                    if (targetTabItem == _draggedTabItem)
+                        return;
+
+                    // タブの並び替えを直接実行（最適化: Moveメソッドを使用してUI更新を1回に削減）
+                    int targetIndex = dropTabs.IndexOf(targetTab);
+                    if (targetIndex < 0 || draggedIndex == targetIndex)
+                        return;
+                    
+                    // コレクションの変更を実行（Moveメソッドで1回のUI更新のみ）
+                    // ObservableCollection.Moveは、RemoveAtとInsertを1回の操作として実行し、
+                    // CollectionChangedイベントを1回だけ発火するため、パフォーマンスが向上
+                    dropTabs.Move(draggedIndex, targetIndex);
+                    
+                    // SelectedItemを同期的に設定（ListViewが表示されるようにする）
+                    // TwoWayバインディングにより、ViewModelも自動的に更新され、TabItemのIsSelectedも自動的に更新される
+                    dropTabControl.SelectedItem = _draggedTab;
+                }
+
+                // ドロップ完了後に変数をクリア
+                _draggedTab = null;
+                _draggedTabItem = null;
+                _isTabDragging = false;
                 
-                // コレクションの変更を実行（Moveメソッドで1回のUI更新のみ）
-                // ObservableCollection.Moveは、RemoveAtとInsertを1回の操作として実行し、
-                // CollectionChangedイベントを1回だけ発火するため、パフォーマンスが向上
-                dropTabs.Move(draggedIndex, targetIndex);
+                // タブが移動したため、ペインキャッシュをクリア（ドライブ要素などのペイン判定を正しく更新するため）
+                // 即座にクリアして、UI更新後にも再クリア（ビジュアルツリーが更新されるのを待つ）
+                _paneCache.Clear();
                 
-                // SelectedItemを同期的に設定（ListViewが表示されるようにする）
-                // TwoWayバインディングにより、ViewModelも自動的に更新され、TabItemのIsSelectedも自動的に更新される
-                dropTabControl.SelectedItem = _draggedTab;
+                // UI更新後に再度キャッシュをクリア（ビジュアルツリーの更新を確実に反映）
+                // デリゲートをキャッシュしてメモリ割り当てを削減
+                Dispatcher.BeginInvoke(
+                    new System.Action(() => _paneCache.Clear()),
+                    System.Windows.Threading.DispatcherPriority.Loaded);
             }
-
-            // ドロップ完了後に変数をクリア
-            _draggedTab = null;
-            _draggedTabItem = null;
-            _isTabDragging = false;
-            
-            // タブが移動したため、ペインキャッシュをクリア（ドライブ要素などのペイン判定を正しく更新するため）
-            // 即座にクリアして、UI更新後にも再クリア（ビジュアルツリーが更新されるのを待つ）
-            _paneCache.Clear();
-            
-            // UI更新後に再度キャッシュをクリア（ビジュアルツリーの更新を確実に反映）
-            // デリゲートをキャッシュしてメモリ割り当てを削減
-            Dispatcher.BeginInvoke(
-                new System.Action(() => _paneCache.Clear()),
-                System.Windows.Threading.DispatcherPriority.Loaded);
+            catch (System.Exception ex)
+            {
+                // 例外が発生した場合、エラーをログに記録
+                System.Diagnostics.Debug.WriteLine($"[TabControl_Drop] ペイン間のタブ移動中にエラーが発生しました: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[TabControl_Drop] スタックトレース: {ex.StackTrace}");
+                
+                // ドロップ完了後に変数をクリア（例外が発生しても状態をリセット）
+                _draggedTab = null;
+                _draggedTabItem = null;
+                _isTabDragging = false;
+            }
         }
 
         /// <summary>
@@ -2472,6 +3206,28 @@ namespace FastExplorer.Views.Pages
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// ビジュアルツリーを再帰的に走査して、指定された型の子要素をすべて見つけます
+        /// </summary>
+        /// <typeparam name="T">検索する型</typeparam>
+        /// <param name="parent">親要素</param>
+        /// <param name="results">結果を格納するリスト</param>
+        private void FindVisualChildrenRecursive<T>(DependencyObject parent, List<T> results) where T : DependencyObject
+        {
+            if (parent == null)
+                return;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t)
+                {
+                    results.Add(t);
+                }
+                FindVisualChildrenRecursive(child, results);
+            }
         }
 
         /// <summary>
@@ -2546,6 +3302,46 @@ namespace FastExplorer.Views.Pages
                 e.Cancel = true;
             }
         }
+
+        // Win32 APIの定義
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr WindowFromPoint(POINT point);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetDesktopWindow();
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetParent(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SetCursor(IntPtr hCursor);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr LoadCursor(IntPtr hInstance, IntPtr lpCursorName);
+
+        private static readonly IntPtr IDC_HAND = new IntPtr(32649); // Windows標準の手カーソル
     }
 }
 

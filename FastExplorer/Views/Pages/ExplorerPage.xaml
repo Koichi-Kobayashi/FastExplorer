@@ -449,6 +449,7 @@
 
                 <!--  ホームページ  -->
                 <ScrollViewer
+                    x:Name="SinglePaneHomePageScrollViewer"
                     Grid.Row="2"
                     HorizontalScrollBarVisibility="Auto"
                     VerticalScrollBarVisibility="Auto"
@@ -978,6 +979,7 @@
 
                         <!--  ホームページ  -->
                         <ScrollViewer
+                            x:Name="SplitPaneHomePageScrollViewer"
                             Grid.Row="2"
                             HorizontalScrollBarVisibility="Auto"
                             VerticalScrollBarVisibility="Auto"

@@ -46,6 +46,9 @@ namespace FastExplorer.ViewModels.Pages
         // UpdateStatusBarデリゲートをキャッシュ（メモリ割り当てを削減）
         private System.Action? _cachedUpdateStatusBarAction;
         
+        // OnNavigatedToAsyncが初回実行されたかどうかを追跡
+        private bool _hasNavigatedTo = false;
+        
         // ActivePaneの定数（パフォーマンス向上）
         private const int ActivePaneLeft = 0;
         private const int ActivePaneRight = 2;
@@ -281,128 +284,149 @@ namespace FastExplorer.ViewModels.Pages
         /// <returns>完了を表すタスク</returns>
         public Task OnNavigatedToAsync()
         {
-            // コマンドライン引数で指定されたパスを取得
-            var startupPath = App.GetStartupPath();
-            var isSingleTabMode = App.IsSingleTabMode();
-            
-            // 単一タブモードの場合は、分割ペインを無効にする
-            if (isSingleTabMode)
+            // 初回実行時のみ初期化処理を実行
+            if (!_hasNavigatedTo)
             {
-                IsSplitPaneEnabled = false;
-            }
-            else
-            {
-                // 分割ペインの設定を読み込む
-                LoadSplitPaneSettings();
-            }
-
-            if (IsSplitPaneEnabled)
-            {
-                // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                var leftPaneTabsCount = LeftPaneTabs.Count;
-                var rightPaneTabsCount = RightPaneTabs.Count;
-                if (leftPaneTabsCount == 0 && rightPaneTabsCount == 0)
-                {
-                    // 保存されたタブ情報を復元
-                    RestoreTabs();
-                    
-                    // タブが復元されなかった場合は新しいタブを作成
-                    // Countプロパティを再取得（RestoreTabs後）
-                    if (LeftPaneTabs.Count == 0)
-                    {
-                        CreateNewLeftPaneTab();
-                    }
-                    if (RightPaneTabs.Count == 0)
-                    {
-                        CreateNewRightPaneTab();
-                    }
-                }
-                // 選択タブが設定されていない場合は、最初のタブを選択
-                // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                var leftPaneTabsCount2 = LeftPaneTabs.Count;
-                if (SelectedLeftPaneTab == null && leftPaneTabsCount2 > 0)
-                {
-                    SelectedLeftPaneTab = LeftPaneTabs[0];
-                }
-                var rightPaneTabsCount2 = RightPaneTabs.Count;
-                if (SelectedRightPaneTab == null && rightPaneTabsCount2 > 0)
-                {
-                    SelectedRightPaneTab = RightPaneTabs[0];
-                }
+                _hasNavigatedTo = true;
                 
-                // 起動時に分割ペインモードが有効な場合、ActivePaneを左ペインに設定
-                if (SelectedLeftPaneTab != null)
-                {
-                    ActivePane = ActivePaneLeft; // 左ペインをデフォルト
-                }
-                else if (SelectedRightPaneTab != null)
-                {
-                    ActivePane = ActivePaneRight; // 左ペインが存在しない場合のみ右ペインをデフォルト
-                }
+                // コマンドライン引数で指定されたパスを取得
+                var startupPath = App.GetStartupPath();
+                var isSingleTabMode = App.IsSingleTabMode();
                 
-                // コマンドライン引数で指定されたパスがある場合は、左ペインのタブに移動
-                if (!string.IsNullOrEmpty(startupPath) && System.IO.Directory.Exists(startupPath) && SelectedLeftPaneTab != null)
-                {
-                    SelectedLeftPaneTab.ViewModel.NavigateToPathCommand.Execute(startupPath);
-                }
-            }
-            else
-            {
-                // 単一タブモードの場合は、既存のタブを削除して新しいタブを作成
+                // 単一タブモードの場合は、分割ペインを無効にする
                 if (isSingleTabMode)
                 {
-                    // 既存のタブをすべて削除
-                    Tabs.Clear();
-                    SelectedTab = null;
-                    
-                    // コマンドライン引数で指定されたパスがある場合は、そのパスでタブを作成
-                    if (!string.IsNullOrEmpty(startupPath))
-                    {
-                        // パスが存在する場合は、そのパスでタブを作成
-                        if (System.IO.Directory.Exists(startupPath))
-                        {
-                            var tab = CreateTabInternal(startupPath);
-                            Tabs.Add(tab);
-                            SelectedTab = tab;
-                            UpdateTabTitle(tab);
-                        }
-                        else
-                        {
-                            // パスが存在しない場合は、新しいタブを作成してホームに移動
-                            CreateNewTab();
-                            if (SelectedTab != null)
-                            {
-                                SelectedTab.ViewModel.NavigateToHome();
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // パスが指定されていない場合は、新しいタブを作成（ホームに移動）
-                        CreateNewTab();
-                    }
+                    IsSplitPaneEnabled = false;
                 }
                 else
                 {
-                    // 通常モードの場合
+                    // 分割ペインの設定を読み込む
+                    LoadSplitPaneSettings();
+                }
+
+                if (IsSplitPaneEnabled)
+                {
                     // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
-                    var tabsCount = Tabs.Count;
-                    if (tabsCount == 0)
+                    var leftPaneTabsCount = LeftPaneTabs.Count;
+                    var rightPaneTabsCount = RightPaneTabs.Count;
+                    if (leftPaneTabsCount == 0 && rightPaneTabsCount == 0)
                     {
                         // 保存されたタブ情報を復元
                         RestoreTabs();
                         
                         // タブが復元されなかった場合は新しいタブを作成
-                        if (Tabs.Count == 0)
+                        // Countプロパティを再取得（RestoreTabs後）
+                        if (LeftPaneTabs.Count == 0)
                         {
+                            CreateNewLeftPaneTab();
+                        }
+                        if (RightPaneTabs.Count == 0)
+                        {
+                            CreateNewRightPaneTab();
+                        }
+                    }
+                }
+            }
+            
+            // 初回実行時のみ実行する処理を続行
+            if (_hasNavigatedTo)
+            {
+                // コマンドライン引数で指定されたパスを取得
+                var startupPath = App.GetStartupPath();
+                var isSingleTabMode = App.IsSingleTabMode();
+
+                if (IsSplitPaneEnabled)
+                {
+                    // 選択タブが設定されていない場合は、最初のタブを選択
+                    // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                    var leftPaneTabsCount2 = LeftPaneTabs.Count;
+                    if (SelectedLeftPaneTab == null && leftPaneTabsCount2 > 0)
+                    {
+                        SelectedLeftPaneTab = LeftPaneTabs[0];
+                    }
+                    var rightPaneTabsCount2 = RightPaneTabs.Count;
+                    if (SelectedRightPaneTab == null && rightPaneTabsCount2 > 0)
+                    {
+                        SelectedRightPaneTab = RightPaneTabs[0];
+                    }
+                    
+                    // 起動時に分割ペインモードが有効な場合、ActivePaneを左ペインに設定
+                    if (SelectedLeftPaneTab != null)
+                    {
+                        ActivePane = ActivePaneLeft; // 左ペインをデフォルト
+                    }
+                    else if (SelectedRightPaneTab != null)
+                    {
+                        ActivePane = ActivePaneRight; // 左ペインが存在しない場合のみ右ペインをデフォルト
+                    }
+                    
+                    // コマンドライン引数で指定されたパスがある場合は、左ペインのタブに移動
+                    if (!string.IsNullOrEmpty(startupPath) && System.IO.Directory.Exists(startupPath) && SelectedLeftPaneTab != null)
+                    {
+                        SelectedLeftPaneTab.ViewModel.NavigateToPathCommand.Execute(startupPath);
+                    }
+                }
+                else
+                {
+                    // 単一タブモードの場合は、既存のタブを削除して新しいタブを作成
+                    if (isSingleTabMode)
+                    {
+                        // 既存のタブをすべて削除
+                        Tabs.Clear();
+                        SelectedTab = null;
+                        
+                        // コマンドライン引数で指定されたパスがある場合は、そのパスでタブを作成
+                        if (!string.IsNullOrEmpty(startupPath))
+                        {
+                            // パスが存在する場合は、そのパスでタブを作成
+                            if (System.IO.Directory.Exists(startupPath))
+                            {
+                                var tab = CreateTabInternal(startupPath);
+                                Tabs.Add(tab);
+                                SelectedTab = tab;
+                                // CreateTabInternal内でNavigateToPathCommandが実行されるが、
+                                // 確実にパスを設定するために再度実行
+                                tab.ViewModel.NavigateToPathCommand.Execute(startupPath);
+                                UpdateTabTitle(tab);
+                            }
+                            else
+                            {
+                                // パスが存在しない場合は、新しいタブを作成してホームに移動
+                                CreateNewTab();
+                                if (SelectedTab != null)
+                                {
+                                    SelectedTab.ViewModel.NavigateToHome();
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // パスが指定されていない場合は、新しいタブを作成（ホームに移動）
                             CreateNewTab();
                         }
                     }
-                    
-                    // コマンドライン引数で指定されたパスがある場合は、選択されているタブに移動
-                    if (!string.IsNullOrEmpty(startupPath) && System.IO.Directory.Exists(startupPath) && SelectedTab != null)
+                    else
                     {
-                        SelectedTab.ViewModel.NavigateToPathCommand.Execute(startupPath);
+                        // 通常モードの場合
+                        // Countプロパティを一度だけ取得してキャッシュ（パフォーマンス向上）
+                        var tabsCount = Tabs.Count;
+                        if (tabsCount == 0)
+                        {
+                            // 保存されたタブ情報を復元
+                            RestoreTabs();
+                            
+                            // タブが復元されなかった場合は新しいタブを作成
+                            if (Tabs.Count == 0)
+                            {
+                                CreateNewTab();
+                            }
+                        }
+                        
+                        // コマンドライン引数で指定されたパスがある場合は、選択されているタブに移動
+                        if (!string.IsNullOrEmpty(startupPath) && System.IO.Directory.Exists(startupPath) && SelectedTab != null)
+                        {
+                            SelectedTab.ViewModel.NavigateToPathCommand.Execute(startupPath);
+                        }
                     }
                 }
             }
@@ -1268,10 +1292,27 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void MoveTabToNewWindow(ExplorerTab? tab)
         {
+            MoveTabToNewWindow(tab, null);
+        }
+
+        /// <summary>
+        /// 新しいウィンドウにタブを移動します（マウス位置を指定）
+        /// </summary>
+        /// <param name="tab">移動するタブ</param>
+        /// <param name="dropPosition">ドロップ位置（nullの場合はデフォルト位置）</param>
+        public void MoveTabToNewWindow(ExplorerTab? tab, System.Windows.Point? dropPosition)
+        {
             if (tab == null)
                 return;
 
-            var pathToOpen = tab.ViewModel?.CurrentPath ?? string.Empty;
+            // タブのパスを取得（削除する前に取得する必要がある）
+            var pathToOpen = tab.ViewModel?.CurrentPath;
+            
+            // CurrentPathが空またはnullの場合、ホームディレクトリを使用
+            if (string.IsNullOrEmpty(pathToOpen))
+            {
+                pathToOpen = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            }
 
             try
             {
@@ -1321,13 +1362,14 @@ namespace FastExplorer.ViewModels.Pages
 
                 // コマンドライン引数を構築（--single-tabフラグを追加）
                 var arguments = "--single-tab";
-                // パスが空の場合は、ホームディレクトリを使用
-                if (string.IsNullOrEmpty(pathToOpen))
+                
+                // ドロップ位置がある場合は、コマンドライン引数に追加
+                if (dropPosition.HasValue)
                 {
-                    pathToOpen = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    arguments += $" --position {dropPosition.Value.X},{dropPosition.Value.Y}";
                 }
                 
-                // パスをコマンドライン引数として渡す（存在しない場合でも渡す）
+                // パスをコマンドライン引数として渡す（pathToOpenは既に設定されている）
                 if (!string.IsNullOrEmpty(pathToOpen))
                 {
                     // パスをコマンドライン引数として渡す（スペースがある場合は引用符で囲む）
@@ -1341,7 +1383,119 @@ namespace FastExplorer.ViewModels.Pages
                     }
                 }
 
-                // 新しいプロセスを起動
+                // 元のウィンドウからタブを削除（新しいプロセス起動前に実行して、即座にUIを更新）
+                // タブの削除処理を関数に抽出して、新しいプロセス起動前に実行
+                void RemoveTabFromCurrentWindow()
+                {
+                    if (IsSplitPaneEnabled)
+                    {
+                        var leftPaneTabs = LeftPaneTabs;
+                        var rightPaneTabs = RightPaneTabs;
+                        
+                        if (leftPaneTabs.Contains(tab))
+                        {
+                            var index = leftPaneTabs.IndexOf(tab);
+                            // タブを削除する前に、タブが1つだけかどうかを確認
+                            bool wasOnlyTab = leftPaneTabs.Count == 1;
+                            
+                            leftPaneTabs.RemoveAt(index);
+                            
+                            // 選択タブを更新
+                            if (SelectedLeftPaneTab == tab)
+                            {
+                                if (index > 0 && leftPaneTabs.Count > 0)
+                                    SelectedLeftPaneTab = leftPaneTabs[index - 1];
+                                else if (leftPaneTabs.Count > 0)
+                                    SelectedLeftPaneTab = leftPaneTabs[0];
+                                else
+                                    SelectedLeftPaneTab = null;
+                            }
+                            
+                            // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
+                            if (wasOnlyTab && leftPaneTabs.Count == 0)
+                            {
+                                // 新しいタブを作成（pathToOpenをnullにして、ホームページを表示）
+                                var newTab = CreateTabInternal(null);
+                                leftPaneTabs.Add(newTab);
+                                SelectedLeftPaneTab = newTab;
+                                UpdateTabTitle(newTab);
+                                // CreateTabInternal内で既にNavigateToHome()が呼ばれているが、
+                                // 確実にホームページが表示されるように再度呼び出す
+                                newTab.ViewModel.NavigateToHome();
+                            }
+                        }
+                        else if (rightPaneTabs.Contains(tab))
+                        {
+                            var index = rightPaneTabs.IndexOf(tab);
+                            // タブを削除する前に、タブが1つだけかどうかを確認
+                            bool wasOnlyTab = rightPaneTabs.Count == 1;
+                            
+                            rightPaneTabs.RemoveAt(index);
+                            
+                            // 選択タブを更新
+                            if (SelectedRightPaneTab == tab)
+                            {
+                                if (index > 0 && rightPaneTabs.Count > 0)
+                                    SelectedRightPaneTab = rightPaneTabs[index - 1];
+                                else if (rightPaneTabs.Count > 0)
+                                    SelectedRightPaneTab = rightPaneTabs[0];
+                                else
+                                    SelectedRightPaneTab = null;
+                            }
+                            
+                            // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
+                            if (wasOnlyTab && rightPaneTabs.Count == 0)
+                            {
+                                // 新しいタブを作成（pathToOpenをnullにして、ホームページを表示）
+                                var newTab = CreateTabInternal(null);
+                                rightPaneTabs.Add(newTab);
+                                SelectedRightPaneTab = newTab;
+                                UpdateTabTitle(newTab);
+                                // CreateTabInternal内で既にNavigateToHome()が呼ばれているが、
+                                // 確実にホームページが表示されるように再度呼び出す
+                                newTab.ViewModel.NavigateToHome();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var tabs = Tabs;
+                        var index = tabs.IndexOf(tab);
+                        if (index >= 0)
+                        {
+                            // タブを削除する前に、タブが1つだけかどうかを確認
+                            bool wasOnlyTab = tabs.Count == 1;
+                            
+                            tabs.RemoveAt(index);
+                            
+                            // 選択タブを更新
+                            if (SelectedTab == tab)
+                            {
+                                if (index > 0 && tabs.Count > 0)
+                                    SelectedTab = tabs[index - 1];
+                                else if (tabs.Count > 0)
+                                    SelectedTab = tabs[0];
+                                else
+                                    SelectedTab = null;
+                            }
+                            
+                            // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
+                            if (wasOnlyTab && tabs.Count == 0)
+                            {
+                                // 新しいタブを作成（pathToOpenをnullにして、ホームページを表示）
+                                var newTab = CreateTabInternal(null);
+                                tabs.Add(newTab);
+                                SelectedTab = newTab;
+                                UpdateTabTitle(newTab);
+                                // CreateTabInternal内で既にNavigateToHome()が呼ばれているが、
+                                // 確実にホームページが表示されるように再度呼び出す
+                                newTab.ViewModel.NavigateToHome();
+                            }
+                        }
+                    }
+                }
+                
+                // 新しいプロセスを起動（タブ削除の前に実行して、成功を確認）
                 var processStartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = exePath,
@@ -1350,72 +1504,27 @@ namespace FastExplorer.ViewModels.Pages
                     WorkingDirectory = System.IO.Path.GetDirectoryName(exePath) ?? string.Empty
                 };
 
-                var newProcess = System.Diagnostics.Process.Start(processStartInfo);
+                System.Diagnostics.Process? newProcess = null;
+                try
+                {
+                    newProcess = System.Diagnostics.Process.Start(processStartInfo);
+                }
+                catch
+                {
+                    // プロセス起動に失敗した場合は、タブを削除しない
+                    newProcess = null;
+                }
+                
                 if (newProcess == null)
                 {
-                    // プロセスの起動に失敗した場合
+                    // プロセスの起動に失敗した場合、タブを削除しない
+                    System.Diagnostics.Debug.WriteLine("新しいプロセスの起動に失敗したため、タブを削除しませんでした。");
                     return;
                 }
-
-                // 元のウィンドウからタブを削除
-                if (IsSplitPaneEnabled)
-                {
-                    var leftPaneTabs = LeftPaneTabs;
-                    var rightPaneTabs = RightPaneTabs;
-                    
-                    if (leftPaneTabs.Contains(tab))
-                    {
-                        var index = leftPaneTabs.IndexOf(tab);
-                        leftPaneTabs.RemoveAt(index);
-                        
-                        // 選択タブを更新
-                        if (SelectedLeftPaneTab == tab)
-                        {
-                            if (index > 0 && leftPaneTabs.Count > 0)
-                                SelectedLeftPaneTab = leftPaneTabs[index - 1];
-                            else if (leftPaneTabs.Count > 0)
-                                SelectedLeftPaneTab = leftPaneTabs[0];
-                            else
-                                SelectedLeftPaneTab = null;
-                        }
-                    }
-                    else if (rightPaneTabs.Contains(tab))
-                    {
-                        var index = rightPaneTabs.IndexOf(tab);
-                        rightPaneTabs.RemoveAt(index);
-                        
-                        // 選択タブを更新
-                        if (SelectedRightPaneTab == tab)
-                        {
-                            if (index > 0 && rightPaneTabs.Count > 0)
-                                SelectedRightPaneTab = rightPaneTabs[index - 1];
-                            else if (rightPaneTabs.Count > 0)
-                                SelectedRightPaneTab = rightPaneTabs[0];
-                            else
-                                SelectedRightPaneTab = null;
-                        }
-                    }
-                }
-                else
-                {
-                    var tabs = Tabs;
-                    var index = tabs.IndexOf(tab);
-                    if (index >= 0)
-                    {
-                        tabs.RemoveAt(index);
-                        
-                        // 選択タブを更新
-                        if (SelectedTab == tab)
-                        {
-                            if (index > 0 && tabs.Count > 0)
-                                SelectedTab = tabs[index - 1];
-                            else if (tabs.Count > 0)
-                                SelectedTab = tabs[0];
-                            else
-                                SelectedTab = null;
-                        }
-                    }
-                }
+                
+                // プロセス起動が成功した場合のみ、即座にタブを削除
+                // プロセス起動は高速なので、同期的に実行してもUIの応答性に影響は少ない
+                RemoveTabFromCurrentWindow();
             }
             catch (System.ComponentModel.Win32Exception ex)
             {
