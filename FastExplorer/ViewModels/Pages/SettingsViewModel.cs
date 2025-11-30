@@ -320,18 +320,12 @@ namespace FastExplorer.ViewModels.Pages
 
             try
             {
-                // 現在のテーマがライトモードでない場合は、テーマカラーを適用しない
+                // 現在のテーマがライトモードでない場合は、ライトモードに変更してからテーマカラーを適用
                 var currentTheme = ApplicationThemeManager.GetAppTheme();
                 if (currentTheme != ApplicationTheme.Light)
                 {
-                    // ダークモードの場合は、テーマカラーを保存するだけで適用しない
-                    var settings = _windowSettingsService.GetSettings();
-                    settings.ThemeColorName = themeColor.Name;
-                    settings.ThemeColorCode = themeColor.ColorCode;
-                    settings.ThemeSecondaryColorCode = themeColor.SecondaryColorCode;
-                    settings.ThemeThirdColorCode = themeColor.ThirdColorCode;
-                    _windowSettingsService.SaveSettings(settings);
-                    return;
+                    // ダークモードの場合は、ライトモードに変更してからテーマカラーを適用
+                    ApplyTheme(ApplicationTheme.Light);
                 }
 
                 // テーマカラーを保存
