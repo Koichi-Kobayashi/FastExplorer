@@ -2505,6 +2505,8 @@ namespace FastExplorer.Views.Pages
             _draggedTabItem = tabItem;
             _isTabDragging = false;
             
+            System.Diagnostics.Debug.WriteLine($"[PreviewMouseDown] _draggedTabを設定: {_draggedTab?.Title}");
+            
             // ドラッグを開始するために、マウスキャプチャを設定
             tabItem.CaptureMouse();
         }
@@ -2675,9 +2677,9 @@ namespace FastExplorer.Views.Pages
                 
                 try
                 {
-                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop] ドラッグ開始");
+                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop] ドラッグ開始: _draggedTab={_draggedTab?.Title}");
                     var dragResult = DragDrop.DoDragDrop(_draggedTabItem, _draggedTabItem, DragDropEffects.Move);
-                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop] ドラッグ終了: dragResult = {dragResult}, dropHandled = {dropHandled}, droppedOutsideWindow = {droppedOutsideWindow}");
+                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop] ドラッグ終了: _draggedTab={_draggedTab?.Title}, dragResult = {dragResult}, dropHandled = {dropHandled}, droppedOutsideWindow = {droppedOutsideWindow}");
                     
                     // ウィンドウ外にドロップされた場合、またはTabControl_Dropが呼ばれなかった場合
                     if (!dropHandled && _draggedTab != null)
@@ -2685,6 +2687,10 @@ namespace FastExplorer.Views.Pages
                         // ドロップ時のマウス位置を再取得して確認
                         System.Windows.Point? dropPosition = null;
                         bool isOutsideWindow = droppedOutsideWindow; // QueryContinueDragで検出された値を優先
+                        
+                        // dragResultがNoneの場合、タブがどこにもドロップされなかった可能性が高い
+                        // この場合、デスクトップにドロップされたとみなす
+                        bool dragResultIsNone = dragResult == DragDropEffects.None;
                         
                         if (windowHandle != IntPtr.Zero)
                         {
@@ -2717,9 +2723,70 @@ namespace FastExplorer.Views.Pages
                         
                         // ドロップが処理されなかった場合、デスクトップにドロップされたかどうかを判定
                         bool isDroppedOnDesktop = false;
-                        if (isOutsideWindow || droppedOutsideWindow) // droppedOutsideWindowも考慮
+                        
+                        // まず、droppedOutsideWindowがTrueかどうかを確認（最優先）
+                        // QueryContinueDragで一度ウィンドウ外に出たことを検出した場合、デスクトップにドロップされたとみなす
+                        if (droppedOutsideWindow)
                         {
-                            // ウィンドウ外にドロップされた場合
+                            isDroppedOnDesktop = true;
+                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: droppedOutsideWindow=True → デスクトップと判定 (dragResult={dragResult})");
+                        }
+                        // dragResultがNoneで、dropHandledがfalseの場合、
+                        // タブがどこにもドロップされなかったことを意味するため、デスクトップにドロップされたとみなす
+                        else if (dragResultIsNone)
+                        {
+                            // ウィンドウ外にドロップされたかどうかを再確認（ただし、必須ではない）
+                            if (isOutsideWindow)
+                            {
+                                // ウィンドウ外にドロップされた場合、確実にデスクトップにドロップされたとみなす
+                                isDroppedOnDesktop = true;
+                                System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ ウィンドウ外 → デスクトップと判定");
+                            }
+                            else
+                            {
+                                // ウィンドウ外でなくても、dragResultがNoneでdropHandledがfalseの場合、
+                                // ドロップ後にマウスがウィンドウ内に戻った可能性があるため、デスクトップにドロップされたとみなす
+                                // ただし、lastMousePositionを使用して最後のマウス位置を確認
+                                if (lastMousePosition.HasValue)
+                                {
+                                    // lastMousePositionがウィンドウ外にあるかどうかを確認
+                                    RECT windowRect;
+                                    if (GetWindowRect(windowHandle, out windowRect))
+                                    {
+                                        bool lastPosOutsideWindow = lastMousePosition.Value.X < windowRect.Left || 
+                                                                   lastMousePosition.Value.X > windowRect.Right ||
+                                                                   lastMousePosition.Value.Y < windowRect.Top || 
+                                                                   lastMousePosition.Value.Y > windowRect.Bottom;
+                                        
+                                        if (lastPosOutsideWindow)
+                                        {
+                                            isDroppedOnDesktop = true;
+                                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ lastMousePositionがウィンドウ外 → デスクトップと判定");
+                                        }
+                                        else
+                                        {
+                                            // lastMousePositionもウィンドウ内の場合、デスクトップではない可能性が高い
+                                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None だが lastMousePositionがウィンドウ内 → デスクトップではない");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // ウィンドウ矩形が取得できない場合、念のためデスクトップにドロップされたとみなす
+                                        isDroppedOnDesktop = true;
+                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ ウィンドウ矩形取得失敗 → デスクトップと判定");
+                                    }
+                                }
+                                else
+                                {
+                                    // lastMousePositionがない場合、念のためデスクトップにドロップされたとみなす
+                                    isDroppedOnDesktop = true;
+                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ lastMousePositionなし → デスクトップと判定");
+                                }
+                            }
+                        }
+                        else if (isOutsideWindow)
+                        {
+                            // ウィンドウ外にドロップされた場合（droppedOutsideWindowは既に上でチェック済み）
                             if (dropPosition.HasValue)
                             {
                                 // ドロップ位置の下にあるウィンドウを取得
@@ -2731,24 +2798,28 @@ namespace FastExplorer.Views.Pages
                                 
                                 System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: windowUnderPoint={windowUnderPoint}, desktopWindow={desktopWindow}, windowHandle={windowHandle}");
                                 
+                                // ウィンドウがデスクトップまたはその子ウィンドウであるかを確認（参考情報として）
+                                bool isDesktopOrChild = IsDesktopOrChildWindow(windowUnderPoint, desktopWindow);
+                                
                                 // ドロップ位置の下にあるウィンドウが現在のアプリケーションのウィンドウでない場合
                                 if (windowUnderPoint != windowHandle)
                                 {
                                     // ウィンドウ外にドロップされ、かつ現在のアプリケーションのウィンドウでない場合
-                                    // dragResultがNoneの場合、別のアプリケーションがドロップを受け取らなかったことを意味する
-                                    // したがって、デスクトップにドロップされたとみなす
+                                    // （droppedOutsideWindowは既に上でチェック済みなので、ここではfalse）
+                                    
                                     if (dragResult == DragDropEffects.None)
                                     {
-                                        // デスクトップまたはデスクトップの子ウィンドウにドロップされたとみなす
+                                        // ウィンドウ外にドロップされ、dragResultがNoneの場合、デスクトップにドロップされたとみなす
+                                        // isDesktopOrChildの結果に関わらず、これらの条件が満たされればデスクトップと判定
                                         isDroppedOnDesktop = true;
-                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ ウィンドウ外 → デスクトップと判定");
+                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ ウィンドウ外 → デスクトップと判定 (isDesktopOrChild={isDesktopOrChild}, windowUnderPoint={windowUnderPoint})");
                                     }
                                     else
                                     {
                                         // dragResultがNoneでない場合、別のアプリケーションがドロップを受け取った可能性がある
-                                        // この場合は、新しいウィンドウを作成しない
-                                        isDroppedOnDesktop = false;
-                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult={dragResult} → 別アプリがドロップを受け取った可能性");
+                                        // ただし、windowUnderPointがデスクトップまたはその子ウィンドウである場合は、デスクトップにドロップされたとみなす
+                                        isDroppedOnDesktop = isDesktopOrChild;
+                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult={dragResult} → isDesktopOrChild={isDesktopOrChild}");
                                     }
                                 }
                                 else
@@ -2760,7 +2831,8 @@ namespace FastExplorer.Views.Pages
                             }
                             else
                             {
-                                // dropPositionが取得できない場合でも、ウィンドウ外にドロップされ、dragResultがNoneの場合はデスクトップとみなす
+                                // dropPositionが取得できない場合でも、ウィンドウ外にドロップされた場合の判定
+                                // （droppedOutsideWindowは既に上でチェック済みなので、ここではfalse）
                                 if (dragResult == DragDropEffects.None)
                                 {
                                     isDroppedOnDesktop = true;
@@ -2783,7 +2855,14 @@ namespace FastExplorer.Views.Pages
                             {
                                 // デスクトップにドロップされた場合、新しいウィンドウを作成（ドロップ位置を指定）
                                 // dropPositionがnullの場合は、lastMousePositionを使用、それもnullの場合は位置を指定しない
+                                System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] MoveTabToNewWindowを呼び出します: _draggedTab={_draggedTab?.Title}");
                                 ViewModel.MoveTabToNewWindow(_draggedTab, dropPosition ?? lastMousePosition);
+                                
+                                // デスクトップドロップ完了後、変数をクリア
+                                _draggedTab = null;
+                                _draggedTabItem = null;
+                                _isTabDragging = false;
+                                System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップドロップ完了後、変数をクリア");
                             }
                             catch (System.Exception ex)
                             {
@@ -2792,10 +2871,21 @@ namespace FastExplorer.Views.Pages
                                 try
                                 {
                                     ViewModel.MoveTabToNewWindow(_draggedTab, null);
+                                    
+                                    // 例外が発生しても、変数をクリア
+                                    _draggedTab = null;
+                                    _draggedTabItem = null;
+                                    _isTabDragging = false;
+                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップドロップ完了後（例外ハンドリング）、変数をクリア");
                                 }
                                 catch (System.Exception ex2)
                                 {
                                     System.Diagnostics.Debug.WriteLine($"新しいウィンドウの作成に失敗しました: {ex2.Message}");
+                                    
+                                    // 失敗した場合も変数をクリア
+                                    _draggedTab = null;
+                                    _draggedTabItem = null;
+                                    _isTabDragging = false;
                                 }
                             }
                         }
@@ -3334,6 +3424,48 @@ namespace FastExplorer.Views.Pages
 
         [DllImport("user32.dll")]
         private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        /// <summary>
+        /// 指定されたウィンドウがデスクトップまたはその子ウィンドウであるかを確認します
+        /// </summary>
+        /// <param name="hWnd">確認するウィンドウハンドル</param>
+        /// <param name="desktopWindow">デスクトップのウィンドウハンドル</param>
+        /// <returns>デスクトップまたはその子ウィンドウである場合はtrue、それ以外はfalse</returns>
+        private static bool IsDesktopOrChildWindow(IntPtr hWnd, IntPtr desktopWindow)
+        {
+            if (hWnd == IntPtr.Zero)
+                return false;
+
+            // デスクトップウィンドウ自体である場合
+            if (hWnd == desktopWindow)
+                return true;
+
+            // 親ウィンドウを再帰的に確認して、デスクトップの子ウィンドウであるかを確認
+            IntPtr currentWindow = hWnd;
+            const int maxDepth = 10; // 無限ループを防ぐための最大深度
+            int depth = 0;
+
+            while (depth < maxDepth)
+            {
+                IntPtr parent = GetParent(currentWindow);
+                if (parent == IntPtr.Zero)
+                {
+                    // 親ウィンドウがない場合、デスクトップの子ウィンドウではない
+                    break;
+                }
+
+                if (parent == desktopWindow)
+                {
+                    // 親ウィンドウがデスクトップである場合、デスクトップの子ウィンドウである
+                    return true;
+                }
+
+                currentWindow = parent;
+                depth++;
+            }
+
+            return false;
+        }
 
         [DllImport("user32.dll")]
         private static extern IntPtr SetCursor(IntPtr hCursor);

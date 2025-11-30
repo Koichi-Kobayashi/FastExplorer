@@ -1305,6 +1305,79 @@ namespace FastExplorer.ViewModels.Pages
             if (tab == null)
                 return;
 
+            // 【重要】削除・移動するのはアクティブタブ
+            // ドラッグされたタブではなく、現在選択されているタブを使用
+            System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] ========================================");
+            System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] アクティブタブの取得を開始");
+            System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] IsSplitPaneEnabled={IsSplitPaneEnabled}, ActivePane={ActivePane}");
+            System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] ドラッグされたタブ: {tab?.Title}");
+            
+            ExplorerTab? activeTab = null;
+            if (IsSplitPaneEnabled)
+            {
+                // 分割ペインモードの場合、ドラッグされたタブがどちらのコレクションにあるか確認
+                var leftPaneTabs = LeftPaneTabs;
+                var rightPaneTabs = RightPaneTabs;
+                
+                if (leftPaneTabs.Contains(tab))
+                {
+                    // ドラッグされたタブが左ペインにある場合、左ペインの選択タブを取得
+                    activeTab = SelectedLeftPaneTab;
+                    System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 分割ペインモード（ドラッグされたタブは左ペイン）: 選択タブ={activeTab?.Title}");
+                    
+                    // 選択タブがない、またはコレクションにない場合は、ドラッグされたタブを使用
+                    if (activeTab == null || !leftPaneTabs.Contains(activeTab))
+                    {
+                        activeTab = tab;
+                        System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 左ペインの選択タブがないため、ドラッグされたタブを使用={activeTab?.Title}");
+                    }
+                }
+                else if (rightPaneTabs.Contains(tab))
+                {
+                    // ドラッグされたタブが右ペインにある場合、右ペインの選択タブを取得
+                    activeTab = SelectedRightPaneTab;
+                    System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 分割ペインモード（ドラッグされたタブは右ペイン）: 選択タブ={activeTab?.Title}");
+                    
+                    // 選択タブがない、またはコレクションにない場合は、ドラッグされたタブを使用
+                    if (activeTab == null || !rightPaneTabs.Contains(activeTab))
+                    {
+                        activeTab = tab;
+                        System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 右ペインの選択タブがないため、ドラッグされたタブを使用={activeTab?.Title}");
+                    }
+                }
+                else
+                {
+                    // ドラッグされたタブがどちらのペインにもない場合は、ドラッグされたタブを使用
+                    activeTab = tab;
+                    System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 分割ペインモード（ドラッグされたタブはどちらのペインにもない）: ドラッグされたタブを使用={activeTab?.Title}");
+                }
+            }
+            else
+            {
+                // 通常モードの場合、SelectedTabを使用
+                activeTab = SelectedTab;
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 通常モード: 選択タブ={activeTab?.Title}");
+                
+                // 選択タブがない、またはコレクションにない場合は、ドラッグされたタブを使用
+                if (activeTab == null || !Tabs.Contains(activeTab))
+                {
+                    activeTab = tab;
+                    System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 通常モードの選択タブがないため、ドラッグされたタブを使用={activeTab?.Title}");
+                }
+            }
+            
+            // アクティブタブが取得できない場合は、ドラッグされたタブを使用
+            if (activeTab == null)
+            {
+                activeTab = tab;
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] アクティブタブがnullのため、ドラッグされたタブを使用={activeTab?.Title}");
+            }
+            
+            // この後、activeTabを使用して処理を進める
+            tab = activeTab;
+            System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 【確定】使用するタブ: {tab.Title}, Path={tab.ViewModel?.CurrentPath}");
+            System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] ========================================");
+
             // タブのパスを取得（削除する前に取得する必要がある）
             var pathToOpen = tab.ViewModel?.CurrentPath;
             
@@ -1387,10 +1460,16 @@ namespace FastExplorer.ViewModels.Pages
                 // タブの削除処理を関数に抽出して、新しいプロセス起動前に実行
                 void RemoveTabFromCurrentWindow()
                 {
+                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 【ステップ1開始】元のウィンドウからタブを削除します: IsSplitPaneEnabled={IsSplitPaneEnabled}");
+                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 削除するタブ: Title={tab?.Title}, Path={tab?.ViewModel?.CurrentPath}");
+                    
                     if (IsSplitPaneEnabled)
                     {
                         var leftPaneTabs = LeftPaneTabs;
                         var rightPaneTabs = RightPaneTabs;
+                        
+                        System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 分割ペインモード: leftPaneTabs.Count={leftPaneTabs.Count}, rightPaneTabs.Count={rightPaneTabs.Count}");
+                        System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] leftPaneTabs.Contains(tab)={leftPaneTabs.Contains(tab)}, rightPaneTabs.Contains(tab)={rightPaneTabs.Contains(tab)}");
                         
                         if (leftPaneTabs.Contains(tab))
                         {
@@ -1398,22 +1477,46 @@ namespace FastExplorer.ViewModels.Pages
                             // タブを削除する前に、タブが1つだけかどうかを確認
                             bool wasOnlyTab = leftPaneTabs.Count == 1;
                             
+                            System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインからタブを削除: index={index}, wasOnlyTab={wasOnlyTab}, leftPaneTabs.Count={leftPaneTabs.Count}");
+                            
                             leftPaneTabs.RemoveAt(index);
                             
-                            // 選択タブを更新
-                            if (SelectedLeftPaneTab == tab)
+                            // 選択タブを更新（削除されたタブが選択されていなくても更新）
+                            bool wasSelected = (SelectedLeftPaneTab == tab);
+                            System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 削除されたタブは選択されていた: {wasSelected}");
+                            
+                            // 削除されたタブが選択されていた場合、または選択タブがない場合
+                            if (wasSelected || SelectedLeftPaneTab == null || !leftPaneTabs.Contains(SelectedLeftPaneTab))
                             {
                                 if (index > 0 && leftPaneTabs.Count > 0)
+                                {
                                     SelectedLeftPaneTab = leftPaneTabs[index - 1];
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインの選択タブを前のタブに変更: index={index - 1}, Title={SelectedLeftPaneTab?.Title}");
+                                }
                                 else if (leftPaneTabs.Count > 0)
+                                {
                                     SelectedLeftPaneTab = leftPaneTabs[0];
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインの選択タブを最初のタブに変更: index=0, Title={SelectedLeftPaneTab?.Title}");
+                                }
                                 else
+                                {
                                     SelectedLeftPaneTab = null;
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインの選択タブをnullに設定");
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 選択タブは変更しない: Title={SelectedLeftPaneTab?.Title}");
+                                // 選択タブが変更されなくても、コレクションが変更されたのでUIを強制更新
+                                OnPropertyChanged(nameof(SelectedLeftPaneTab));
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインのUIを強制更新");
                             }
                             
                             // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
                             if (wasOnlyTab && leftPaneTabs.Count == 0)
                             {
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインに新しいホームタブを作成");
+                                
                                 // 新しいタブを作成（pathToOpenをnullにして、ホームページを表示）
                                 var newTab = CreateTabInternal(null);
                                 leftPaneTabs.Add(newTab);
@@ -1422,6 +1525,31 @@ namespace FastExplorer.ViewModels.Pages
                                 // CreateTabInternal内で既にNavigateToHome()が呼ばれているが、
                                 // 確実にホームページが表示されるように再度呼び出す
                                 newTab.ViewModel.NavigateToHome();
+                                
+                                // 左ペインにフォーカスを設定
+                                ActivePane = ActivePaneLeft;
+                                
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインに新しいホームタブを作成完了、ActivePane={ActivePane}");
+                            }
+                            else
+                            {
+                                // タブが複数あった場合でも、左ペインにフォーカスを設定してUIを更新
+                                if (leftPaneTabs.Count > 0)
+                                {
+                                    // ActivePaneが既にLeftの場合でも、強制的にUIを更新するため、一度別の値に設定してから戻す
+                                    var currentActivePane = ActivePane;
+                                    if (currentActivePane == ActivePaneLeft)
+                                    {
+                                        ActivePane = ActivePaneNone;
+                                    }
+                                    ActivePane = ActivePaneLeft;
+                                    
+                                    // 明示的にPropertyChangedを発火させる
+                                    OnPropertyChanged(nameof(SelectedLeftPaneTab));
+                                    
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインにフォーカスを設定してUIを更新、ActivePane={ActivePane}（強制更新）");
+                                }
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインに新しいタブを作成しない: wasOnlyTab={wasOnlyTab}, leftPaneTabs.Count={leftPaneTabs.Count}");
                             }
                         }
                         else if (rightPaneTabs.Contains(tab))
@@ -1430,22 +1558,46 @@ namespace FastExplorer.ViewModels.Pages
                             // タブを削除する前に、タブが1つだけかどうかを確認
                             bool wasOnlyTab = rightPaneTabs.Count == 1;
                             
+                            System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインからタブを削除: index={index}, wasOnlyTab={wasOnlyTab}, rightPaneTabs.Count={rightPaneTabs.Count}");
+                            
                             rightPaneTabs.RemoveAt(index);
                             
-                            // 選択タブを更新
-                            if (SelectedRightPaneTab == tab)
+                            // 選択タブを更新（削除されたタブが選択されていなくても更新）
+                            bool wasSelected = (SelectedRightPaneTab == tab);
+                            System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 削除されたタブは選択されていた: {wasSelected}");
+                            
+                            // 削除されたタブが選択されていた場合、または選択タブがない場合
+                            if (wasSelected || SelectedRightPaneTab == null || !rightPaneTabs.Contains(SelectedRightPaneTab))
                             {
                                 if (index > 0 && rightPaneTabs.Count > 0)
+                                {
                                     SelectedRightPaneTab = rightPaneTabs[index - 1];
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインの選択タブを前のタブに変更: index={index - 1}, Title={SelectedRightPaneTab?.Title}");
+                                }
                                 else if (rightPaneTabs.Count > 0)
+                                {
                                     SelectedRightPaneTab = rightPaneTabs[0];
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインの選択タブを最初のタブに変更: index=0, Title={SelectedRightPaneTab?.Title}");
+                                }
                                 else
+                                {
                                     SelectedRightPaneTab = null;
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインの選択タブをnullに設定");
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 選択タブは変更しない: Title={SelectedRightPaneTab?.Title}");
+                                // 選択タブが変更されなくても、コレクションが変更されたのでUIを強制更新
+                                OnPropertyChanged(nameof(SelectedRightPaneTab));
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインのUIを強制更新");
                             }
                             
                             // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
                             if (wasOnlyTab && rightPaneTabs.Count == 0)
                             {
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインに新しいホームタブを作成");
+                                
                                 // 新しいタブを作成（pathToOpenをnullにして、ホームページを表示）
                                 var newTab = CreateTabInternal(null);
                                 rightPaneTabs.Add(newTab);
@@ -1454,6 +1606,118 @@ namespace FastExplorer.ViewModels.Pages
                                 // CreateTabInternal内で既にNavigateToHome()が呼ばれているが、
                                 // 確実にホームページが表示されるように再度呼び出す
                                 newTab.ViewModel.NavigateToHome();
+                                
+                                // 右ペインにフォーカスを設定
+                                ActivePane = ActivePaneRight;
+                                
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインに新しいホームタブを作成完了、ActivePane={ActivePane}");
+                            }
+                            else
+                            {
+                                // タブが複数あった場合でも、右ペインにフォーカスを設定してUIを更新
+                                if (rightPaneTabs.Count > 0)
+                                {
+                                    // ActivePaneが既にRightの場合でも、強制的にUIを更新するため、一度別の値に設定してから戻す
+                                    var currentActivePane = ActivePane;
+                                    if (currentActivePane == ActivePaneRight)
+                                    {
+                                        ActivePane = ActivePaneNone;
+                                    }
+                                    ActivePane = ActivePaneRight;
+                                    
+                                    // 明示的にPropertyChangedを発火させる
+                                    OnPropertyChanged(nameof(SelectedRightPaneTab));
+                                    
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインにフォーカスを設定してUIを更新、ActivePane={ActivePane}（強制更新）");
+                                }
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインに新しいタブを作成しない: wasOnlyTab={wasOnlyTab}, rightPaneTabs.Count={rightPaneTabs.Count}");
+                            }
+                        }
+                        else
+                        {
+                            // タブが左ペインにも右ペインにも見つからない場合、通常モードのTabsコレクションを確認
+                            System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 分割ペインモードでタブが見つかりません: leftPaneTabs.Count={leftPaneTabs.Count}, rightPaneTabs.Count={rightPaneTabs.Count}");
+                            
+                            // 通常モードのTabsコレクションにタブがあるか確認
+                            var tabs = Tabs;
+                            var tabIndex = tabs.IndexOf(tab);
+                            if (tabIndex >= 0)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードのTabsコレクションにタブが見つかりました: index={tabIndex}, tabs.Count={tabs.Count}");
+                                
+                                // 通常モードのTabsコレクションからタブを削除
+                                tabs.RemoveAt(tabIndex);
+                                
+                                // 選択タブを更新
+                                if (SelectedTab == tab)
+                                {
+                                    if (tabIndex > 0 && tabs.Count > 0)
+                                    {
+                                        SelectedTab = tabs[tabIndex - 1];
+                                        System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードの選択タブを前のタブに変更: index={tabIndex - 1}");
+                                    }
+                                    else if (tabs.Count > 0)
+                                    {
+                                        SelectedTab = tabs[0];
+                                        System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードの選択タブを最初のタブに変更: index=0");
+                                    }
+                                    else
+                                    {
+                                        SelectedTab = null;
+                                        System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードの選択タブをnullに設定");
+                                    }
+                                }
+                                
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードのTabsコレクションからタブを削除しました: 残りのタブ数={tabs.Count}");
+                            }
+                            else
+                            {
+                                // 通常モードのTabsコレクションにも見つからない場合
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードのTabsコレクションにもタブが見つかりません: tabs.Count={tabs.Count}");
+                                
+                                // 左ペインと右ペインのタブ数を確認して、どちらかが空の場合は新しいタブを作成
+                                bool leftPaneWasEmpty = false;
+                                bool rightPaneWasEmpty = false;
+                                
+                                if (leftPaneTabs.Count == 0)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインが空のため、新しいホームタブを作成");
+                                    var newTab = CreateTabInternal(null);
+                                    leftPaneTabs.Add(newTab);
+                                    SelectedLeftPaneTab = newTab;
+                                    UpdateTabTitle(newTab);
+                                    newTab.ViewModel.NavigateToHome();
+                                    leftPaneWasEmpty = true;
+                                }
+                                if (rightPaneTabs.Count == 0)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインが空のため、新しいホームタブを作成");
+                                    var newTab = CreateTabInternal(null);
+                                    rightPaneTabs.Add(newTab);
+                                    SelectedRightPaneTab = newTab;
+                                    UpdateTabTitle(newTab);
+                                    newTab.ViewModel.NavigateToHome();
+                                    rightPaneWasEmpty = true;
+                                }
+                                
+                                // 両方のペインが空だった場合は左ペインにフォーカスを設定
+                                // 左ペインのみが空だった場合は左ペインにフォーカスを設定
+                                // 右ペインのみが空だった場合は右ペインにフォーカスを設定
+                                if (leftPaneWasEmpty && rightPaneWasEmpty)
+                                {
+                                    ActivePane = ActivePaneLeft;
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 両方のペインが空だったため、左ペインにフォーカスを設定、ActivePane={ActivePane}");
+                                }
+                                else if (leftPaneWasEmpty)
+                                {
+                                    ActivePane = ActivePaneLeft;
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 左ペインが空だったため、左ペインにフォーカスを設定、ActivePane={ActivePane}");
+                                }
+                                else if (rightPaneWasEmpty)
+                                {
+                                    ActivePane = ActivePaneRight;
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 右ペインが空だったため、右ペインにフォーカスを設定、ActivePane={ActivePane}");
+                                }
                             }
                         }
                     }
@@ -1466,22 +1730,46 @@ namespace FastExplorer.ViewModels.Pages
                             // タブを削除する前に、タブが1つだけかどうかを確認
                             bool wasOnlyTab = tabs.Count == 1;
                             
+                            System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードからタブを削除: index={index}, wasOnlyTab={wasOnlyTab}, tabs.Count={tabs.Count}");
+                            
                             tabs.RemoveAt(index);
                             
-                            // 選択タブを更新
-                            if (SelectedTab == tab)
+                            // 選択タブを更新（削除されたタブが選択されていなくても更新）
+                            bool wasSelected = (SelectedTab == tab);
+                            System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 削除されたタブは選択されていた: {wasSelected}");
+                            
+                            // 削除されたタブが選択されていた場合、または選択タブがない場合
+                            if (wasSelected || SelectedTab == null || !tabs.Contains(SelectedTab))
                             {
                                 if (index > 0 && tabs.Count > 0)
+                                {
                                     SelectedTab = tabs[index - 1];
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードの選択タブを前のタブに変更: index={index - 1}, Title={SelectedTab?.Title}");
+                                }
                                 else if (tabs.Count > 0)
+                                {
                                     SelectedTab = tabs[0];
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードの選択タブを最初のタブに変更: index=0, Title={SelectedTab?.Title}");
+                                }
                                 else
+                                {
                                     SelectedTab = null;
+                                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードの選択タブをnullに設定");
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 選択タブは変更しない: Title={SelectedTab?.Title}");
+                                // 選択タブが変更されなくても、コレクションが変更されたのでUIを強制更新
+                                OnPropertyChanged(nameof(SelectedTab));
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードのUIを強制更新");
                             }
                             
                             // タブが1つしかなかった場合（削除後に0個になった場合）、新しいタブを作成してホームページを表示
                             if (wasOnlyTab && tabs.Count == 0)
                             {
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードに新しいホームタブを作成");
+                                
                                 // 新しいタブを作成（pathToOpenをnullにして、ホームページを表示）
                                 var newTab = CreateTabInternal(null);
                                 tabs.Add(newTab);
@@ -1490,12 +1778,38 @@ namespace FastExplorer.ViewModels.Pages
                                 // CreateTabInternal内で既にNavigateToHome()が呼ばれているが、
                                 // 確実にホームページが表示されるように再度呼び出す
                                 newTab.ViewModel.NavigateToHome();
+                                
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードに新しいホームタブを作成完了");
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードに新しいタブを作成しない: wasOnlyTab={wasOnlyTab}, tabs.Count={tabs.Count}");
                             }
                         }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 通常モードでタブが見つかりません");
+                        }
                     }
+                    
+                    System.Diagnostics.Debug.WriteLine($"[RemoveTabFromCurrentWindow] 【ステップ1完了】元のウィンドウからタブを削除しました");
                 }
                 
-                // 新しいプロセスを起動（タブ削除の前に実行して、成功を確認）
+                // 【重要】先にタブを削除（新しいウィンドウを作成する前に元のウィンドウから削除）
+                // タブが複数ある場合: タブを削除して次のタブを選択
+                // タブが1つだけの場合: タブを削除してホームタブを作成
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] ========================================");
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 処理開始: タブをデスクトップにドロップ");
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] ========================================");
+                RemoveTabFromCurrentWindow();
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] ----------------------------------------");
+                
+                // UIの更新を強制的に処理（新しいウィンドウを作成する前にUIを更新）
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] UIの更新を待機します...");
+                System.Windows.Application.Current.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Background);
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] UIの更新が完了しました");
+                
+                // この後、新しいプロセスを起動して新しいウィンドウを作成
                 var processStartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = exePath,
@@ -1507,34 +1821,34 @@ namespace FastExplorer.ViewModels.Pages
                 System.Diagnostics.Process? newProcess = null;
                 try
                 {
+                    System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 【ステップ2】新しいウィンドウを作成します: exePath={exePath}, arguments={arguments}");
                     newProcess = System.Diagnostics.Process.Start(processStartInfo);
+                    System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 【ステップ2完了】新しいウィンドウを作成しました: newProcess={newProcess?.Id}");
                 }
-                catch
+                catch (System.Exception ex)
                 {
-                    // プロセス起動に失敗した場合は、タブを削除しない
+                    // プロセス起動に失敗した場合でも、既にタブは削除されている
+                    System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 【エラー】新しいウィンドウの作成に失敗: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] ※タブは既に元のウィンドウから削除されています");
                     newProcess = null;
                 }
                 
                 if (newProcess == null)
                 {
-                    // プロセスの起動に失敗した場合、タブを削除しない
-                    System.Diagnostics.Debug.WriteLine("新しいプロセスの起動に失敗したため、タブを削除しませんでした。");
+                    // プロセスの起動に失敗した場合でも、タブは既に削除されている
+                    System.Diagnostics.Debug.WriteLine("[MoveTabToNewWindow] 【エラー】新しいウィンドウの作成に失敗しました。タブは既に元のウィンドウから削除されています。");
                     return;
                 }
-                
-                // プロセス起動が成功した場合のみ、即座にタブを削除
-                // プロセス起動は高速なので、同期的に実行してもUIの応答性に影響は少ない
-                RemoveTabFromCurrentWindow();
             }
             catch (System.ComponentModel.Win32Exception ex)
             {
                 // Win32Exceptionの場合は、詳細なエラー情報をログに記録（デバッグ用）
-                System.Diagnostics.Debug.WriteLine($"新しいプロセスの起動に失敗しました: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 外側のcatch: Win32Exception: {ex.Message}");
             }
             catch (System.Exception ex)
             {
                 // その他の例外もログに記録（デバッグ用）
-                System.Diagnostics.Debug.WriteLine($"新しいプロセスの起動中にエラーが発生しました: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[MoveTabToNewWindow] 外側のcatch: Exception: {ex.Message}");
             }
         }
 
