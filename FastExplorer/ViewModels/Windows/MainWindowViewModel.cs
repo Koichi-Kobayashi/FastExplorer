@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -328,7 +328,7 @@ namespace FastExplorer.ViewModels.Windows
             {
                 Content = "Settings",
                 Icon = new SymbolIcon { Symbol = SymbolRegular.Settings24 },
-                TargetPageType = typeof(Views.Pages.SettingsPage)
+                Tag = "SETTINGS" // 設定ページを識別するためのTag
             }
         };
 

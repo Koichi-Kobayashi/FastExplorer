@@ -287,6 +287,15 @@ namespace FastExplorer.ViewModels.Pages
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     ThemedSvgIcon.RefreshAllInstances();
+                    
+                    // タブとListViewのスタイルを無効化してDynamicResourceの再評価を強制
+                    foreach (Window window in Application.Current.Windows)
+                    {
+                        if (window != null)
+                        {
+                            Views.Windows.MainWindow.InvalidateTabAndListViewStyles(window);
+                        }
+                    }
                 }), System.Windows.Threading.DispatcherPriority.Render);
             }
             catch

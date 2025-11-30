@@ -10,6 +10,7 @@ using FastExplorer.Services;
 using FastExplorer.ViewModels.Windows;
 using FastExplorer.Helpers;
 using FastExplorer.ShellContextMenu;
+using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui;
 using Wpf.Ui.Abstractions;
 using Wpf.Ui.Appearance;
@@ -133,8 +134,69 @@ namespace FastExplorer.Views.Windows
             }
             Loaded += InitializeHandler;
             
+            // フッターメニュー項目のClickイベントを設定
+            SetupFooterMenuItemHandlers();
+            
             // ウィンドウ外へのタブドロップを処理するために、ウィンドウのDropイベントを処理
             this.Drop += MainWindow_Drop;
+        }
+        
+        /// <summary>
+        /// フッターメニュー項目のイベントハンドラーを設定します
+        /// </summary>
+        private void SetupFooterMenuItemHandlers()
+        {
+            // ViewModelのFooterMenuItemsからSettingsアイテムを取得
+            var footerItems = ViewModel.FooterMenuItems;
+            if (footerItems == null)
+                return;
+            
+            foreach (var item in footerItems)
+            {
+                if (item is NavigationViewItem navItem && navItem.Tag is string tag && tag == "SETTINGS")
+                {
+                    // 既存のClickイベントハンドラーを削除してから追加（重複を避けるため）
+                    navItem.Click -= SettingsMenuItem_Click;
+                    navItem.Click += SettingsMenuItem_Click;
+                    System.Diagnostics.Debug.WriteLine("Settings menu item Click handler attached");
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Settingsメニュー項目がクリックされたときに呼び出されます
+        /// </summary>
+        private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("Settings menu item clicked");
+            
+            try
+            {
+                // SettingsViewModelを取得
+                var settingsViewModel = App.Services.GetService<ViewModels.Pages.SettingsViewModel>();
+                if (settingsViewModel == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("SettingsViewModel is null");
+                    return;
+                }
+                
+                System.Diagnostics.Debug.WriteLine("SettingsViewModel retrieved successfully");
+                
+                // SettingsWindowを作成して表示
+                var settingsWindow = new SettingsWindow(settingsViewModel)
+                {
+                    Owner = this
+                };
+                System.Diagnostics.Debug.WriteLine("About to show settings window");
+                settingsWindow.ShowDialog();
+                System.Diagnostics.Debug.WriteLine("Settings window closed");
+            }
+            catch (Exception ex)
+            {
+                // エラーが発生した場合はログに出力
+                System.Diagnostics.Debug.WriteLine($"Error opening settings window: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+            }
         }
         
         /// <summary>
@@ -616,6 +678,9 @@ namespace FastExplorer.Views.Windows
         /// <param name="args">ナビゲーションイベント引数</param>
         private void RootNavigation_ItemInvoked(object sender, object args)
         {
+            // デバッグ: メソッドが呼び出されたことを確認
+            System.Diagnostics.Debug.WriteLine("RootNavigation_ItemInvoked called");
+            
             // NavigationViewItemがクリックされた場合の処理
             // リフレクションを使用してInvokedItemContainerプロパティにアクセス（キャッシュを使用）
             var argsType = args.GetType();
@@ -628,11 +693,55 @@ namespace FastExplorer.Views.Windows
             }
             
             if (_cachedInvokedItemContainerProperty == null)
+            {
+                System.Diagnostics.Debug.WriteLine("InvokedItemContainer property is null");
                 return;
+            }
             
             var invokedItem = _cachedInvokedItemContainerProperty.GetValue(args) as NavigationViewItem;
+            System.Diagnostics.Debug.WriteLine($"InvokedItem: {invokedItem}, Tag: {invokedItem?.Tag}, Tag type: {invokedItem?.Tag?.GetType().Name}");
+            
             if (invokedItem?.Tag is not string tag)
+            {
+                System.Diagnostics.Debug.WriteLine("Tag is not a string or invokedItem is null");
                 return;
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"Tag value: '{tag}'");
+            
+            // 設定メニューアイテムがクリックされた場合、設定ウィンドウを開く
+            if (tag == "SETTINGS")
+            {
+                System.Diagnostics.Debug.WriteLine("SETTINGS tag matched, opening settings window");
+                try
+                {
+                    // SettingsViewModelを取得（拡張メソッドを使用）
+                    var settingsViewModel = App.Services.GetService<ViewModels.Pages.SettingsViewModel>();
+                    if (settingsViewModel == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("SettingsViewModel is null");
+                        return;
+                    }
+                    
+                    System.Diagnostics.Debug.WriteLine("SettingsViewModel retrieved successfully");
+                    
+                    // SettingsWindowを作成して表示
+                    var settingsWindow = new SettingsWindow(settingsViewModel)
+                    {
+                        Owner = this
+                    };
+                    System.Diagnostics.Debug.WriteLine("About to show settings window");
+                    settingsWindow.ShowDialog();
+                    System.Diagnostics.Debug.WriteLine("Settings window closed");
+                }
+                catch (Exception ex)
+                {
+                    // エラーが発生した場合はログに出力
+                    System.Diagnostics.Debug.WriteLine($"Error opening settings window: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                }
+                return;
+            }
             
             // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
             if (_cachedExplorerPageViewModel == null)
@@ -675,7 +784,6 @@ namespace FastExplorer.Views.Windows
                     viewModel.NavigateToPathCommand.Execute(path);
                 }), DispatcherPriority.Normal);
             }
-            // TargetPageTypeが設定されている場合（Settingsなど）は自動的にナビゲートされる
         }
 
         /// <summary>
