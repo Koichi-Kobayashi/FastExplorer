@@ -349,8 +349,6 @@ namespace FastExplorer.ViewModels.Pages
                 // リソースを更新（計算済みの色を渡して重複計算を回避）
                 App.ApplyThemeColorFromSettings(settings2, (mainColor, secondaryColor));
 
-                System.Diagnostics.Debug.WriteLine($"Theme color applied: {themeColor.Name} - Main: {themeColor.ColorCode}, Secondary: {themeColor.SecondaryColorCode}");
-
                 // すべてのウィンドウの背景色を直接更新
                 Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
@@ -392,8 +390,6 @@ namespace FastExplorer.ViewModels.Pages
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"SelectThemeColor failed: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             }
         }
 

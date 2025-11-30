@@ -46,7 +46,7 @@ namespace FastExplorer.Views.Pages
         private System.Windows.Controls.TabControl? _cachedLeftTabControl;
         private System.Windows.Controls.TabControl? _cachedRightTabControl;
         private System.Windows.Controls.TabControl? _cachedSingleTabControl;
-        
+
         // 選択タブのViewModelのPropertyChangedイベントハンドラーを追跡
         private System.ComponentModel.PropertyChangedEventHandler? _selectedTabViewModelPropertyChangedHandler;
         // 以前の選択タブを追跡
@@ -71,7 +71,7 @@ namespace FastExplorer.Views.Pages
 
             // ActivePaneの変更を監視して、ListViewの背景色を更新
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
-            
+
             // 選択タブの変更を監視して、タブのViewModelのIsHomePageプロパティの変更を監視
             ViewModel.PropertyChanged += (s, e) =>
             {
@@ -82,13 +82,13 @@ namespace FastExplorer.Views.Pages
                     SubscribeToSelectedTabViewModel();
                 }
             };
-            
+
             Loaded += ExplorerPage_Loaded;
-            
+
             // 初期の選択タブのViewModelのPropertyChangedイベントを購読
             SubscribeToSelectedTabViewModel();
         }
-        
+
         /// <summary>
         /// 現在の選択タブのViewModelのPropertyChangedイベントを購読します
         /// </summary>
@@ -97,16 +97,16 @@ namespace FastExplorer.Views.Pages
             if (ViewModel.IsSplitPaneEnabled)
             {
                 // 分割ペインの場合、左右両方のペインのタブのViewModelのPropertyChangedイベントを購読
-                
+
                 // 左ペインのタブのViewModelのPropertyChangedイベントを購読
                 if (_previousSelectedLeftPaneTab?.ViewModel != null && _selectedLeftPaneTabViewModelPropertyChangedHandler != null)
                 {
                     _previousSelectedLeftPaneTab.ViewModel.PropertyChanged -= _selectedLeftPaneTabViewModelPropertyChangedHandler;
                 }
-                
+
                 var newLeftTab = ViewModel.SelectedLeftPaneTab;
                 _previousSelectedLeftPaneTab = newLeftTab;
-                
+
                 if (newLeftTab?.ViewModel != null)
                 {
                     _selectedLeftPaneTabViewModelPropertyChangedHandler = (s2, e2) =>
@@ -115,16 +115,16 @@ namespace FastExplorer.Views.Pages
                     };
                     newLeftTab.ViewModel.PropertyChanged += _selectedLeftPaneTabViewModelPropertyChangedHandler;
                 }
-                
+
                 // 右ペインのタブのViewModelのPropertyChangedイベントを購読
                 if (_previousSelectedRightPaneTab?.ViewModel != null && _selectedRightPaneTabViewModelPropertyChangedHandler != null)
                 {
                     _previousSelectedRightPaneTab.ViewModel.PropertyChanged -= _selectedRightPaneTabViewModelPropertyChangedHandler;
                 }
-                
+
                 var newRightTab = ViewModel.SelectedRightPaneTab;
                 _previousSelectedRightPaneTab = newRightTab;
-                
+
                 if (newRightTab?.ViewModel != null)
                 {
                     _selectedRightPaneTabViewModelPropertyChangedHandler = (s2, e2) =>
@@ -141,10 +141,10 @@ namespace FastExplorer.Views.Pages
                 {
                     _previousSelectedTab.ViewModel.PropertyChanged -= _selectedTabViewModelPropertyChangedHandler;
                 }
-                
+
                 var newTab = ViewModel.SelectedTab;
                 _previousSelectedTab = newTab;
-                
+
                 if (newTab?.ViewModel != null)
                 {
                     _selectedTabViewModelPropertyChangedHandler = (s2, e2) =>
@@ -155,7 +155,7 @@ namespace FastExplorer.Views.Pages
                 }
             }
         }
-        
+
         /// <summary>
         /// タブのViewModelのPropertyChangedイベントを処理します
         /// </summary>
@@ -163,87 +163,87 @@ namespace FastExplorer.Views.Pages
         {
             if (newTab?.ViewModel == null)
                 return;
-                
+
             if (e2.PropertyName == "IsHomePage" || e2.PropertyName == "CurrentPath")
             {
-                    // IsHomePageプロパティが変更された場合、背景色を更新
-                    if (e2.PropertyName == "IsHomePage")
+                // IsHomePageプロパティが変更された場合、背景色を更新
+                if (e2.PropertyName == "IsHomePage")
+                {
+                    // IsHomePageがfalseになった場合（ホームタブから通常のディレクトリビューに切り替わった場合）
+                    // そのタブが属するペインをアクティブにする
+                    if (ViewModel.IsSplitPaneEnabled && newTab != null && newTab.ViewModel != null)
                     {
-                        // IsHomePageがfalseになった場合（ホームタブから通常のディレクトリビューに切り替わった場合）
-                        // そのタブが属するペインをアクティブにする
-                        if (ViewModel.IsSplitPaneEnabled && newTab != null && newTab.ViewModel != null)
+                        // IsHomePageがfalseになった場合のみアクティブにする
+                        if (!newTab.ViewModel.IsHomePage)
                         {
-                            // IsHomePageがfalseになった場合のみアクティブにする
-                            if (!newTab.ViewModel.IsHomePage)
+                            // タブがどのペインに属しているかを判定
+                            int? targetPane = null;
+                            if (ViewModel.SelectedLeftPaneTab == newTab)
                             {
-                                // タブがどのペインに属しているかを判定
-                                int? targetPane = null;
-                                if (ViewModel.SelectedLeftPaneTab == newTab)
-                                {
-                                    // 左ペインのタブがホームから通常のディレクトリビューに切り替わった場合
-                                    targetPane = 0;
-                                }
-                                else if (ViewModel.SelectedRightPaneTab == newTab)
-                                {
-                                    // 右ペインのタブがホームから通常のディレクトリビューに切り替わった場合
-                                    targetPane = 2;
-                                }
-                                
-                                if (targetPane.HasValue)
-                                {
-                                    // アクティブペインを設定
-                                    ViewModel.ActivePane = targetPane.Value;
-                                }
+                                // 左ペインのタブがホームから通常のディレクトリビューに切り替わった場合
+                                targetPane = 0;
                             }
-                        }
-                        
-                        // ListViewのキャッシュをクリアして、背景色を更新
-                        _cachedLeftListView = null;
-                        _cachedRightListView = null;
-                        _cachedSinglePaneListView = null;
-                        
-                        // UI構築完了後に背景色を更新（IsHomePageが変更された後、ListViewが表示されるまで少し時間がかかる可能性があるため）
-                        UpdateListViewBackgroundColorsDelayed();
-                    }
-                    // CurrentPathプロパティが変更された場合（ホームタブでドライブをクリックした場合など）
-                    else if (e2.PropertyName == "CurrentPath")
-                    {
-                        // ホームタブの状態でドライブをクリックした場合、そのタブが属するペインをアクティブにする
-                        if (ViewModel.IsSplitPaneEnabled && newTab != null && newTab.ViewModel != null)
-                        {
-                            // CurrentPathが設定されている場合
-                            if (!string.IsNullOrEmpty(newTab.ViewModel.CurrentPath))
+                            else if (ViewModel.SelectedRightPaneTab == newTab)
                             {
-                                // タブがどのペインに属しているかを判定
-                                int? targetPane = null;
-                                if (ViewModel.SelectedLeftPaneTab == newTab)
-                                {
-                                    targetPane = 0;
-                                }
-                                else if (ViewModel.SelectedRightPaneTab == newTab)
-                                {
-                                    targetPane = 2;
-                                }
-                                
-                                if (targetPane.HasValue)
-                                {
-                                    // アクティブペインを設定
-                                    ViewModel.ActivePane = targetPane.Value;
-                                    
-                                    // IsHomePageがfalseの場合（既にListViewが表示されている場合）、すぐに背景色を更新
-                                    if (!newTab.ViewModel.IsHomePage)
-                                    {
-                                        _cachedLeftListView = null;
-                                        _cachedRightListView = null;
-                                        _cachedSinglePaneListView = null;
-                                        UpdateListViewBackgroundColorsDelayed();
-                                    }
-                                    // IsHomePageがtrueの場合（ホームタブの状態）、IsHomePageがfalseになるまで待つ
-                                    // IsHomePageがfalseになったときに背景色が更新される（IsHomePage変更時の処理で対応）
-                                }
+                                // 右ペインのタブがホームから通常のディレクトリビューに切り替わった場合
+                                targetPane = 2;
+                            }
+
+                            if (targetPane.HasValue)
+                            {
+                                // アクティブペインを設定
+                                ViewModel.ActivePane = targetPane.Value;
                             }
                         }
                     }
+
+                    // ListViewのキャッシュをクリアして、背景色を更新
+                    _cachedLeftListView = null;
+                    _cachedRightListView = null;
+                    _cachedSinglePaneListView = null;
+
+                    // UI構築完了後に背景色を更新（IsHomePageが変更された後、ListViewが表示されるまで少し時間がかかる可能性があるため）
+                    UpdateListViewBackgroundColorsDelayed();
+                }
+                // CurrentPathプロパティが変更された場合（ホームタブでドライブをクリックした場合など）
+                else if (e2.PropertyName == "CurrentPath")
+                {
+                    // ホームタブの状態でドライブをクリックした場合、そのタブが属するペインをアクティブにする
+                    if (ViewModel.IsSplitPaneEnabled && newTab != null && newTab.ViewModel != null)
+                    {
+                        // CurrentPathが設定されている場合
+                        if (!string.IsNullOrEmpty(newTab.ViewModel.CurrentPath))
+                        {
+                            // タブがどのペインに属しているかを判定
+                            int? targetPane = null;
+                            if (ViewModel.SelectedLeftPaneTab == newTab)
+                            {
+                                targetPane = 0;
+                            }
+                            else if (ViewModel.SelectedRightPaneTab == newTab)
+                            {
+                                targetPane = 2;
+                            }
+
+                            if (targetPane.HasValue)
+                            {
+                                // アクティブペインを設定
+                                ViewModel.ActivePane = targetPane.Value;
+
+                                // IsHomePageがfalseの場合（既にListViewが表示されている場合）、すぐに背景色を更新
+                                if (!newTab.ViewModel.IsHomePage)
+                                {
+                                    _cachedLeftListView = null;
+                                    _cachedRightListView = null;
+                                    _cachedSinglePaneListView = null;
+                                    UpdateListViewBackgroundColorsDelayed();
+                                }
+                                // IsHomePageがtrueの場合（ホームタブの状態）、IsHomePageがfalseになるまで待つ
+                                // IsHomePageがfalseになったときに背景色が更新される（IsHomePage変更時の処理で対応）
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -254,7 +254,7 @@ namespace FastExplorer.Views.Pages
         {
             // 初期状態の背景色を更新（UI構築完了後に実行）
             UpdateListViewBackgroundColorsDelayed();
-            
+
             // 初期の選択タブのViewModelのPropertyChangedイベントを購読（Loaded後に実行）
             SubscribeToSelectedTabViewModel();
         }
@@ -273,14 +273,14 @@ namespace FastExplorer.Views.Pages
                 _cachedLeftListView = null;
                 _cachedRightListView = null;
                 _cachedSinglePaneListView = null;
-                
+
                 // UIスレッドで背景色を更新
                 // Dispatcher.BeginInvokeを使用して、UI更新後に確実に実行されるようにする
                 Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     UpdateListViewBackgroundColors();
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
-                
+
                 // さらに、Render優先度でも実行（ListViewが表示された後に確実に更新されるようにする）
                 Dispatcher.BeginInvoke(new System.Action(() =>
                 {
@@ -320,7 +320,7 @@ namespace FastExplorer.Views.Pages
                 _cachedSinglePaneListView = null;
                 UpdateListViewBackgroundColors();
             }), System.Windows.Threading.DispatcherPriority.Loaded);
-            
+
             // Render優先度でも実行（ListViewが表示された後に確実に更新されるようにする）
             Dispatcher.BeginInvoke(new System.Action(() =>
             {
@@ -341,7 +341,7 @@ namespace FastExplorer.Views.Pages
             {
                 _cachedWindowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
             }
-            
+
             // 背景色のキャッシュをクリアして、最新のテーマ設定を反映する
             // これにより、テーマが変更された場合や、初期表示時に正しい色が適用される
             _cachedFocusedBackground = null;
@@ -382,7 +382,7 @@ namespace FastExplorer.Views.Pages
                             {
                                 _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
                             }
-                            _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ?? 
+                            _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ??
                                 (_cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush());
                         }
                     }
@@ -393,7 +393,7 @@ namespace FastExplorer.Views.Pages
                         {
                             _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
                         }
-                        _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ?? 
+                        _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ??
                             (_cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush());
                     }
                 }
@@ -437,7 +437,7 @@ namespace FastExplorer.Views.Pages
                             {
                                 _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
                             }
-                            _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ?? 
+                            _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ??
                                 (_cachedFocusedBackground ??= CreateDefaultFocusedBrush());
                         }
                     }
@@ -448,7 +448,7 @@ namespace FastExplorer.Views.Pages
                         {
                             _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
                         }
-                        _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ?? 
+                        _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ??
                             (_cachedFocusedBackground ??= CreateDefaultFocusedBrush());
                     }
                 }
@@ -462,7 +462,7 @@ namespace FastExplorer.Views.Pages
             // ViewModelプロパティをキャッシュ（パフォーマンス向上）
             var viewModel = ViewModel;
             var isSplitPaneEnabled = viewModel.IsSplitPaneEnabled;
-            
+
             if (isSplitPaneEnabled)
             {
                 // 分割ペインモードの場合
@@ -510,7 +510,7 @@ namespace FastExplorer.Views.Pages
                 {
                     _cachedRightListView.Background = rightBackground;
                 }
-                
+
                 // 分割ペインモードの場合、ホームページScrollViewerの背景色も更新
                 // 左ペインと右ペインのそれぞれでホームページScrollViewerを検索
                 UpdateHomePageScrollViewerBackground(0, leftBackground);
@@ -524,7 +524,7 @@ namespace FastExplorer.Views.Pages
                 {
                     _cachedSinglePaneListView = FindListViewInSinglePane();
                 }
-                
+
                 // 背景色がnullでない場合、強制的に設定（キャッシュが古い可能性があるため）
                 if (_cachedSinglePaneListView != null && _cachedFocusedBackground != null)
                 {
@@ -539,7 +539,7 @@ namespace FastExplorer.Views.Pages
                         _cachedSinglePaneListView.Background = _cachedFocusedBackground;
                     }
                 }
-                
+
                 // 単一ペインモードの場合、ホームページScrollViewerの背景色も更新
                 // SinglePaneHomePageScrollViewerはDataTemplate内にあるため、ビジュアルツリーを走査して検索
                 var singlePaneTabControl = _cachedSingleTabControl ?? FindChild<System.Windows.Controls.TabControl>(this, null);
@@ -557,7 +557,7 @@ namespace FastExplorer.Views.Pages
                 }
             }
         }
-        
+
         /// <summary>
         /// 指定されたペインのホームページScrollViewerの背景色を更新します
         /// </summary>
@@ -567,7 +567,7 @@ namespace FastExplorer.Views.Pages
         {
             if (background == null)
                 return;
-                
+
             try
             {
                 // 指定されたペインのTabControlを取得
@@ -588,10 +588,10 @@ namespace FastExplorer.Views.Pages
                         _cachedRightTabControl = tabControl;
                     }
                 }
-                
+
                 if (tabControl == null)
                     return;
-                
+
                 // TabControl内のホームページScrollViewerを検索
                 var scrollViewer = FindHomePageScrollViewerInTabControl(tabControl);
                 if (scrollViewer != null && scrollViewer.Background != background)
@@ -604,7 +604,7 @@ namespace FastExplorer.Views.Pages
                 // エラーが発生した場合は無視
             }
         }
-        
+
         /// <summary>
         /// TabControl内のホームページScrollViewerを検索します
         /// </summary>
@@ -622,7 +622,7 @@ namespace FastExplorer.Views.Pages
             }
             return null;
         }
-        
+
         /// <summary>
         /// 再帰的にホームページScrollViewerを検索します
         /// </summary>
@@ -632,21 +632,21 @@ namespace FastExplorer.Views.Pages
         {
             if (element == null)
                 return null;
-                
+
             // ScrollViewerを確認
             if (element is System.Windows.Controls.ScrollViewer scrollViewer)
             {
                 // VisibilityがIsHomePageにバインドされているScrollViewerを探す
                 // または、名前がSinglePaneHomePageScrollViewerまたはSplitPaneHomePageScrollViewerのScrollViewerを探す
-                if (scrollViewer.Name == "SinglePaneHomePageScrollViewer" || 
+                if (scrollViewer.Name == "SinglePaneHomePageScrollViewer" ||
                     scrollViewer.Name == "SplitPaneHomePageScrollViewer" ||
-                    (scrollViewer.Visibility == System.Windows.Visibility.Visible && 
+                    (scrollViewer.Visibility == System.Windows.Visibility.Visible &&
                      BindingOperations.GetBinding(scrollViewer, System.Windows.UIElement.VisibilityProperty) != null))
                 {
                     return scrollViewer;
                 }
             }
-            
+
             // 子要素を再帰的に検索
             for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(element); i++)
             {
@@ -655,7 +655,7 @@ namespace FastExplorer.Views.Pages
                 if (result != null)
                     return result;
             }
-            
+
             return null;
         }
 
@@ -684,7 +684,7 @@ namespace FastExplorer.Views.Pages
 
             // キャッシュにない場合は検索
             // 分割ペインのTabControlを検索（Grid.Columnで判定）
-            var tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc => 
+            var tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc =>
             {
                 var column = Grid.GetColumn(tc);
                 return column == pane;
@@ -816,7 +816,7 @@ namespace FastExplorer.Views.Pages
             if (tabControl == null)
             {
                 // 分割ペインのTabControlを検索（Grid.Columnで判定）
-                tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc => 
+                tabControl = FindChild<System.Windows.Controls.TabControl>(this, tc =>
                 {
                     var column = Grid.GetColumn(tc);
                     return column == pane;
@@ -847,7 +847,7 @@ namespace FastExplorer.Views.Pages
             }
 
             var listView = FindChild<System.Windows.Controls.ListView>(tabControl, null);
-            
+
             // キャッシュに保存
             if (pane == 0)
             {
@@ -885,7 +885,7 @@ namespace FastExplorer.Views.Pages
             for (int i = 0; i < childrenCount; i++)
             {
                 var child = VisualTreeHelper.GetChild(parent, i);
-                
+
                 if (child is T t && (predicate == null || predicate(t)))
                 {
                     return t;
@@ -948,7 +948,7 @@ namespace FastExplorer.Views.Pages
                 return;
 
             Models.ExplorerTab? targetTab = null;
-            
+
             if (ViewModel.IsSplitPaneEnabled)
             {
                 // 分割ペインモードの場合、クリックされたListViewがどのペインに属しているかを判定
@@ -1005,7 +1005,7 @@ namespace FastExplorer.Views.Pages
                     current = VisualTreeHelper.GetParent(current);
                 }
             }
-            
+
             // ListViewItemが見つからなかった場合は空領域
             if (clickedItem == null)
             {
@@ -1023,12 +1023,12 @@ namespace FastExplorer.Views.Pages
                 e.Handled = true;
                 return;
             }
-            
+
             // ディレクトリの場合は、新しいディレクトリに移動した後にスクロール位置を0に戻す
             if (clickedDataItem.IsDirectory)
             {
                 targetTab.ViewModel.NavigateToItemCommand.Execute(clickedDataItem);
-                
+
                 // 少し遅延してからスクロール位置を0に戻す（ItemsSourceが更新されるのを待つ）
                 Dispatcher.BeginInvoke(new System.Action(() =>
                 {
@@ -1127,7 +1127,7 @@ namespace FastExplorer.Views.Pages
                 // ViewModelのActivePaneプロパティを更新（これによりPropertyChangedが発火し、背景色が更新される）
                 var previousActivePane = ViewModel.ActivePane;
                 ViewModel.ActivePane = pane;
-                
+
                 // ActivePaneが変更されなかった場合（既に同じ値の場合）、手動で背景色を更新
                 if (previousActivePane == pane)
                 {
@@ -1160,7 +1160,7 @@ namespace FastExplorer.Views.Pages
                 // ViewModelのActivePaneプロパティを更新（これによりPropertyChangedが発火し、背景色が更新される）
                 var previousActivePane = ViewModel.ActivePane;
                 ViewModel.ActivePane = pane;
-                
+
                 // ActivePaneが変更されなかった場合（既に同じ値の場合）、手動で背景色を更新
                 if (previousActivePane == pane)
                 {
@@ -1187,7 +1187,7 @@ namespace FastExplorer.Views.Pages
                 return;
 
             Models.ExplorerTab? targetTab = null;
-            
+
             if (ViewModel.IsSplitPaneEnabled)
             {
                 // 分割ペインモードの場合、フォーカスがあるListViewがどのペインに属しているかを判定
@@ -1233,7 +1233,7 @@ namespace FastExplorer.Views.Pages
                 return;
 
             Models.ExplorerTab? targetTab = null;
-            
+
             if (ViewModel.IsSplitPaneEnabled)
             {
                 // 分割ペインモードの場合、クリックされたListViewがどのペインに属しているかを判定
@@ -1245,7 +1245,7 @@ namespace FastExplorer.Views.Pages
                     // ActivePaneを更新（必ずアクティブにする）
                     var previousActivePane = ViewModel.ActivePane;
                     ViewModel.ActivePane = 0;
-                    
+
                     // ActivePaneが変更されなかった場合（既に同じ値の場合）、手動で背景色を更新
                     if (previousActivePane == 0)
                     {
@@ -1262,7 +1262,7 @@ namespace FastExplorer.Views.Pages
                     // ActivePaneを更新（必ずアクティブにする）
                     var previousActivePane = ViewModel.ActivePane;
                     ViewModel.ActivePane = 2;
-                    
+
                     // ActivePaneが変更されなかった場合（既に同じ値の場合）、手動で背景色を更新
                     if (previousActivePane == 2)
                     {
@@ -1329,7 +1329,7 @@ namespace FastExplorer.Views.Pages
             if (border?.DataContext is Models.FavoriteItem favorite)
             {
                 Models.ExplorerTab? targetTab = null;
-                
+
                 if (ViewModel.IsSplitPaneEnabled)
                 {
                     // 分割ペインモードの場合、クリックされた要素がどのペインに属しているかを判定
@@ -1356,11 +1356,11 @@ namespace FastExplorer.Views.Pages
                     // 通常モード
                     targetTab = ViewModel.SelectedTab;
                 }
-                
+
                 if (targetTab != null)
                 {
                     targetTab.ViewModel.NavigateToPathCommand.Execute(favorite.Path);
-                e.Handled = true;
+                    e.Handled = true;
                 }
             }
         }
@@ -1376,7 +1376,7 @@ namespace FastExplorer.Views.Pages
             if (border?.DataContext is Models.DriveInfoModel drive)
             {
                 int? pane = null;
-                
+
                 if (ViewModel.IsSplitPaneEnabled)
                 {
                     // 分割ペインモードの場合、クリックされた要素がどのペインに属しているかを判定
@@ -1391,7 +1391,7 @@ namespace FastExplorer.Views.Pages
                             pane = column;
                         }
                     }
-                    
+
                     // TabControlが見つからない場合は、GetPaneForElementを使用（フォールバック）
                     if (!pane.HasValue)
                     {
@@ -1402,7 +1402,7 @@ namespace FastExplorer.Views.Pages
                         }
                     }
                 }
-                
+
                 // ViewModelのコマンドを呼び出し
                 ViewModel.NavigateToDriveCommand.Execute((drive.Path, pane));
                 e.Handled = true;
@@ -1418,11 +1418,11 @@ namespace FastExplorer.Views.Pages
         {
             if (element == null)
                 return -1;
-            
+
             // ViewModelプロパティを一度だけ取得してキャッシュ（高速化）
             if (!ViewModel.IsSplitPaneEnabled)
                 return -1;
-            
+
             // キャッシュを確認（ただし、タブ移動後はキャッシュが無効化されている可能性があるため、TabControlを直接検索する方法も併用）
             if (_paneCache.TryGetValue(element, out var cachedPane))
             {
@@ -1444,7 +1444,7 @@ namespace FastExplorer.Views.Pages
                     }
                 }
             }
-            
+
             // キャッシュがない、または無効な場合は、TabControlを直接検索
             var tabControlDirect = FindAncestor<System.Windows.Controls.TabControl>(element);
             if (tabControlDirect != null)
@@ -1457,7 +1457,7 @@ namespace FastExplorer.Views.Pages
                     return column;
                 }
             }
-            
+
             // 見つからなかった場合もキャッシュに保存（再走査を避ける）
             _paneCache[element] = -1;
             return -1;
@@ -1474,14 +1474,14 @@ namespace FastExplorer.Views.Pages
             if (border?.DataContext is Models.FileSystemItem fileItem)
             {
                 Models.ExplorerTab? targetTab = null;
-                
+
                 if (ViewModel.IsSplitPaneEnabled)
                 {
                     // 分割ペインモードの場合、クリックされた要素がどのペインに属しているかを判定
                     var element = border as FrameworkElement;
                     var pane = GetPaneForElement(element);
                     if (pane == 0)
-                {
+                    {
                         // 左ペイン
                         targetTab = ViewModel.SelectedLeftPaneTab;
                     }
@@ -1501,7 +1501,7 @@ namespace FastExplorer.Views.Pages
                     // 通常モード
                     targetTab = ViewModel.SelectedTab;
                 }
-                
+
                 if (targetTab != null)
                 {
                     if (fileItem.IsDirectory)
@@ -1511,9 +1511,9 @@ namespace FastExplorer.Views.Pages
                     else
                     {
                         targetTab.ViewModel.NavigateToItemCommand.Execute(fileItem);
+                    }
+                    e.Handled = true;
                 }
-                e.Handled = true;
-            }
             }
         }
 
@@ -1731,13 +1731,11 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void ListViewItem_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("[ExplorerPage] ListViewItem_MouseRightButtonUp呼び出されました");
 
             // DataContextからファイルパスを取得
             if (sender is ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem fileItem)
             {
                 var filePath = fileItem.FullPath;
-                System.Diagnostics.Debug.WriteLine($"[ExplorerPage] ListViewItem右クリック: path={filePath}");
 
                 if (!string.IsNullOrEmpty(filePath) && (System.IO.Directory.Exists(filePath) || System.IO.File.Exists(filePath)))
                 {
@@ -1766,7 +1764,6 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void ListView_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("[ExplorerPage] ListView_MouseRightButtonUp呼び出されました");
 
             // ListViewItem上でクリックされた場合は処理しない
             if (e.OriginalSource is DependencyObject source)
@@ -1776,7 +1773,6 @@ namespace FastExplorer.Views.Pages
                 {
                     if (current is ListViewItem)
                     {
-                        System.Diagnostics.Debug.WriteLine("[ExplorerPage] ListViewItem上でクリックされたため、ListView_MouseRightButtonUpをスキップ");
                         return;
                     }
                     current = VisualTreeHelper.GetParent(current);
@@ -1817,7 +1813,6 @@ namespace FastExplorer.Views.Pages
 
             if (targetTab == null)
             {
-                System.Diagnostics.Debug.WriteLine("[ExplorerPage] ターゲットタブがnullです（空領域）");
                 return;
             }
 
@@ -1828,11 +1823,6 @@ namespace FastExplorer.Views.Pages
             if (string.IsNullOrEmpty(path))
             {
                 path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                System.Diagnostics.Debug.WriteLine($"[ExplorerPage] ListView右クリック（空領域、ホーム）: path={path}");
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine($"[ExplorerPage] ListView右クリック（空領域）: path={path}");
             }
 
             if (!string.IsNullOrEmpty(path) && (System.IO.Directory.Exists(path) || System.IO.File.Exists(path)))
@@ -1868,7 +1858,7 @@ namespace FastExplorer.Views.Pages
 
             // ターゲットタブを取得（最適化：早期リターン）
             Models.ExplorerTab? targetTab;
-            
+
             if (ViewModel.IsSplitPaneEnabled)
             {
                 var pane = GetPaneForElement(listView);
@@ -1916,7 +1906,7 @@ namespace FastExplorer.Views.Pages
                 e.Handled = true;
                 return;
             }
-            
+
             // リサイズハンドル以外でのダブルクリックは無効化
             e.Handled = true;
         }
@@ -1953,7 +1943,7 @@ namespace FastExplorer.Views.Pages
         /// <param name="clickPosition">クリック位置</param>
         /// <returns>リサイズハンドルに対応する列、見つからない場合はnull</returns>
         private System.Windows.Controls.GridViewColumn? GetResizeHandleColumn(
-            System.Windows.Controls.GridViewColumnHeader header, 
+            System.Windows.Controls.GridViewColumnHeader header,
             Point clickPosition)
         {
             if (header == null)
@@ -1964,13 +1954,13 @@ namespace FastExplorer.Views.Pages
             // GridViewColumnHeaderの列境界線付近でクリックされた場合にリサイズハンドルとして認識する範囲
             // 通常のリサイズハンドルは約5ピクセルだが、クリックしやすくするため8ピクセルに設定
             const double resizeHandleWidth = 8.0;
-            
+
             // 右端のリサイズハンドル（この列の右端）
             if (clickPosition.X >= headerWidth - resizeHandleWidth && clickPosition.X <= headerWidth)
             {
                 return header.Column;
             }
-            
+
             // 左端のリサイズハンドル（前の列の右端、つまりこの列の左端）
             if (clickPosition.X >= 0 && clickPosition.X <= resizeHandleWidth)
             {
@@ -1990,7 +1980,7 @@ namespace FastExplorer.Views.Pages
                     }
                 }
             }
-            
+
             return null;
         }
 
@@ -2011,7 +2001,7 @@ namespace FastExplorer.Views.Pages
 
             // ターゲットタブを取得
             Models.ExplorerTab? targetTab = null;
-            
+
             if (ViewModel.IsSplitPaneEnabled)
             {
                 var pane = GetPaneForElement(listView);
@@ -2032,7 +2022,7 @@ namespace FastExplorer.Views.Pages
 
             // ヘッダーテキストの幅を計算
             double maxWidth = 0.0;
-            
+
             // ヘッダーの幅を測定
             if (header.Content is string headerText)
             {
@@ -2067,18 +2057,18 @@ namespace FastExplorer.Views.Pages
             var cellTemplate = column.CellTemplate;
             var columnHeader = column.Header as string;
             var isNameColumn = columnHeader == "名前";
-            
+
             // ListViewのフォントプロパティをキャッシュ（パフォーマンス向上）
             var fontFamily = listView.FontFamily;
             var fontSize = listView.FontSize;
             var fontWeight = listView.FontWeight;
             var fontStyle = listView.FontStyle;
             var fontStretch = listView.FontStretch;
-            
+
             // 名前列の定数
             const double iconWidth = 20.0;
             const double iconMargin = 12.0;
-            
+
             if (cellTemplate != null)
             {
                 // セルテンプレートを使用して内容の幅を測定
@@ -2087,7 +2077,7 @@ namespace FastExplorer.Views.Pages
                     if (item is FileSystemItem fileItem)
                     {
                         double itemWidth;
-                        
+
                         if (isNameColumn)
                         {
                             // 名前列の場合は、SymbolIcon + マージン + テキストの幅を計算
@@ -2114,7 +2104,7 @@ namespace FastExplorer.Views.Pages
                             contentPresenter.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
                             itemWidth = contentPresenter.DesiredSize.Width;
                         }
-                        
+
                         maxWidth = Math.Max(maxWidth, itemWidth);
                     }
                 }
@@ -2237,12 +2227,12 @@ namespace FastExplorer.Views.Pages
         {
             // ボタンのDataContextから直接タブを取得（最適化：親要素を辿る前にボタン自体のDataContextを確認）
             Models.ExplorerTab? tab = null;
-            
+
             if (sender is FrameworkElement buttonElement)
             {
                 // まずボタン自体のDataContextを確認
                 tab = buttonElement.DataContext as Models.ExplorerTab;
-                
+
                 // DataContextが見つからない場合、親要素を辿ってExplorerTabのDataContextを取得（最大5階層まで）
                 if (tab == null)
                 {
@@ -2324,7 +2314,7 @@ namespace FastExplorer.Views.Pages
             {
                 // DataContextを直接取得（DataTemplate内のButtonはDataContextを継承している）
                 tab = element.DataContext as Models.ExplorerTab;
-                
+
                 // DataContextが取得できない場合は、親要素を探す
                 if (tab == null)
                 {
@@ -2385,7 +2375,7 @@ namespace FastExplorer.Views.Pages
             {
                 // DataContextを直接取得（DataTemplate内のButtonはDataContextを継承している）
                 tab = element.DataContext as Models.ExplorerTab;
-                
+
                 // DataContextが取得できない場合は、親要素を探す
                 if (tab == null)
                 {
@@ -2402,7 +2392,7 @@ namespace FastExplorer.Views.Pages
                 {
                     var leftPaneTabs = ViewModel.LeftPaneTabs;
                     var rightPaneTabs = ViewModel.RightPaneTabs;
-                    
+
                     if (leftPaneTabs.Contains(tab))
                     {
                         ViewModel.SelectedLeftPaneTab = tab;
@@ -2461,7 +2451,7 @@ namespace FastExplorer.Views.Pages
             if (sender is System.Windows.Controls.MenuItem menuItem && menuItem.Tag is Models.ExplorerTab tab)
             {
                 var menuItemName = menuItem.Name;
-                
+
                 switch (menuItemName)
                 {
                     case "DuplicateTabMenuItem":
@@ -2504,8 +2494,6 @@ namespace FastExplorer.Views.Pages
             _draggedTab = tab;
             _draggedTabItem = tabItem;
             _isTabDragging = false;
-            
-            System.Diagnostics.Debug.WriteLine($"[PreviewMouseDown] _draggedTabを設定: {_draggedTab?.Title}");
             
             // ドラッグを開始するために、マウスキャプチャを設定
             tabItem.CaptureMouse();
@@ -2565,7 +2553,7 @@ namespace FastExplorer.Views.Pages
                 (deltaY > minDragDistance || deltaY < -minDragDistance))
             {
                 _isTabDragging = true;
-                
+
                 // TabControl_Dropが呼ばれたかどうかを追跡
                 bool dropHandled = false;
                 DragEventHandler? dropHandler = null;
@@ -2573,25 +2561,25 @@ namespace FastExplorer.Views.Pages
                 {
                     dropHandled = true;
                 };
-                
+
                 // すべてのTabControlのDropイベントを監視
                 var tabControls = new List<System.Windows.Controls.TabControl>();
                 FindVisualChildrenRecursive(this, tabControls);
-                
+
                 foreach (var tabControl in tabControls)
                 {
                     tabControl.Drop += dropHandler;
                 }
-                
+
                 // ウィンドウを取得
                 var window = Window.GetWindow(_draggedTabItem);
                 var windowHandle = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
-                
+
                 // ウィンドウ外へのドロップを検出するためのフラグ
                 bool droppedOutsideWindow = false;
                 // 最後に検出されたマウス位置（ウィンドウ外判定の精度向上のため）
                 System.Windows.Point? lastMousePosition = null;
-                
+
                 // GiveFeedbackイベントでマウス位置を追跡（デフォルトの禁止マークを表示するため、特別な処理は不要）
                 GiveFeedbackEventHandler? giveFeedbackHandler = null;
                 if (_draggedTabItem != null && windowHandle != IntPtr.Zero)
@@ -2603,7 +2591,7 @@ namespace FastExplorer.Views.Pages
                         if (GetCursorPos(out mousePos))
                         {
                             lastMousePosition = new System.Windows.Point(mousePos.X, mousePos.Y);
-                            
+
                             // ウィンドウの境界を取得（毎回取得して最新の状態を反映）
                             RECT windowRect;
                             if (GetWindowRect(windowHandle, out windowRect))
@@ -2612,7 +2600,7 @@ namespace FastExplorer.Views.Pages
                                 // 境界を含めない（境界上はウィンドウ内とみなす）
                                 bool isOutsideWindow = mousePos.X < windowRect.Left || mousePos.X > windowRect.Right ||
                                                        mousePos.Y < windowRect.Top || mousePos.Y > windowRect.Bottom;
-                                
+
                                 // ウィンドウ外にいる場合、デフォルトの禁止マークを表示（UseDefaultCursors = trueでデフォルト動作）
                                 // ウィンドウ内にいる場合も、デフォルトのカーソルを使用
                                 e.UseDefaultCursors = true;
@@ -2631,7 +2619,7 @@ namespace FastExplorer.Views.Pages
                     };
                     _draggedTabItem.GiveFeedback += giveFeedbackHandler;
                 }
-                
+
                 // QueryContinueDragイベントでウィンドウ外へのドロップを検出
                 QueryContinueDragEventHandler? queryContinueDragHandler = null;
                 if (_draggedTabItem != null && windowHandle != IntPtr.Zero)
@@ -2646,7 +2634,7 @@ namespace FastExplorer.Views.Pages
                             if (GetCursorPos(out mousePos))
                             {
                                 lastMousePosition = new System.Windows.Point(mousePos.X, mousePos.Y);
-                                
+
                                 // ウィンドウの境界を取得（毎回取得して最新の状態を反映）
                                 RECT windowRect;
                                 if (GetWindowRect(windowHandle, out windowRect))
@@ -2654,17 +2642,13 @@ namespace FastExplorer.Views.Pages
                                     // マウス位置がウィンドウ外にあるかどうかをチェック
                                     // 境界を含めない（境界上はウィンドウ内とみなす）
                                     bool isOutsideWindow = mousePos.X < windowRect.Left || mousePos.X > windowRect.Right ||
-                                                           mousePos.Y < windowRect.Top || mousePos.Y > windowRect.Bottom;
-                                    
-                                    // デバッグ出力：マウス座標とアクション
-                                    System.Diagnostics.Debug.WriteLine($"[QueryContinueDrag] Action: {e.Action}, マウス座標: ({mousePos.X}, {mousePos.Y}), ウィンドウ外: {isOutsideWindow}, ウィンドウ境界: ({windowRect.Left}, {windowRect.Top}) - ({windowRect.Right}, {windowRect.Bottom})");
+                                                          mousePos.Y < windowRect.Top || mousePos.Y > windowRect.Bottom;
                                     
                                     if (isOutsideWindow)
                                     {
                                         if (e.Action == DragAction.Drop)
                                         {
                                             droppedOutsideWindow = true;
-                                            System.Diagnostics.Debug.WriteLine($"[QueryContinueDrag] ウィンドウ外にドロップ検出: droppedOutsideWindow = true");
                                         }
                                         // カーソルは変更しない（GiveFeedbackで禁止マークをポップアップ表示）
                                     }
@@ -2674,24 +2658,22 @@ namespace FastExplorer.Views.Pages
                     };
                     _draggedTabItem.QueryContinueDrag += queryContinueDragHandler;
                 }
-                
+
                 try
                 {
-                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop] ドラッグ開始: _draggedTab={_draggedTab?.Title}");
                     var dragResult = DragDrop.DoDragDrop(_draggedTabItem, _draggedTabItem, DragDropEffects.Move);
-                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop] ドラッグ終了: _draggedTab={_draggedTab?.Title}, dragResult = {dragResult}, dropHandled = {dropHandled}, droppedOutsideWindow = {droppedOutsideWindow}");
-                    
+
                     // ウィンドウ外にドロップされた場合、またはTabControl_Dropが呼ばれなかった場合
                     if (!dropHandled && _draggedTab != null)
                     {
                         // ドロップ時のマウス位置を再取得して確認
                         System.Windows.Point? dropPosition = null;
                         bool isOutsideWindow = droppedOutsideWindow; // QueryContinueDragで検出された値を優先
-                        
+
                         // dragResultがNoneの場合、タブがどこにもドロップされなかった可能性が高い
                         // この場合、デスクトップにドロップされたとみなす
                         bool dragResultIsNone = dragResult == DragDropEffects.None;
-                        
+
                         if (windowHandle != IntPtr.Zero)
                         {
                             POINT mousePos;
@@ -2704,14 +2686,12 @@ namespace FastExplorer.Views.Pages
                                     // ただし、QueryContinueDragで既に検出されている場合はそれを優先
                                     bool currentIsOutsideWindow = mousePos.X < windowRect.Left || mousePos.X > windowRect.Right ||
                                                                   mousePos.Y < windowRect.Top || mousePos.Y > windowRect.Bottom;
-                                    
+
                                     // QueryContinueDragで検出されていない場合のみ、現在のマウス位置で判定
                                     if (!droppedOutsideWindow)
                                     {
                                         isOutsideWindow = currentIsOutsideWindow;
                                     }
-                                    
-                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] マウス座標: ({mousePos.X}, {mousePos.Y}), ウィンドウ外: {isOutsideWindow} (droppedOutsideWindow={droppedOutsideWindow}, currentIsOutsideWindow={currentIsOutsideWindow}), ウィンドウ境界: ({windowRect.Left}, {windowRect.Top}) - ({windowRect.Right}, {windowRect.Bottom})");
                                     
                                     if (isOutsideWindow)
                                     {
@@ -2720,16 +2700,15 @@ namespace FastExplorer.Views.Pages
                                 }
                             }
                         }
-                        
+
                         // ドロップが処理されなかった場合、デスクトップにドロップされたかどうかを判定
                         bool isDroppedOnDesktop = false;
-                        
+
                         // まず、droppedOutsideWindowがTrueかどうかを確認（最優先）
                         // QueryContinueDragで一度ウィンドウ外に出たことを検出した場合、デスクトップにドロップされたとみなす
                         if (droppedOutsideWindow)
                         {
                             isDroppedOnDesktop = true;
-                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: droppedOutsideWindow=True → デスクトップと判定 (dragResult={dragResult})");
                         }
                         // dragResultがNoneで、dropHandledがfalseの場合、
                         // タブがどこにもドロップされなかったことを意味するため、デスクトップにドロップされたとみなす
@@ -2740,7 +2719,6 @@ namespace FastExplorer.Views.Pages
                             {
                                 // ウィンドウ外にドロップされた場合、確実にデスクトップにドロップされたとみなす
                                 isDroppedOnDesktop = true;
-                                System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ ウィンドウ外 → デスクトップと判定");
                             }
                             else
                             {
@@ -2753,34 +2731,30 @@ namespace FastExplorer.Views.Pages
                                     RECT windowRect;
                                     if (GetWindowRect(windowHandle, out windowRect))
                                     {
-                                        bool lastPosOutsideWindow = lastMousePosition.Value.X < windowRect.Left || 
+                                        bool lastPosOutsideWindow = lastMousePosition.Value.X < windowRect.Left ||
                                                                    lastMousePosition.Value.X > windowRect.Right ||
-                                                                   lastMousePosition.Value.Y < windowRect.Top || 
+                                                                   lastMousePosition.Value.Y < windowRect.Top ||
                                                                    lastMousePosition.Value.Y > windowRect.Bottom;
-                                        
+
                                         if (lastPosOutsideWindow)
                                         {
                                             isDroppedOnDesktop = true;
-                                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ lastMousePositionがウィンドウ外 → デスクトップと判定");
                                         }
                                         else
                                         {
                                             // lastMousePositionもウィンドウ内の場合、デスクトップではない可能性が高い
-                                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None だが lastMousePositionがウィンドウ内 → デスクトップではない");
                                         }
                                     }
                                     else
                                     {
                                         // ウィンドウ矩形が取得できない場合、念のためデスクトップにドロップされたとみなす
                                         isDroppedOnDesktop = true;
-                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ ウィンドウ矩形取得失敗 → デスクトップと判定");
                                     }
                                 }
                                 else
                                 {
                                     // lastMousePositionがない場合、念のためデスクトップにドロップされたとみなす
                                     isDroppedOnDesktop = true;
-                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ lastMousePositionなし → デスクトップと判定");
                                 }
                             }
                         }
@@ -2796,37 +2770,32 @@ namespace FastExplorer.Views.Pages
                                 // デスクトップのウィンドウハンドルを取得
                                 IntPtr desktopWindow = GetDesktopWindow();
                                 
-                                System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: windowUnderPoint={windowUnderPoint}, desktopWindow={desktopWindow}, windowHandle={windowHandle}");
-                                
                                 // ウィンドウがデスクトップまたはその子ウィンドウであるかを確認（参考情報として）
                                 bool isDesktopOrChild = IsDesktopOrChildWindow(windowUnderPoint, desktopWindow);
-                                
+
                                 // ドロップ位置の下にあるウィンドウが現在のアプリケーションのウィンドウでない場合
                                 if (windowUnderPoint != windowHandle)
                                 {
                                     // ウィンドウ外にドロップされ、かつ現在のアプリケーションのウィンドウでない場合
                                     // （droppedOutsideWindowは既に上でチェック済みなので、ここではfalse）
-                                    
+
                                     if (dragResult == DragDropEffects.None)
                                     {
                                         // ウィンドウ外にドロップされ、dragResultがNoneの場合、デスクトップにドロップされたとみなす
                                         // isDesktopOrChildの結果に関わらず、これらの条件が満たされればデスクトップと判定
                                         isDroppedOnDesktop = true;
-                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult=None かつ ウィンドウ外 → デスクトップと判定 (isDesktopOrChild={isDesktopOrChild}, windowUnderPoint={windowUnderPoint})");
                                     }
                                     else
                                     {
                                         // dragResultがNoneでない場合、別のアプリケーションがドロップを受け取った可能性がある
                                         // ただし、windowUnderPointがデスクトップまたはその子ウィンドウである場合は、デスクトップにドロップされたとみなす
                                         isDroppedOnDesktop = isDesktopOrChild;
-                                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dragResult={dragResult} → isDesktopOrChild={isDesktopOrChild}");
                                     }
                                 }
                                 else
                                 {
                                     // 現在のアプリケーションのウィンドウの上にドロップされた場合は、デスクトップではない
                                     isDroppedOnDesktop = false;
-                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: 現在のアプリのウィンドウ上 → デスクトップではない");
                                 }
                             }
                             else
@@ -2836,38 +2805,31 @@ namespace FastExplorer.Views.Pages
                                 if (dragResult == DragDropEffects.None)
                                 {
                                     isDroppedOnDesktop = true;
-                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dropPositionなし かつ dragResult=None → デスクトップと判定");
                                 }
                                 else
                                 {
                                     isDroppedOnDesktop = false;
-                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップ判定: dropPositionなし かつ dragResult={dragResult} → デスクトップではない");
                                 }
                             }
                         }
                         
                         // デスクトップにドロップされた場合のみ、新しいウィンドウを作成
-                        System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] 判定: droppedOutsideWindow={droppedOutsideWindow}, dragResult={dragResult}, isOutsideWindow={isOutsideWindow}, isDroppedOnDesktop={isDroppedOnDesktop}");
                         if (isDroppedOnDesktop)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップにドロップされたと判定: 新しいウィンドウを作成 (dropPosition: {dropPosition ?? lastMousePosition})");
                             try
                             {
                                 // デスクトップにドロップされた場合、新しいウィンドウを作成（ドロップ位置を指定）
                                 // dropPositionがnullの場合は、lastMousePositionを使用、それもnullの場合は位置を指定しない
-                                System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] MoveTabToNewWindowを呼び出します: _draggedTab={_draggedTab?.Title}");
                                 ViewModel.MoveTabToNewWindow(_draggedTab, dropPosition ?? lastMousePosition);
                                 
                                 // デスクトップドロップ完了後、変数をクリア
                                 _draggedTab = null;
                                 _draggedTabItem = null;
                                 _isTabDragging = false;
-                                System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップドロップ完了後、変数をクリア");
                             }
                             catch (System.Exception ex)
                             {
                                 // 例外が発生した場合、位置を指定せずに新しいウィンドウを作成
-                                System.Diagnostics.Debug.WriteLine($"デスクトップへのドロップ処理中にエラーが発生しました: {ex.Message}");
                                 try
                                 {
                                     ViewModel.MoveTabToNewWindow(_draggedTab, null);
@@ -2876,22 +2838,15 @@ namespace FastExplorer.Views.Pages
                                     _draggedTab = null;
                                     _draggedTabItem = null;
                                     _isTabDragging = false;
-                                    System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] デスクトップドロップ完了後（例外ハンドリング）、変数をクリア");
                                 }
                                 catch (System.Exception ex2)
                                 {
-                                    System.Diagnostics.Debug.WriteLine($"新しいウィンドウの作成に失敗しました: {ex2.Message}");
-                                    
                                     // 失敗した場合も変数をクリア
                                     _draggedTab = null;
                                     _draggedTabItem = null;
                                     _isTabDragging = false;
                                 }
                             }
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[DoDragDrop後] ウィンドウ内にドロップされたと判定: 処理をスキップ");
                         }
                     }
                 }
@@ -2902,24 +2857,24 @@ namespace FastExplorer.Views.Pages
                     {
                         tabControl.Drop -= dropHandler;
                     }
-                    
+
                     // GiveFeedbackイベントを削除
                     if (_draggedTabItem != null && giveFeedbackHandler != null)
                     {
                         _draggedTabItem.GiveFeedback -= giveFeedbackHandler;
                     }
-                    
+
                     // QueryContinueDragイベントを削除
                     if (_draggedTabItem != null && queryContinueDragHandler != null)
                     {
                         _draggedTabItem.QueryContinueDrag -= queryContinueDragHandler;
                     }
                 }
-                
+
                 _isTabDragging = false;
             }
         }
-        
+
         /// <summary>
         /// TabItemでマウスボタンが離されたときに呼び出されます
         /// </summary>
@@ -2930,7 +2885,7 @@ namespace FastExplorer.Views.Pages
                 return;
 
             ReleaseMouseCapture();
-            
+
             // ドラッグが開始されなかった場合（単なるクリック）は、タブを選択
             if (!_isTabDragging && _draggedTab != null && sender is System.Windows.Controls.TabItem tabItem && tabItem.DataContext is ExplorerTab tab)
             {
@@ -2938,7 +2893,7 @@ namespace FastExplorer.Views.Pages
                 double deltaX = currentPoint.X - _tabDragStartPoint.X;
                 double deltaY = currentPoint.Y - _tabDragStartPoint.Y;
                 double minDragDistance = SystemParameters.MinimumHorizontalDragDistance;
-                
+
                 // 単なるクリックの場合、タブを選択（Math.Absを避けて絶対値比較を最適化）
                 if (deltaX >= -minDragDistance && deltaX <= minDragDistance &&
                     deltaY >= -minDragDistance && deltaY <= minDragDistance)
@@ -2981,7 +2936,7 @@ namespace FastExplorer.Views.Pages
             }
             _isTabDragging = false;
         }
-        
+
         /// <summary>
         /// マウスキャプチャを解放します
         /// </summary>
@@ -3060,7 +3015,7 @@ namespace FastExplorer.Views.Pages
                     }
                     if (sourceTabControl == null)
                         return;
-                        
+
                     int sourceColumn = Grid.GetColumn(sourceTabControl);
                     sourceTabs = sourceColumn == 0 ? ViewModel.LeftPaneTabs
                         : sourceColumn == 2 ? ViewModel.RightPaneTabs
@@ -3079,7 +3034,7 @@ namespace FastExplorer.Views.Pages
                 // HitTestを一度だけ実行して結果を再利用（高速化）
                 Point dropPosition = e.GetPosition(dropTabControl);
                 HitTestResult? hitTestResult = VisualTreeHelper.HitTest(dropTabControl, dropPosition);
-                
+
                 // ドロップ位置のTabItemを取得（高速化：一度だけ実行）
                 System.Windows.Controls.TabItem? targetTabItem = null;
                 ExplorerTab? targetTab = null;
@@ -3102,7 +3057,7 @@ namespace FastExplorer.Views.Pages
                         // 各TabItemの位置を確認して、ドロップ位置に最も近いタブを探す
                         double minDistance = double.MaxValue;
                         System.Windows.Controls.TabItem? closestTabItem = null;
-                        
+
                         for (int i = 0; i < dropTabControl.Items.Count; i++)
                         {
                             if (dropTabControl.ItemContainerGenerator.ContainerFromIndex(i) is System.Windows.Controls.TabItem item)
@@ -3110,7 +3065,7 @@ namespace FastExplorer.Views.Pages
                                 var itemPosition = item.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
                                 var itemCenterX = itemPosition.X + item.ActualWidth / 2;
                                 var distance = Math.Abs(dropPosition.X - itemCenterX);
-                                
+
                                 if (distance < minDistance)
                                 {
                                     minDistance = distance;
@@ -3118,12 +3073,12 @@ namespace FastExplorer.Views.Pages
                                 }
                             }
                         }
-                        
+
                         if (closestTabItem != null && closestTabItem.DataContext is ExplorerTab closestTab)
                         {
                             targetTabItem = closestTabItem;
                             targetTab = closestTab;
-                            
+
                             // ドロップ位置がタブの右側にある場合は、次の位置に挿入
                             var closestPosition = closestTabItem.TransformToAncestor(dropTabControl).Transform(new Point(0, 0));
                             var closestCenterX = closestPosition.X + closestTabItem.ActualWidth / 2;
@@ -3163,7 +3118,7 @@ namespace FastExplorer.Views.Pages
                     // コレクションの変更を実行（同期的に実行して、SelectedItemが正しく設定されるようにする）
                     sourceTabs.RemoveAt(sourceIndex);
                     dropTabs.Insert(insertIndex, _draggedTab);
-                    
+
                     // ペイン間でタブを移動した場合、移動先のペインをアクティブにする（SelectedItemを設定する前に実行）
                     // これにより、背景色が正しく更新される
                     if (isSplitPaneEnabled && dropColumn >= 0)
@@ -3179,10 +3134,10 @@ namespace FastExplorer.Views.Pages
                             UpdateListViewBackgroundColors();
                         }), System.Windows.Threading.DispatcherPriority.Normal);
                     }
-                    
+
                     // SelectedItemを同期的に設定（ListViewが表示されるようにする）
                     dropTabControl.SelectedItem = _draggedTab;
-                    
+
                     // ViewModelの選択タブも明示的に更新（タブ移動後のペイン判定を正しくするため）
                     // dropColumnは既に取得済み（上記の処理で使用）なので再利用
                     if (isSplitPaneEnabled && dropColumn >= 0)
@@ -3205,7 +3160,7 @@ namespace FastExplorer.Views.Pages
                     int draggedIndex = dropTabs.IndexOf(_draggedTab);
                     if (draggedIndex < 0)
                         return;
-                    
+
                     // ターゲットタブが見つからない場合は、ドロップ位置から挿入位置を決定
                     if (targetTab == null || targetTab == _draggedTab)
                     {
@@ -3242,12 +3197,12 @@ namespace FastExplorer.Views.Pages
                     int targetIndex = dropTabs.IndexOf(targetTab);
                     if (targetIndex < 0 || draggedIndex == targetIndex)
                         return;
-                    
+
                     // コレクションの変更を実行（Moveメソッドで1回のUI更新のみ）
                     // ObservableCollection.Moveは、RemoveAtとInsertを1回の操作として実行し、
                     // CollectionChangedイベントを1回だけ発火するため、パフォーマンスが向上
                     dropTabs.Move(draggedIndex, targetIndex);
-                    
+
                     // SelectedItemを同期的に設定（ListViewが表示されるようにする）
                     // TwoWayバインディングにより、ViewModelも自動的に更新され、TabItemのIsSelectedも自動的に更新される
                     dropTabControl.SelectedItem = _draggedTab;
@@ -3257,11 +3212,11 @@ namespace FastExplorer.Views.Pages
                 _draggedTab = null;
                 _draggedTabItem = null;
                 _isTabDragging = false;
-                
+
                 // タブが移動したため、ペインキャッシュをクリア（ドライブ要素などのペイン判定を正しく更新するため）
                 // 即座にクリアして、UI更新後にも再クリア（ビジュアルツリーが更新されるのを待つ）
                 _paneCache.Clear();
-                
+
                 // UI更新後に再度キャッシュをクリア（ビジュアルツリーの更新を確実に反映）
                 // デリゲートをキャッシュしてメモリ割り当てを削減
                 Dispatcher.BeginInvoke(
@@ -3270,10 +3225,6 @@ namespace FastExplorer.Views.Pages
             }
             catch (System.Exception ex)
             {
-                // 例外が発生した場合、エラーをログに記録
-                System.Diagnostics.Debug.WriteLine($"[TabControl_Drop] ペイン間のタブ移動中にエラーが発生しました: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[TabControl_Drop] スタックトレース: {ex.StackTrace}");
-                
                 // ドロップ完了後に変数をクリア（例外が発生しても状態をリセット）
                 _draggedTab = null;
                 _draggedTabItem = null;

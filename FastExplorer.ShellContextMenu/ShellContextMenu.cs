@@ -261,7 +261,7 @@ namespace FastExplorer.ShellContextMenu
                     ref iidContextMenu,
                     ref reserved,
                     out object ppv);
-                
+
                 // parentFolder を即座に解放（不要になったため）
                 Marshal.ReleaseComObject(parentFolder);
                 parentFolder = null;
@@ -272,7 +272,7 @@ namespace FastExplorer.ShellContextMenu
                 }
 
                 iContextMenu = (IContextMenu)ppv;
-                
+
                 // 前回のインスタンスをクリア（最適化: 条件チェックを削減）
                 s_currentContextMenu3 = null;
                 s_isMenuShowing = false;
@@ -282,23 +282,23 @@ namespace FastExplorer.ShellContextMenu
                     Marshal.Release(oldPtr);
                     s_currentContextMenuPtr = IntPtr.Zero;
                 }
-                
+
                 // IContextMenu3にキャストを試す
                 s_currentContextMenu3 = iContextMenu as IContextMenu3;
                 if (s_currentContextMenu3 != null)
                 {
                     s_currentContextMenuPtr = Marshal.GetIUnknownForObject(iContextMenu);
-                    #if DEBUG
+#if DEBUG
                     System.Diagnostics.Debug.WriteLine("[ShellContextMenu] IContextMenu3を取得しました");
-                    #endif
+#endif
                 }
-                #if DEBUG
+#if DEBUG
                 else
                 {
                     System.Diagnostics.Debug.WriteLine("[ShellContextMenu] IContextMenu3へのキャストに失敗しました（IContextMenuのみ使用）");
                 }
-                #endif
-                
+#endif
+
                 // メニュー表示開始
                 s_isMenuShowing = true;
 
@@ -347,7 +347,7 @@ namespace FastExplorer.ShellContextMenu
                     // 重要: TrackPopupMenuExが返った直後にリセットすることで、
                     // メッセージフックが干渉しないようにする
                     ResetMenuState();
-                    
+
                     // 念のため、少し待機してから再度リセット（メッセージフックが呼ばれる前に確実にリセット）
                     // ただし、これは非同期処理になるため、同期処理では使用しない
                     // 代わりに、メッセージフックで非クライアント領域のクリックを検出してリセットする
@@ -369,7 +369,7 @@ namespace FastExplorer.ShellContextMenu
                 finally
                 {
                     Win32.DestroyMenu(hMenu);
-                    
+
                     // メニュー表示終了（念のため再度メニュー状態をリセット）
                     // TrackPopupMenuExが返った時点で既にリセットしているが、
                     // 例外が発生した場合に備えて再度リセット
@@ -379,24 +379,24 @@ namespace FastExplorer.ShellContextMenu
             catch (InvalidOperationException)
             {
                 // 想定される例外のみ再スロー（デバッグ時のみログ出力）
-                #if DEBUG
+#if DEBUG
                 System.Diagnostics.Debug.WriteLine("[ShellContextMenu] InvalidOperationExceptionが発生しました");
-                #endif
+#endif
                 throw;
             }
             catch (COMException)
             {
                 // COM例外は無視（デバッグ時のみログ出力）
-                #if DEBUG
+#if DEBUG
                 System.Diagnostics.Debug.WriteLine("[ShellContextMenu] COMExceptionが発生しました");
-                #endif
+#endif
             }
             catch (Exception)
             {
                 // その他の予期しない例外（デバッグ時のみログ出力）
-                #if DEBUG
+#if DEBUG
                 System.Diagnostics.Debug.WriteLine("[ShellContextMenu] 予期しない例外が発生しました");
-                #endif
+#endif
             }
             finally
             {
