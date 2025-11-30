@@ -1921,9 +1921,6 @@ namespace FastExplorer.Views.Pages
                 }
             }
 
-            // イベントを処理済みとしてマーク（左クリックイベントが発火しないようにする）
-            e.Handled = true;
-
             // タブのDataContextを取得
             Models.ExplorerTab? tab = null;
             if (sender is FrameworkElement element)
@@ -1939,30 +1936,91 @@ namespace FastExplorer.Views.Pages
                 }
             }
 
-            if (tab != null)
+            // TabItemを取得してコンテキストメニューを表示
+            if (sender is System.Windows.Controls.TabItem tabItem && tab != null)
             {
-                // タブのパスを取得
-                var path = tab.ViewModel?.CurrentPath;
-
-                // パスが空の場合はホームディレクトリを使用
-                if (string.IsNullOrEmpty(path))
+                // タブを選択状態にする（右クリックしたタブを選択）
+                if (ViewModel.IsSplitPaneEnabled)
                 {
-                    path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    var leftPaneTabs = ViewModel.LeftPaneTabs;
+                    var rightPaneTabs = ViewModel.RightPaneTabs;
+                    
+                    if (leftPaneTabs.Contains(tab))
+                    {
+                        ViewModel.SelectedLeftPaneTab = tab;
+                        ViewModel.ActivePane = 0;
+                    }
+                    else if (rightPaneTabs.Contains(tab))
+                    {
+                        ViewModel.SelectedRightPaneTab = tab;
+                        ViewModel.ActivePane = 2;
+                    }
+                }
+                else
+                {
+                    ViewModel.SelectedTab = tab;
                 }
 
-                if (!string.IsNullOrEmpty(path) && (System.IO.Directory.Exists(path) || System.IO.File.Exists(path)))
+                // コンテキストメニューを表示（XAMLで設定されたコンテキストメニューを使用）
+                if (tabItem.ContextMenu != null)
                 {
-                    // 画面上の座標をスクリーン座標に変換
-                    var point = e.GetPosition(this);
-                    var screenPoint = PointToScreen(point);
+                    // DataContextを設定してバインディングを有効にする
+                    tabItem.ContextMenu.DataContext = tab;
+                    tabItem.ContextMenu.Tag = tab; // タブをTagに保存して後で使用
+                    tabItem.ContextMenu.IsOpen = true;
+                    e.Handled = true;
+                }
+            }
+        }
 
-                    // ウィンドウハンドルを取得
-                    var window = Window.GetWindow(this);
-                    var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
+        /// <summary>
+        /// タブのコンテキストメニューが開かれたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ルーティングイベント引数</param>
+        private void TabContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.ContextMenu contextMenu && contextMenu.Tag is Models.ExplorerTab tab)
+            {
+                // コンテキストメニューの各MenuItemにタブを保存
+                foreach (var item in contextMenu.Items)
+                {
+                    if (item is System.Windows.Controls.MenuItem menuItem)
+                    {
+                        menuItem.Tag = tab;
+                    }
+                }
+            }
+        }
 
-                    // ShellContextMenuでOS標準メニューを表示
-                    var scm = new FastExplorer.ShellContextMenu.ShellContextMenuService();
-                    scm.ShowContextMenu(new[] { path }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
+        /// <summary>
+        /// タブのコンテキストメニューのアイテムがクリックされたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ルーティングイベント引数</param>
+        private void TabContextMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.MenuItem menuItem && menuItem.Tag is Models.ExplorerTab tab)
+            {
+                var menuItemName = menuItem.Name;
+                
+                switch (menuItemName)
+                {
+                    case "DuplicateTabMenuItem":
+                        ViewModel.DuplicateTabCommand.Execute(tab);
+                        break;
+                    case "DuplicateTabToNewWindowMenuItem":
+                        ViewModel.DuplicateTabToNewWindowCommand.Execute(tab);
+                        break;
+                    case "CloseTabsToLeftMenuItem":
+                        ViewModel.CloseTabsToLeftCommand.Execute(tab);
+                        break;
+                    case "CloseTabsToRightMenuItem":
+                        ViewModel.CloseTabsToRightCommand.Execute(tab);
+                        break;
+                    case "CloseOtherTabsMenuItem":
+                        ViewModel.CloseOtherTabsCommand.Execute(tab);
+                        break;
                 }
             }
         }

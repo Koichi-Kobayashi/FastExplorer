@@ -648,6 +648,16 @@
             <!--  テンプレートを設定しない（デフォルトのテンプレートを使用）  -->
         </Style>
 
+        <!--  タブのコンテキストメニュー  -->
+        <ContextMenu x:Key="TabContextMenu" x:Shared="False" Opened="TabContextMenu_Opened">
+            <MenuItem x:Name="DuplicateTabMenuItem" Header="タブを複製" Click="TabContextMenuItem_Click" />
+            <MenuItem x:Name="DuplicateTabToNewWindowMenuItem" Header="新しいウィンドウにタブを複製" Click="TabContextMenuItem_Click" />
+            <Separator />
+            <MenuItem x:Name="CloseTabsToLeftMenuItem" Header="これより左のタブを閉じる" Click="TabContextMenuItem_Click" />
+            <MenuItem x:Name="CloseTabsToRightMenuItem" Header="これより右のタブを閉じる" Click="TabContextMenuItem_Click" />
+            <MenuItem x:Name="CloseOtherTabsMenuItem" Header="他のタブをすべて閉じる" Click="TabContextMenuItem_Click" />
+        </ContextMenu>
+
     </UserControl.Resources>
 
     <Grid Margin="0">
@@ -683,6 +693,7 @@
                 <TabControl.ItemContainerStyle>
                     <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
                         <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
+                        <Setter Property="ContextMenu" Value="{StaticResource TabContextMenu}" />
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                         <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
                         <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
@@ -734,6 +745,7 @@
                 <TabControl.ItemContainerStyle>
                     <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
                         <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
+                        <Setter Property="ContextMenu" Value="{StaticResource TabContextMenu}" />
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                         <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
                         <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
@@ -777,6 +789,7 @@
             <TabControl.ItemContainerStyle>
                 <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
                     <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
+                    <Setter Property="ContextMenu" Value="{StaticResource TabContextMenu}" />
                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                     <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
                     <EventSetter Event="MouseRightButtonUp" Handler="TabArea_MouseRightButtonUp" />

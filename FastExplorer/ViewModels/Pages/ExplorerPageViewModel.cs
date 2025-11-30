@@ -1152,6 +1152,342 @@ namespace FastExplorer.ViewModels.Pages
                 setSelectedTab(tabs[0]);
             }
         }
+
+        /// <summary>
+        /// タブを複製します
+        /// </summary>
+        /// <param name="tab">複製するタブ</param>
+        [RelayCommand]
+        private void DuplicateTab(ExplorerTab? tab)
+        {
+            if (tab == null)
+                return;
+
+            var pathToOpen = tab.ViewModel?.CurrentPath;
+            ExplorerTab newTab;
+
+            if (IsSplitPaneEnabled)
+            {
+                // 分割ペインモードの場合、同じペインに追加
+                var leftPaneTabs = LeftPaneTabs;
+                var rightPaneTabs = RightPaneTabs;
+                
+                if (leftPaneTabs.Contains(tab))
+                {
+                    newTab = CreateTabInternal(pathToOpen);
+                    leftPaneTabs.Add(newTab);
+                    SelectedLeftPaneTab = newTab;
+                }
+                else if (rightPaneTabs.Contains(tab))
+                {
+                    newTab = CreateTabInternal(pathToOpen);
+                    rightPaneTabs.Add(newTab);
+                    SelectedRightPaneTab = newTab;
+                }
+                else
+                {
+                    return;
+                }
+            }
+            else
+            {
+                newTab = CreateTabInternal(pathToOpen);
+                Tabs.Add(newTab);
+                SelectedTab = newTab;
+            }
+            
+            UpdateTabTitle(newTab);
+        }
+
+        /// <summary>
+        /// 新しいウィンドウにタブを複製します
+        /// </summary>
+        /// <param name="tab">複製するタブ</param>
+        [RelayCommand]
+        private void DuplicateTabToNewWindow(ExplorerTab? tab)
+        {
+            if (tab == null)
+                return;
+
+            var pathToOpen = tab.ViewModel?.CurrentPath ?? string.Empty;
+
+            // 新しいウィンドウを作成
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Normal,
+                new System.Action(() =>
+                {
+                    try
+                    {
+                        // サービスを取得
+                        var favoriteService = App.Services.GetService(typeof(FavoriteService)) as FavoriteService;
+                        var navigationViewPageProvider = App.Services.GetService(typeof(Wpf.Ui.Abstractions.INavigationViewPageProvider)) as Wpf.Ui.Abstractions.INavigationViewPageProvider;
+                        var windowSettingsService = App.Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
+
+                        if (favoriteService == null || navigationViewPageProvider == null || windowSettingsService == null)
+                            return;
+
+                        // MainWindowViewModelの新しいインスタンスを作成
+                        var newMainWindowViewModel = new ViewModels.Windows.MainWindowViewModel(favoriteService);
+                        
+                        // NavigationServiceの新しいインスタンスを作成
+                        var newNavigationService = new Wpf.Ui.NavigationService(navigationViewPageProvider);
+
+                        // 新しいMainWindowを作成
+                        var newWindow = new Views.Windows.MainWindow(
+                            newMainWindowViewModel,
+                            navigationViewPageProvider,
+                            newNavigationService,
+                            windowSettingsService
+                        );
+
+                        // 新しいウィンドウを表示
+                        newWindow.Show();
+
+                        // 新しいウィンドウのExplorerPageViewModelを取得してタブを作成
+                        // 新しいウィンドウが読み込まれた後にExplorerPageViewModelを取得
+                        newWindow.Loaded += (s, e) =>
+                        {
+                            // 新しいウィンドウのExplorerPageViewModelを取得
+                            // MainWindowのLoadedイベントでExplorerPageViewModelが初期化されるため、
+                            // 少し遅延してから取得
+                            System.Windows.Threading.DispatcherTimer? timer = null;
+                            timer = new System.Windows.Threading.DispatcherTimer
+                            {
+                                Interval = TimeSpan.FromMilliseconds(300)
+                            };
+                            timer.Tick += (s2, e2) =>
+                            {
+                                timer.Stop();
+                                
+                                // 新しいウィンドウのExplorerPageViewModelを取得
+                                // 新しいウィンドウには新しいExplorerPageViewModelインスタンスが必要
+                                // サービスを取得して新しいインスタンスを作成
+                                var fileSystemService = App.Services.GetService(typeof(FileSystemService)) as FileSystemService;
+                                var favoriteService2 = App.Services.GetService(typeof(FavoriteService)) as FavoriteService;
+                                var windowSettingsService2 = App.Services.GetService(typeof(WindowSettingsService)) as WindowSettingsService;
+                                
+                                if (fileSystemService == null || favoriteService2 == null || windowSettingsService2 == null)
+                                    return;
+                                
+                                // 新しいExplorerPageViewModelインスタンスを作成
+                                var newExplorerPageViewModel = new ExplorerPageViewModel(fileSystemService, favoriteService2, windowSettingsService2);
+                                
+                                // 新しいタブを作成して指定されたパスに移動
+                                if (!string.IsNullOrEmpty(pathToOpen) && System.IO.Directory.Exists(pathToOpen))
+                                {
+                                    if (newExplorerPageViewModel.IsSplitPaneEnabled)
+                                    {
+                                        newExplorerPageViewModel.CreateNewLeftPaneTabCommand.Execute(null);
+                                        var newTab = newExplorerPageViewModel.SelectedLeftPaneTab;
+                                        if (newTab != null)
+                                        {
+                                            newTab.ViewModel.NavigateToPathCommand.Execute(pathToOpen);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        newExplorerPageViewModel.CreateNewTabCommand.Execute(null);
+                                        var newTab = newExplorerPageViewModel.SelectedTab;
+                                        if (newTab != null)
+                                        {
+                                            newTab.ViewModel.NavigateToPathCommand.Execute(pathToOpen);
+                                        }
+                                    }
+                                }
+                            };
+                            timer.Start();
+                        };
+                    }
+                    catch
+                    {
+                        // エラーハンドリング：新しいウィンドウの作成に失敗した場合は無視
+                    }
+                }));
+        }
+
+        /// <summary>
+        /// 指定されたタブより左のタブをすべて閉じます
+        /// </summary>
+        /// <param name="tab">基準となるタブ</param>
+        [RelayCommand]
+        private void CloseTabsToLeft(ExplorerTab? tab)
+        {
+            if (tab == null)
+                return;
+
+            if (IsSplitPaneEnabled)
+            {
+                var leftPaneTabs = LeftPaneTabs;
+                var rightPaneTabs = RightPaneTabs;
+                
+                if (leftPaneTabs.Contains(tab))
+                {
+                    var index = leftPaneTabs.IndexOf(tab);
+                    if (index > 0)
+                    {
+                        // 左側のタブをすべて削除
+                        for (int i = index - 1; i >= 0; i--)
+                        {
+                            leftPaneTabs.RemoveAt(i);
+                        }
+                        // 基準となるタブを選択状態にする（インデックスが0に変わる）
+                        SelectedLeftPaneTab = tab;
+                        ActivePane = 0;
+                    }
+                }
+                else if (rightPaneTabs.Contains(tab))
+                {
+                    var index = rightPaneTabs.IndexOf(tab);
+                    if (index > 0)
+                    {
+                        // 左側のタブをすべて削除
+                        for (int i = index - 1; i >= 0; i--)
+                        {
+                            rightPaneTabs.RemoveAt(i);
+                        }
+                        // 基準となるタブを選択状態にする（インデックスが0に変わる）
+                        SelectedRightPaneTab = tab;
+                        ActivePane = 2;
+                    }
+                }
+            }
+            else
+            {
+                var tabs = Tabs;
+                var index = tabs.IndexOf(tab);
+                if (index > 0)
+                {
+                    // 左側のタブをすべて削除
+                    for (int i = index - 1; i >= 0; i--)
+                    {
+                        tabs.RemoveAt(i);
+                    }
+                    // 基準となるタブを選択状態にする（インデックスが0に変わる）
+                    SelectedTab = tab;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 指定されたタブより右のタブをすべて閉じます
+        /// </summary>
+        /// <param name="tab">基準となるタブ</param>
+        [RelayCommand]
+        private void CloseTabsToRight(ExplorerTab? tab)
+        {
+            if (tab == null)
+                return;
+
+            if (IsSplitPaneEnabled)
+            {
+                var leftPaneTabs = LeftPaneTabs;
+                var rightPaneTabs = RightPaneTabs;
+                
+                if (leftPaneTabs.Contains(tab))
+                {
+                    var index = leftPaneTabs.IndexOf(tab);
+                    var count = leftPaneTabs.Count;
+                    if (index < count - 1)
+                    {
+                        // 右側のタブをすべて削除
+                        for (int i = count - 1; i > index; i--)
+                        {
+                            leftPaneTabs.RemoveAt(i);
+                        }
+                        // 基準となるタブを選択状態にする
+                        SelectedLeftPaneTab = tab;
+                        ActivePane = 0;
+                    }
+                }
+                else if (rightPaneTabs.Contains(tab))
+                {
+                    var index = rightPaneTabs.IndexOf(tab);
+                    var count = rightPaneTabs.Count;
+                    if (index < count - 1)
+                    {
+                        // 右側のタブをすべて削除
+                        for (int i = count - 1; i > index; i--)
+                        {
+                            rightPaneTabs.RemoveAt(i);
+                        }
+                        // 基準となるタブを選択状態にする
+                        SelectedRightPaneTab = tab;
+                        ActivePane = 2;
+                    }
+                }
+            }
+            else
+            {
+                var tabs = Tabs;
+                var index = tabs.IndexOf(tab);
+                var count = tabs.Count;
+                if (index < count - 1)
+                {
+                    // 右側のタブをすべて削除
+                    for (int i = count - 1; i > index; i--)
+                    {
+                        tabs.RemoveAt(i);
+                    }
+                    // 基準となるタブを選択状態にする
+                    SelectedTab = tab;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 指定されたタブ以外のすべてのタブを閉じます
+        /// </summary>
+        /// <param name="tab">残すタブ</param>
+        [RelayCommand]
+        private void CloseOtherTabs(ExplorerTab? tab)
+        {
+            if (tab == null)
+                return;
+
+            if (IsSplitPaneEnabled)
+            {
+                var leftPaneTabs = LeftPaneTabs;
+                var rightPaneTabs = RightPaneTabs;
+                
+                if (leftPaneTabs.Contains(tab))
+                {
+                    // 左ペインの他のタブをすべて削除
+                    for (int i = leftPaneTabs.Count - 1; i >= 0; i--)
+                    {
+                        if (leftPaneTabs[i] != tab)
+                        {
+                            leftPaneTabs.RemoveAt(i);
+                        }
+                    }
+                    SelectedLeftPaneTab = tab;
+                }
+                else if (rightPaneTabs.Contains(tab))
+                {
+                    // 右ペインの他のタブをすべて削除
+                    for (int i = rightPaneTabs.Count - 1; i >= 0; i--)
+                    {
+                        if (rightPaneTabs[i] != tab)
+                        {
+                            rightPaneTabs.RemoveAt(i);
+                        }
+                    }
+                    SelectedRightPaneTab = tab;
+                }
+            }
+            else
+            {
+                var tabs = Tabs;
+                // 他のタブをすべて削除
+                for (int i = tabs.Count - 1; i >= 0; i--)
+                {
+                    if (tabs[i] != tab)
+                    {
+                        tabs.RemoveAt(i);
+                    }
+                }
+                SelectedTab = tab;
+            }
+        }
     }
 }
 
