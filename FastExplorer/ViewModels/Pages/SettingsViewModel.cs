@@ -146,14 +146,18 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
+        // アセンブリのバージョンをキャッシュ（パフォーマンス向上）
+        private static string? _cachedAssemblyVersion;
+        
         /// <summary>
         /// アセンブリのバージョンを取得します
         /// </summary>
         /// <returns>アセンブリのバージョン文字列</returns>
         private string GetAssemblyVersion()
         {
-            return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-                ?? String.Empty;
+            // パフォーマンス最適化：アセンブリバージョンは変更されないのでキャッシュ
+            return _cachedAssemblyVersion ??= 
+                System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? String.Empty;
         }
 
         /// <summary>
@@ -404,7 +408,9 @@ namespace FastExplorer.ViewModels.Pages
             if (parent == null)
                 return null;
 
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            // パフォーマンス最適化：GetChildrenCountを一度だけ呼び出す
+            var childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
             {
                 var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
                 if (child is T t)
@@ -434,7 +440,9 @@ namespace FastExplorer.ViewModels.Pages
             if (parent == null)
                 return null;
 
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            // パフォーマンス最適化：GetChildrenCountを一度だけ呼び出す
+            var childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
             {
                 var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
                 if (child is T t && t.Name == name)
@@ -467,8 +475,9 @@ namespace FastExplorer.ViewModels.Pages
                 frameworkElement.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
             }
 
-            // 子要素を再帰的に処理
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(element); i++)
+            // パフォーマンス最適化：GetChildrenCountを一度だけ呼び出す
+            var childrenCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(element);
+            for (int i = 0; i < childrenCount; i++)
             {
                 var child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
                 InvalidateResourcesRecursive(child);

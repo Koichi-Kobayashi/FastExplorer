@@ -159,13 +159,21 @@ namespace FastExplorer.ViewModels.Pages
                 var tabsCount = Tabs.Count;
                 if (tabsCount > 0)
                 {
-                    // 現在のタブを左ペインに移動
+                    // パフォーマンス最適化：タブを一時リストに収集してから一括で移動
                     var selectedTab = SelectedTab;
+                    var tabsToMove = new System.Collections.Generic.List<ExplorerTab>(tabsCount);
                     foreach (var tab in Tabs)
+                    {
+                        tabsToMove.Add(tab);
+                    }
+                    Tabs.Clear();
+                    
+                    // 一括追加（各Addで通知が発行されるが、Clear()後なのでUIの再構築は1回）
+                    foreach (var tab in tabsToMove)
                     {
                         LeftPaneTabs.Add(tab);
                     }
-                    Tabs.Clear();
+                    
                     // 選択されていたタブを左ペインの選択タブに設定
                     if (selectedTab != null)
                     {
@@ -232,11 +240,20 @@ namespace FastExplorer.ViewModels.Pages
                 SelectedLeftPaneTab = null;
                 SelectedRightPaneTab = null;
 
+                // パフォーマンス最適化：タブを一時リストに収集してから一括で移動
+                var leftPaneTabsCount = LeftPaneTabs.Count;
+                var tabsToMove = new System.Collections.Generic.List<ExplorerTab>(leftPaneTabsCount);
                 foreach (var tab in LeftPaneTabs)
+                {
+                    tabsToMove.Add(tab);
+                }
+                LeftPaneTabs.Clear();
+                
+                // 一括追加
+                foreach (var tab in tabsToMove)
                 {
                     Tabs.Add(tab);
                 }
-                LeftPaneTabs.Clear();
 
                 // 右ペインのタブも通常のタブに移動（最初のタブのみ保持する場合は、ここで処理）
                 // 現在は右ペインのタブは保持しない
@@ -1090,6 +1107,9 @@ namespace FastExplorer.ViewModels.Pages
             if (tabPaths == null || tabPaths.Count == 0)
                 return;
 
+            // パフォーマンス最適化：タブを一時リストに作成してから一括追加
+            var tabsToAdd = new System.Collections.Generic.List<ExplorerTab>(tabPaths.Count);
+            
             foreach (var path in tabPaths)
             {
                 var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
@@ -1105,15 +1125,23 @@ namespace FastExplorer.ViewModels.Pages
 
                 // タブをパスに移動
                 NavigateTabToPath(tab, path);
-
-                tabs.Add(tab);
+                
+                // タイトルを更新
                 UpdateTabTitle(tab);
+                
+                tabsToAdd.Add(tab);
+            }
+
+            // 一括追加（各Addで通知が発行されるが、初期化時なのでUIの再構築コストは低い）
+            foreach (var tab in tabsToAdd)
+            {
+                tabs.Add(tab);
             }
 
             // 最初のタブを選択
-            if (tabs.Count > 0)
+            if (tabsToAdd.Count > 0)
             {
-                setSelectedTab(tabs[0]);
+                setSelectedTab(tabsToAdd[0]);
             }
         }
 
@@ -1130,7 +1158,14 @@ namespace FastExplorer.ViewModels.Pages
             if (string.IsNullOrEmpty(folderName))
             {
                 var root = Path.GetPathRoot(path);
-                return string.IsNullOrEmpty(root) ? path : root.TrimEnd('\\');
+                if (string.IsNullOrEmpty(root))
+                    return path;
+                
+                // パフォーマンス最適化：TrimEndの代わりに最後の文字をチェック
+                // バックスラッシュで終わる場合のみ、AsSpanを使用して部分文字列を作成
+                return root.Length > 0 && root[root.Length - 1] == '\\' 
+                    ? root.Substring(0, root.Length - 1) 
+                    : root;
             }
 
             return folderName;
@@ -1251,20 +1286,34 @@ namespace FastExplorer.ViewModels.Pages
                 if (string.IsNullOrEmpty(exePath))
                     return;
 
-                // コマンドライン引数を構築（--single-tabフラグを追加）
-                var arguments = "--single-tab";
-
+                // パフォーマンス最適化：ZStringを使用して文字列の割り当てを削減
+                var pathArgument = BuildPathArgument(pathToOpen);
+                
+                string arguments;
                 // ドロップ位置がある場合は、コマンドライン引数に追加
                 if (dropPosition.HasValue)
                 {
-                    arguments += $" --position {dropPosition.Value.X},{dropPosition.Value.Y}";
+                    // ZString.Concatを使用してメモリ割り当てを削減
+                    if (!string.IsNullOrEmpty(pathArgument))
+                    {
+                        arguments = ZString.Concat("--single-tab --position ", dropPosition.Value.X, ",", dropPosition.Value.Y, " ", pathArgument);
+                    }
+                    else
+                    {
+                        arguments = ZString.Concat("--single-tab --position ", dropPosition.Value.X, ",", dropPosition.Value.Y);
+                    }
                 }
-
-                // パスをコマンドライン引数として渡す（pathToOpenは既に設定されている）
-                var pathArgument = BuildPathArgument(pathToOpen);
-                if (!string.IsNullOrEmpty(pathArgument))
+                else
                 {
-                    arguments += $" {pathArgument}";
+                    // パスをコマンドライン引数として渡す
+                    if (!string.IsNullOrEmpty(pathArgument))
+                    {
+                        arguments = ZString.Concat("--single-tab ", pathArgument);
+                    }
+                    else
+                    {
+                        arguments = "--single-tab";
+                    }
                 }
 
                 // 元のウィンドウからタブを削除（新しいプロセス起動前に実行して、即座にUIを更新）
@@ -1652,8 +1701,9 @@ namespace FastExplorer.ViewModels.Pages
             if (string.IsNullOrEmpty(pathToOpen) || !System.IO.Directory.Exists(pathToOpen))
                 return string.Empty;
 
-            // パスにスペースが含まれている場合は引用符で囲む（IndexOfの方がContainsより高速）
-            return pathToOpen.IndexOf(' ') >= 0 ? $"\"{pathToOpen}\"" : pathToOpen;
+            // パフォーマンス最適化：パスにスペースが含まれている場合は引用符で囲む
+            // IndexOfの方がContainsより高速、ZStringで文字列割り当てを削減
+            return pathToOpen.IndexOf(' ') >= 0 ? ZString.Concat("\"", pathToOpen, "\"") : pathToOpen;
         }
 
         /// <summary>
@@ -1688,10 +1738,17 @@ namespace FastExplorer.ViewModels.Pages
                 var leftIndex = leftPaneTabs.IndexOf(tab);
                 if (leftIndex > 0)
                 {
-                    // 左側のタブをすべて削除
-                    for (int i = leftIndex - 1; i >= 0; i--)
+                    // パフォーマンス最適化：複数のタブを一度に削除してObservableCollectionの通知回数を削減
+                    // 削除するタブをリストに収集
+                    var tabsToRemove = new System.Collections.Generic.List<ExplorerTab>(leftIndex);
+                    for (int i = 0; i < leftIndex; i++)
                     {
-                        leftPaneTabs.RemoveAt(i);
+                        tabsToRemove.Add(leftPaneTabs[i]);
+                    }
+                    // 一括削除（逆順でRemoveAtを使用してインデックスのずれを防ぐ）
+                    foreach (var tabToRemove in tabsToRemove)
+                    {
+                        leftPaneTabs.Remove(tabToRemove);
                     }
                     // 基準となるタブを選択状態にする（インデックスが0に変わる）
                     SelectedLeftPaneTab = tab;
@@ -1703,10 +1760,15 @@ namespace FastExplorer.ViewModels.Pages
                 var rightIndex = rightPaneTabs.IndexOf(tab);
                 if (rightIndex > 0)
                 {
-                    // 左側のタブをすべて削除
-                    for (int i = rightIndex - 1; i >= 0; i--)
+                    // パフォーマンス最適化：複数のタブを一度に削除
+                    var tabsToRemove = new System.Collections.Generic.List<ExplorerTab>(rightIndex);
+                    for (int i = 0; i < rightIndex; i++)
                     {
-                        rightPaneTabs.RemoveAt(i);
+                        tabsToRemove.Add(rightPaneTabs[i]);
+                    }
+                    foreach (var tabToRemove in tabsToRemove)
+                    {
+                        rightPaneTabs.Remove(tabToRemove);
                     }
                     // 基準となるタブを選択状態にする（インデックスが0に変わる）
                     SelectedRightPaneTab = tab;
@@ -1719,10 +1781,15 @@ namespace FastExplorer.ViewModels.Pages
                 var index = tabs.IndexOf(tab);
                 if (index > 0)
                 {
-                    // 左側のタブをすべて削除
-                    for (int i = index - 1; i >= 0; i--)
+                    // パフォーマンス最適化：複数のタブを一度に削除
+                    var tabsToRemove = new System.Collections.Generic.List<ExplorerTab>(index);
+                    for (int i = 0; i < index; i++)
                     {
-                        tabs.RemoveAt(i);
+                        tabsToRemove.Add(tabs[i]);
+                    }
+                    foreach (var tabToRemove in tabsToRemove)
+                    {
+                        tabs.Remove(tabToRemove);
                     }
                     // 基準となるタブを選択状態にする（インデックスが0に変わる）
                     SelectedTab = tab;
@@ -1749,10 +1816,15 @@ namespace FastExplorer.ViewModels.Pages
                     var count = leftPaneTabs.Count;
                     if (leftIndex < count - 1)
                     {
-                        // 右側のタブをすべて削除
-                        for (int i = count - 1; i > leftIndex; i--)
+                        // パフォーマンス最適化：削除するタブをリストに収集してから一括削除
+                        var tabsToRemove = new System.Collections.Generic.List<ExplorerTab>(count - leftIndex - 1);
+                        for (int i = leftIndex + 1; i < count; i++)
                         {
-                            leftPaneTabs.RemoveAt(i);
+                            tabsToRemove.Add(leftPaneTabs[i]);
+                        }
+                        foreach (var tabToRemove in tabsToRemove)
+                        {
+                            leftPaneTabs.Remove(tabToRemove);
                         }
                         // 基準となるタブを選択状態にする
                         SelectedLeftPaneTab = tab;
@@ -1768,10 +1840,15 @@ namespace FastExplorer.ViewModels.Pages
                     var count = rightPaneTabs.Count;
                     if (rightIndex < count - 1)
                     {
-                        // 右側のタブをすべて削除
-                        for (int i = count - 1; i > rightIndex; i--)
+                        // パフォーマンス最適化：削除するタブをリストに収集してから一括削除
+                        var tabsToRemove = new System.Collections.Generic.List<ExplorerTab>(count - rightIndex - 1);
+                        for (int i = rightIndex + 1; i < count; i++)
                         {
-                            rightPaneTabs.RemoveAt(i);
+                            tabsToRemove.Add(rightPaneTabs[i]);
+                        }
+                        foreach (var tabToRemove in tabsToRemove)
+                        {
+                            rightPaneTabs.Remove(tabToRemove);
                         }
                         // 基準となるタブを選択状態にする
                         SelectedRightPaneTab = tab;
@@ -1786,10 +1863,15 @@ namespace FastExplorer.ViewModels.Pages
                 var count = tabs.Count;
                 if (index < count - 1)
                 {
-                    // 右側のタブをすべて削除
-                    for (int i = count - 1; i > index; i--)
+                    // パフォーマンス最適化：削除するタブをリストに収集してから一括削除
+                    var tabsToRemove = new System.Collections.Generic.List<ExplorerTab>(count - index - 1);
+                    for (int i = index + 1; i < count; i++)
                     {
-                        tabs.RemoveAt(i);
+                        tabsToRemove.Add(tabs[i]);
+                    }
+                    foreach (var tabToRemove in tabsToRemove)
+                    {
+                        tabs.Remove(tabToRemove);
                     }
                     // 基準となるタブを選択状態にする
                     SelectedTab = tab;
@@ -1812,13 +1894,18 @@ namespace FastExplorer.ViewModels.Pages
                 var leftPaneTabs = LeftPaneTabs;
                 if (leftPaneTabs.IndexOf(tab) >= 0)
                 {
-                    // 左ペインの他のタブをすべて削除
-                    for (int i = leftPaneTabs.Count - 1; i >= 0; i--)
+                    // パフォーマンス最適化：削除するタブをリストに収集してから一括削除
+                    var tabsToRemove = new System.Collections.Generic.List<ExplorerTab>(leftPaneTabs.Count - 1);
+                    foreach (var t in leftPaneTabs)
                     {
-                        if (leftPaneTabs[i] != tab)
+                        if (t != tab)
                         {
-                            leftPaneTabs.RemoveAt(i);
+                            tabsToRemove.Add(t);
                         }
+                    }
+                    foreach (var tabToRemove in tabsToRemove)
+                    {
+                        leftPaneTabs.Remove(tabToRemove);
                     }
                     SelectedLeftPaneTab = tab;
                     return;
@@ -1827,13 +1914,18 @@ namespace FastExplorer.ViewModels.Pages
                 var rightPaneTabs = RightPaneTabs;
                 if (rightPaneTabs.IndexOf(tab) >= 0)
                 {
-                    // 右ペインの他のタブをすべて削除
-                    for (int i = rightPaneTabs.Count - 1; i >= 0; i--)
+                    // パフォーマンス最適化：削除するタブをリストに収集してから一括削除
+                    var tabsToRemove = new System.Collections.Generic.List<ExplorerTab>(rightPaneTabs.Count - 1);
+                    foreach (var t in rightPaneTabs)
                     {
-                        if (rightPaneTabs[i] != tab)
+                        if (t != tab)
                         {
-                            rightPaneTabs.RemoveAt(i);
+                            tabsToRemove.Add(t);
                         }
+                    }
+                    foreach (var tabToRemove in tabsToRemove)
+                    {
+                        rightPaneTabs.Remove(tabToRemove);
                     }
                     SelectedRightPaneTab = tab;
                 }
@@ -1841,13 +1933,18 @@ namespace FastExplorer.ViewModels.Pages
             else
             {
                 var tabs = Tabs;
-                // 他のタブをすべて削除
-                for (int i = tabs.Count - 1; i >= 0; i--)
+                // パフォーマンス最適化：削除するタブをリストに収集してから一括削除
+                var tabsToRemove = new System.Collections.Generic.List<ExplorerTab>(tabs.Count - 1);
+                foreach (var t in tabs)
                 {
-                    if (tabs[i] != tab)
+                    if (t != tab)
                     {
-                        tabs.RemoveAt(i);
+                        tabsToRemove.Add(t);
                     }
+                }
+                foreach (var tabToRemove in tabsToRemove)
+                {
+                    tabs.Remove(tabToRemove);
                 }
                 SelectedTab = tab;
             }
