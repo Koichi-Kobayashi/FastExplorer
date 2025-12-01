@@ -77,7 +77,7 @@ namespace FastExplorer.Models
                 CreateThemeColor("ブリック レッド", "Brick Red", "#F3D4D5", "#FBF2F2", "#FEEBEB"),
                 CreateThemeColor("モダン レッド", "Modern Red", "#FCD7D7", "#FEF3F3", "#FEEBEB"),
                 CreateThemeColor("レッド", "Red", "#F8CADC", "#FDEFF5", "#FEEBEB"),
-                CreateThemeColor("ローズ ブライト", "Rose Bright", "#F8CADC", "#FDEFF5", "#FEEBEB"),
+                CreateThemeColor("ローズ ブライト", "Rose Bright", "#FFCFDF", "#FBECF2", "#FEEBEB"),
                 CreateThemeColor("ブルー", "Blue", "#CAE2F4", "#EFF6FC", "#E8F2FA"),
                 CreateThemeColor("アイリス パステル", "Iris Pastel", "#E4DEEE", "#F7F5FA", "#F2EEF7"),
                 CreateThemeColor("バイオレット レッド ライト", "Violet Red Light", "#EDD8F0", "#FAF3FB", "#F5EBF7"),

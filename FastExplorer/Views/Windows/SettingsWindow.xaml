@@ -16,15 +16,64 @@
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ExtendsContentIntoTitleBar="True"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ResizeMode="CanResize"
     WindowBackdropType="Mica"
     WindowCornerPreference="Round"
     WindowStartupLocation="CenterOwner"
     mc:Ignorable="d">
     <Window.Resources>
         <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+        <helpers:ThemeColorSelectionConverter x:Key="ThemeColorSelectionConverter" />
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        
+        <!--  ナビゲーションボタンの共通スタイル  -->
+        <Style x:Key="NavigationButtonStyle" TargetType="ui:Button">
+            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Style.Triggers>
+                <!--  ダークモードの時は白色  -->
+                <DataTrigger Binding="{Binding ViewModel.CurrentTheme}" Value="Dark">
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+                <!--  ホバー状態の場合（未選択）  -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                </Trigger>
+                <!--  Primary状態の場合  -->
+                <Trigger Property="Appearance" Value="Primary">
+                    <Setter Property="Background" Value="{Binding ViewModel.SelectedAccentBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
+                    <Setter Property="Foreground" Value="Black" />
+                    <Setter Property="BorderBrush" Value="{Binding ViewModel.SelectedAccentBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
+                </Trigger>
+                <!--  Primary + ホバー状態の場合  -->
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="Appearance" Value="Primary" />
+                        <Condition Property="IsMouseOver" Value="True" />
+                    </MultiTrigger.Conditions>
+                    <Setter Property="Background" Value="{Binding ViewModel.SelectedAccentBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
+                    <Setter Property="Foreground" Value="Black" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                </MultiTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <!--  デフォルトはライトテーマのテーマカラー背景  -->
+                <Setter Property="Background" Value="{Binding ViewModel.SelectedAccentLightBrush}" />
+                <Style.Triggers>
+                    <!--  ダークテーマの時はシステムのダーク背景を優先  -->
+                    <DataTrigger Binding="{Binding ViewModel.CurrentTheme}" Value="Dark">
+                        <Setter Property="Background" Value="{DynamicResource ApplicationBackgroundBrush}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -34,7 +83,9 @@
             x:Name="TitleBar"
             Title="設定"
             Grid.Row="0"
-            CloseWindowByDoubleClickOnIcon="True">
+            CloseWindowByDoubleClickOnIcon="True"
+            ShowMaximize="True"
+            ShowMinimize="True">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon Source="pack://application:,,,/Assets/wpfui-icon-256.png" />
             </ui:TitleBar.Icon>
@@ -49,12 +100,12 @@
             <!--  左側のナビゲーションメニュー  -->
             <Border
                 Grid.Column="0"
-                Background="{DynamicResource ControlFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                 BorderThickness="0,0,1,0">
                 <StackPanel Margin="12">
                     <ui:Button
                         x:Name="GeneralButton"
+                        Style="{StaticResource NavigationButtonStyle}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
                         Appearance="Secondary"
@@ -64,6 +115,7 @@
                         Tag="General" />
                     <ui:Button
                         x:Name="AppearanceButton"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -74,6 +126,7 @@
                         Tag="Appearance" />
                     <ui:Button
                         x:Name="LayoutButton"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -84,6 +137,7 @@
                         Tag="Layout" />
                     <ui:Button
                         x:Name="OperationButton"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -94,6 +148,7 @@
                         Tag="Operation" />
                     <ui:Button
                         x:Name="TagButton"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -104,6 +159,7 @@
                         Tag="Tag" />
                     <ui:Button
                         x:Name="DevToolsButton"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -114,6 +170,7 @@
                         Tag="DevTools" />
                     <ui:Button
                         x:Name="AdvancedButton"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -124,157 +181,242 @@
                         Tag="Advanced" />
                     <ui:Button
                         x:Name="AboutButton"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
                         Appearance="Secondary"
                         Click="NavigationButton_Click"
-                        Content="FastExplore について"
+                        Content="FastExplorer について"
                         Icon="{ui:SymbolIcon Info24}"
                         Tag="About" />
                 </StackPanel>
             </Border>
 
             <!--  右側のコンテンツエリア  -->
-            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="24,24,24,0">
-                    <TextBlock
-                        FontSize="20"
-                        FontWeight="Medium"
-                        Text="全般" />
+            <Grid Grid.Column="1">
+                <!--  全般ページ  -->
+                <ScrollViewer
+                    x:Name="GeneralPage"
+                    VerticalScrollBarVisibility="Auto"
+                    Visibility="Visible">
+                    <StackPanel Margin="24,24,24,0">
+                        <TextBlock
+                            FontSize="20"
+                            FontWeight="Medium"
+                            Text="全般" />
 
-                    <!--  言語設定  -->
-                    <TextBlock
-                        Margin="0,24,0,8"
-                        FontSize="16"
-                        FontWeight="Medium"
-                        Text="言語" />
-                    <ComboBox Width="200" HorizontalAlignment="Left">
-                        <ComboBoxItem Content="システム設定を使用" IsSelected="True" />
-                    </ComboBox>
+                        <!--  言語設定  -->
+                        <TextBlock
+                            Margin="0,24,0,8"
+                            FontSize="16"
+                            FontWeight="Medium"
+                            Text="言語" />
+                        <ComboBox Width="200" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="システム設定を使用" IsSelected="True" />
+                        </ComboBox>
 
-                    <!--  日付の形式  -->
-                    <TextBlock
-                        Margin="0,24,0,8"
-                        FontSize="16"
-                        FontWeight="Medium"
-                        Text="日付の形式" />
-                    <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="例: 5 秒前, 2020年12月31日" />
-                    <ComboBox
-                        Width="200"
-                        Margin="0,8,0,0"
-                        HorizontalAlignment="Left">
-                        <ComboBoxItem Content="アプリ" IsSelected="True" />
-                    </ComboBox>
+                        <!--  日付の形式  -->
+                        <TextBlock
+                            Margin="0,24,0,8"
+                            FontSize="16"
+                            FontWeight="Medium"
+                            Text="日付の形式" />
+                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="例: 5 秒前, 2020年12月31日" />
+                        <ComboBox
+                            Width="200"
+                            Margin="0,8,0,0"
+                            HorizontalAlignment="Left">
+                            <ComboBoxItem Content="アプリ" IsSelected="True" />
+                        </ComboBox>
 
-                    <!--  起動時の設定  -->
-                    <TextBlock
-                        Margin="0,24,0,8"
-                        FontSize="16"
-                        FontWeight="Medium"
-                        Text="起動時の設定" />
-                    <ComboBox Width="300" HorizontalAlignment="Left">
-                        <ComboBoxItem Content="最後の操作を続行" IsSelected="True" />
-                    </ComboBox>
+                        <!--  起動時の設定  -->
+                        <TextBlock
+                            Margin="0,24,0,8"
+                            FontSize="16"
+                            FontWeight="Medium"
+                            Text="起動時の設定" />
+                        <ComboBox Width="300" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="最後の操作を続行" IsSelected="True" />
+                        </ComboBox>
+                    </StackPanel>
+                </ScrollViewer>
 
-                    <!--  デュアルペインモード  -->
-                    <TextBlock
-                        Margin="0,24,0,8"
-                        FontSize="16"
-                        FontWeight="Medium"
-                        Text="デュアルペインモード" />
-                    <ui:ToggleSwitch Content="デュアル ペインでタブを開く" IsChecked="False" />
+                <!--  外観ページ  -->
+                <ScrollViewer
+                    x:Name="AppearancePage"
+                    VerticalScrollBarVisibility="Auto"
+                    Visibility="Collapsed">
+                    <StackPanel Margin="24,24,24,0">
+                        <TextBlock
+                            FontSize="20"
+                            FontWeight="Medium"
+                            Text="外観" />
 
-                    <TextBlock
-                        Margin="0,24,0,0"
-                        FontSize="20"
-                        FontWeight="Medium"
-                        Text="外観" />
+                        <!--  テーマ  -->
+                        <TextBlock
+                            Margin="0,24,0,8"
+                            FontSize="16"
+                            FontWeight="Medium"
+                            Text="テーマ" />
+                        <RadioButton
+                            Margin="0,8,0,0"
+                            Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
+                            CommandParameter="theme_light"
+                            Content="Light"
+                            GroupName="themeSelect"
+                            IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Light, Mode=OneWay}" />
+                        <RadioButton
+                            Margin="0,8,0,0"
+                            Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
+                            CommandParameter="theme_dark"
+                            Content="Dark"
+                            GroupName="themeSelect"
+                            IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
 
-                    <!--  テーマ  -->
-                    <TextBlock Margin="0,12,0,0" Text="Theme" />
-                    <RadioButton
-                        Margin="0,12,0,0"
-                        Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
-                        CommandParameter="theme_light"
-                        Content="Light"
-                        GroupName="themeSelect"
-                        IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Light, Mode=OneWay}" />
-                    <RadioButton
-                        Margin="0,8,0,0"
-                        Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
-                        CommandParameter="theme_dark"
-                        Content="Dark"
-                        GroupName="themeSelect"
-                        IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
+                        <!--  テーマカラー  -->
+                        <TextBlock
+                            Margin="0,24,0,8"
+                            FontSize="16"
+                            FontWeight="Medium"
+                            Text="テーマカラー" />
+                        <TextBlock
+                            Margin="0,0,0,12"
+                            FontSize="12"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="ライトテーマで使用するアクセントカラーを選択してください" />
+                        <ItemsControl ItemsSource="{Binding ViewModel.ThemeColors, Mode=OneWay}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="10" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button
+                                        Width="40"
+                                        Height="40"
+                                        Margin="4"
+                                        Padding="0"
+                                        Command="{Binding DataContext.ViewModel.SelectThemeColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"
+                                        Cursor="Hand"
+                                        ToolTip="{Binding Name}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Grid>
+                                                    <Border
+                                                        x:Name="ColorBorder"
+                                                        Background="{Binding Color}"
+                                                        BorderBrush="{DynamicResource TextFillColorSecondaryBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4" />
+                                                    <!--  選択中の場合はチェックマークを表示  -->
+                                                    <ui:SymbolIcon
+                                                        x:Name="CheckIcon"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="20"
+                                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                        Symbol="Checkmark24"
+                                                        Visibility="Collapsed" />
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <!--  選択状態のトリガー  -->
+                                                    <DataTrigger Value="True">
+                                                        <DataTrigger.Binding>
+                                                            <MultiBinding Converter="{StaticResource ThemeColorSelectionConverter}">
+                                                                <Binding Path="ColorCode" />
+                                                                <Binding Path="DataContext.ViewModel.SelectedThemeColor" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            </MultiBinding>
+                                                        </DataTrigger.Binding>
+                                                        <Setter TargetName="ColorBorder" Property="BorderThickness" Value="3" />
+                                                        <Setter TargetName="ColorBorder" Property="BorderBrush" Value="{DynamicResource SystemAccentColorSecondaryBrush}" />
+                                                        <Setter TargetName="CheckIcon" Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                    <!--  ホバー状態のトリガー  -->
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ColorBorder" Property="BorderThickness" Value="2" />
+                                                        <Setter TargetName="ColorBorder" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
 
-                    <!--  テーマカラー  -->
-                    <TextBlock Margin="0,24,0,12" Text="Theme Color" />
-                    <ItemsControl ItemsSource="{Binding ViewModel.ThemeColors, Mode=OneWay}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <UniformGrid Columns="10" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button
-                                    Width="40"
-                                    Height="40"
-                                    Margin="4"
-                                    Padding="0"
-                                    Command="{Binding DataContext.ViewModel.SelectThemeColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}"
-                                    Cursor="Hand"
-                                    ToolTip="{Binding Name}">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border
-                                                Background="{Binding Color}"
-                                                BorderBrush="{DynamicResource TextFillColorSecondaryBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="4">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Style.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter Property="BorderThickness" Value="2" />
-                                                                <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                <!--  レイアウトページ  -->
+                <ScrollViewer
+                    x:Name="LayoutPage"
+                    VerticalScrollBarVisibility="Auto"
+                    Visibility="Collapsed">
+                    <StackPanel Margin="24,24,24,0">
+                        <TextBlock
+                            FontSize="20"
+                            FontWeight="Medium"
+                            Text="レイアウト" />
 
-                    <TextBlock
-                        Margin="0,24,0,0"
-                        FontSize="20"
-                        FontWeight="Medium"
-                        Text="Explorer" />
-                    <CheckBox
-                        Margin="0,12,0,0"
-                        Content="分割ペインを有効にする（WinSCPスタイル）"
-                        IsChecked="{Binding ViewModel.IsSplitPaneEnabled, Mode=TwoWay}" />
-                    <TextBlock
-                        Margin="0,8,0,0"
-                        FontSize="12"
-                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                        Text="有効にすると、左右2つのペインでそれぞれタブを表示できます。アプリケーションを再起動すると反映されます。" />
+                        <!--  デュアルペインモード  -->
+                        <TextBlock
+                            Margin="0,24,0,8"
+                            FontSize="16"
+                            FontWeight="Medium"
+                            Text="デュアルペインモード" />
+                        <ui:ToggleSwitch
+                            Margin="0,8,0,0"
+                            Content="デュアル ペインでタブを開く"
+                            IsChecked="False" />
+                        <TextBlock
+                            Margin="0,8,0,0"
+                            FontSize="12"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="タブバーを2つのペインに分割し、それぞれ独立してタブを管理できます" />
 
-                    <TextBlock
-                        Margin="0,24,0,0"
-                        FontSize="20"
-                        FontWeight="Medium"
-                        Text="About FastExplorer" />
-                    <TextBlock Margin="0,12,0,0" Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
-                </StackPanel>
-            </ScrollViewer>
+                        <!--  分割ペイン  -->
+                        <TextBlock
+                            Margin="0,24,0,8"
+                            FontSize="16"
+                            FontWeight="Medium"
+                            Text="分割ペイン" />
+                        <CheckBox
+                            Margin="0,8,0,0"
+                            Content="分割ペインを有効にする（WinSCPスタイル）"
+                            IsChecked="{Binding ViewModel.IsSplitPaneEnabled, Mode=TwoWay}" />
+                        <TextBlock
+                            Margin="0,8,0,0"
+                            FontSize="12"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="有効にすると、左右2つのペインでそれぞれフォルダーを表示できます。アプリケーションを再起動すると反映されます。" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!--  Aboutページ  -->
+                <ScrollViewer
+                    x:Name="AboutPage"
+                    VerticalScrollBarVisibility="Auto"
+                    Visibility="Collapsed">
+                    <StackPanel Margin="24,24,24,0">
+                        <TextBlock
+                            FontSize="20"
+                            FontWeight="Medium"
+                            Text="FastExplorer について" />
+                        <TextBlock
+                            Margin="0,24,0,0"
+                            FontSize="14"
+                            Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
+                        <TextBlock
+                            Margin="0,12,0,0"
+                            FontSize="12"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="高速で使いやすいファイルエクスプローラー"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
         </Grid>
     </Grid>
 </ui:FluentWindow>

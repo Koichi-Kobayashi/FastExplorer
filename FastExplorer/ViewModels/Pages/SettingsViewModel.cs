@@ -55,11 +55,29 @@ namespace FastExplorer.ViewModels.Pages
         [ObservableProperty]
         private ObservableCollection<ThemeColor> _themeColors = new();
 
-        /// <summary>
-        /// 分割ペインが有効かどうかを取得または設定します
-        /// </summary>
-        [ObservableProperty]
-        private bool _isSplitPaneEnabled;
+    /// <summary>
+    /// 現在選択されているテーマカラーを取得または設定します
+    /// </summary>
+    [ObservableProperty]
+    private ThemeColor? _selectedThemeColor;
+
+    /// <summary>
+    /// 選択中のテーマカラーのブラシを取得または設定します（設定ウィンドウのアクセント用）
+    /// </summary>
+    [ObservableProperty]
+    private System.Windows.Media.SolidColorBrush _selectedAccentBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 120, 212)); // デフォルトの青色
+
+    /// <summary>
+    /// 選択中のテーマカラーの薄いブラシを取得または設定します（背景用）
+    /// </summary>
+    [ObservableProperty]
+    private System.Windows.Media.SolidColorBrush _selectedAccentLightBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 0, 120, 212)); // デフォルトの薄い青色（透明度40）
+
+    /// <summary>
+    /// 分割ペインが有効かどうかを取得または設定します
+    /// </summary>
+    [ObservableProperty]
+    private bool _isSplitPaneEnabled;
 
         /// <summary>
         /// ページにナビゲートされたときに呼び出されます
@@ -75,6 +93,8 @@ namespace FastExplorer.ViewModels.Pages
             {
                 // 既に初期化済みの場合でも、現在のテーマを更新
                 CurrentTheme = ApplicationThemeManager.GetAppTheme();
+                // 選択中のテーマカラーも更新
+                UpdateSelectedThemeColor();
             }
 
             return Task.CompletedTask;
@@ -126,6 +146,9 @@ namespace FastExplorer.ViewModels.Pages
             // 分割ペインの設定を読み込む
             var settings = _windowSettingsService.GetSettings();
             IsSplitPaneEnabled = settings.IsSplitPaneEnabled;
+            
+            // 現在選択されているテーマカラーを設定
+            UpdateSelectedThemeColor();
 
             _isInitialized = true;
         }
@@ -143,6 +166,43 @@ namespace FastExplorer.ViewModels.Pages
             foreach (var color in colors)
             {
                 ThemeColors.Add(color);
+            }
+        }
+        
+        /// <summary>
+        /// 現在選択されているテーマカラーを更新します
+        /// </summary>
+        private void UpdateSelectedThemeColor()
+        {
+            var settings = _windowSettingsService.GetSettings();
+            var themeColorCode = settings.ThemeColorCode;
+            
+            if (!string.IsNullOrEmpty(themeColorCode))
+            {
+                // 保存されているテーマカラーと一致するものを選択
+                SelectedThemeColor = ThemeColors.FirstOrDefault(tc => tc.ColorCode == themeColorCode);
+                
+                // アクセントブラシを更新
+                if (SelectedThemeColor != null && SelectedThemeColor.Color is System.Windows.Media.SolidColorBrush brush)
+                {
+                    SelectedAccentBrush = brush;
+                    // 薄いブラシも作成（透明度40）
+                    var color = brush.Color;
+                    SelectedAccentLightBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(40, color.R, color.G, color.B));
+                }
+                else
+                {
+                    // デフォルトの青色を設定
+                    SelectedAccentBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 120, 212));
+                    SelectedAccentLightBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 0, 120, 212));
+                }
+            }
+            else
+            {
+                SelectedThemeColor = null;
+                // デフォルトの青色を設定
+                SelectedAccentBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 120, 212));
+                SelectedAccentLightBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 0, 120, 212));
             }
         }
 
@@ -253,12 +313,42 @@ namespace FastExplorer.ViewModels.Pages
                     if (!string.IsNullOrEmpty(themeColorCode))
                     {
                         App.ApplyThemeColorFromSettings(settings);
+                        
+                        // 選択状態を更新
+                        UpdateSelectedThemeColor();
+                        
+                        // MainWindowの背景色を再適用
+                        var mainColor = Helpers.FastColorConverter.ParseHexColor(themeColorCode);
+                        var secondaryColorCode = settings.ThemeSecondaryColorCode;
+                        if (!string.IsNullOrEmpty(secondaryColorCode))
+                        {
+                            var secondaryColor = Helpers.FastColorConverter.ParseHexColor(secondaryColorCode);
+                            var mainBrush = new SolidColorBrush(mainColor);
+                            var secondaryBrush = new SolidColorBrush(secondaryColor);
+                            
+                            Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                            {
+                                foreach (Window window in Application.Current.Windows)
+                                {
+                                    if (window is Views.Windows.MainWindow mainWindow)
+                                    {
+                                        mainWindow.Background = mainBrush;
+                                        var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(mainWindow);
+                                        if (navigationView != null)
+                                        {
+                                            navigationView.Background = secondaryBrush;
+                                        }
+                                    }
+                                }
+                            }), System.Windows.Threading.DispatcherPriority.Render);
+                        }
                     }
                 }
                 else if (theme == ApplicationTheme.Dark)
                 {
                     // ダークモードの場合は、デフォルトのダークテーマカラーにリセット
                     App.ResetToDefaultDarkThemeColors();
+                    // ダークモードでは選択状態を保持（視覚的な選択は表示するが、適用はしない）
                 }
                 else
                 {
@@ -271,6 +361,7 @@ namespace FastExplorer.ViewModels.Pages
                         if (!string.IsNullOrEmpty(themeColorCode))
                         {
                             App.ApplyThemeColorFromSettings(settings);
+                            UpdateSelectedThemeColor();
                         }
                     }
                     else
@@ -287,16 +378,27 @@ namespace FastExplorer.ViewModels.Pages
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     ThemedSvgIcon.RefreshAllInstances();
-                    
-                    // タブとListViewのスタイルを無効化してDynamicResourceの再評価を強制
+                }), System.Windows.Threading.DispatcherPriority.Render);
+                
+                // タブとListViewのスタイルを無効化してDynamicResourceの再評価を強制
+                // Backgroundに変更して確実に実行されるようにする
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+                {
                     foreach (Window window in Application.Current.Windows)
                     {
-                        if (window != null)
+                        // MainWindowのスタイルを更新
+                        if (window is Views.Windows.MainWindow)
                         {
                             Views.Windows.MainWindow.InvalidateTabAndListViewStyles(window);
                         }
+                        // SettingsWindowの背景色をクリアしてDynamicResourceを使用するように戻す
+                        else if (window is Views.Windows.SettingsWindow settingsWindow)
+                        {
+                            // 背景色をクリアして、DynamicResourceを使用するように戻す
+                            settingsWindow.ClearValue(Window.BackgroundProperty);
+                        }
                     }
-                }), System.Windows.Threading.DispatcherPriority.Render);
+                }), System.Windows.Threading.DispatcherPriority.Background);
             }
             catch
             {
@@ -341,6 +443,18 @@ namespace FastExplorer.ViewModels.Pages
                     ApplyTheme(ApplicationTheme.Light);
                 }
 
+                // 選択されたテーマカラーを更新
+                SelectedThemeColor = themeColor;
+                
+                // アクセントブラシを更新（設定ウィンドウのUI用）
+                if (themeColor.Color is System.Windows.Media.SolidColorBrush brush)
+                {
+                    SelectedAccentBrush = brush;
+                    // 薄いブラシも作成（透明度40）
+                    var color = brush.Color;
+                    SelectedAccentLightBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(40, color.R, color.G, color.B));
+                }
+                
                 // テーマカラーを保存
                 var settings2 = _windowSettingsService.GetSettings();
                 settings2.ThemeColorName = themeColor.Name;
@@ -362,41 +476,31 @@ namespace FastExplorer.ViewModels.Pages
                 // リソースを更新（計算済みの色を渡して重複計算を回避）
                 App.ApplyThemeColorFromSettings(settings2, (mainColor, secondaryColor));
 
-                // すべてのウィンドウの背景色を直接更新
+                // MainWindowの背景色を直接更新（SettingsWindowには適用しない）
                 Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    // すべてのウィンドウの背景色を更新
+                    // MainWindowのみを対象にする
                     foreach (Window window in Application.Current.Windows)
                     {
-                        if (window != null)
+                        // SettingsWindowは除外
+                        if (window is Views.Windows.MainWindow mainWindow)
                         {
                             // ウィンドウの背景色を直接設定
-                            window.Background = mainBrush;
-
-                            // FluentWindowの場合は、Backgroundプロパティも更新
-                            if (window is Wpf.Ui.Controls.FluentWindow fluentWindow)
-                            {
-                                fluentWindow.Background = mainBrush;
-                            }
+                            mainWindow.Background = mainBrush;
 
                             // ウィンドウ内のNavigationViewの背景色も更新
-                            var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(window);
+                            var navigationView = FindVisualChild<Wpf.Ui.Controls.NavigationView>(mainWindow);
                             if (navigationView != null)
                             {
                                 navigationView.Background = secondaryBrush;
                             }
 
-                            // ステータスバーは各タブに移動したため、MainWindowからの参照は不要
-
                             // ウィンドウのリソースを無効化
-                            if (window is System.Windows.FrameworkElement fe)
-                            {
-                                fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
-                                fe.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
-                            }
+                            mainWindow.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                            mainWindow.InvalidateProperty(System.Windows.Controls.Control.BackgroundProperty);
 
                             // タブとListViewの選択中の色を更新するため、スタイルを無効化してDynamicResourceの再評価を強制
-                            Views.Windows.MainWindow.InvalidateTabAndListViewStyles(window);
+                            Views.Windows.MainWindow.InvalidateTabAndListViewStyles(mainWindow);
                         }
                     }
                 }), System.Windows.Threading.DispatcherPriority.Render);

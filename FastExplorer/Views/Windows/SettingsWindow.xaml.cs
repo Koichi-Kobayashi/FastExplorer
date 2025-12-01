@@ -27,18 +27,25 @@ namespace FastExplorer.Views.Windows
 
             InitializeComponent();
             
+            // TitleBarの×ボタンイベントを処理
+            TitleBar.CloseClicked += (s, e) => Close();
+            
             // ウィンドウ読み込み時にViewModelを初期化
             Loaded += async (s, e) =>
             {
                 await ViewModel.OnNavigatedToAsync();
                 // システムテーマの監視を設定
                 SystemThemeWatcher.Watch(this);
+                
+                // デフォルトで全般ボタンを選択状態にする
+                GeneralButton.Appearance = ControlAppearance.Primary;
             };
             
-            // ウィンドウを閉じる時にViewModelのクリーンアップ
-            Closing += async (s, e) =>
+            // ウィンドウを閉じる時にViewModelのクリーンアップ（同期処理）
+            Closing += (s, e) =>
             {
-                await ViewModel.OnNavigatedFromAsync();
+                // 非同期処理はfire-and-forgetで実行（ウィンドウを閉じる処理をブロックしない）
+                _ = ViewModel.OnNavigatedFromAsync();
             };
         }
 
@@ -65,8 +72,32 @@ namespace FastExplorer.Views.Windows
             // クリックされたボタンをPrimaryに設定
             button.Appearance = ControlAppearance.Primary;
 
-            // TODO: タグに応じてコンテンツエリアを切り替える実装
-            // 現在は全般ページのみ表示
+            // すべてのページを非表示にする
+            GeneralPage.Visibility = Visibility.Collapsed;
+            AppearancePage.Visibility = Visibility.Collapsed;
+            LayoutPage.Visibility = Visibility.Collapsed;
+            AboutPage.Visibility = Visibility.Collapsed;
+
+            // タグに応じて適切なページを表示
+            switch (tag)
+            {
+                case "General":
+                    GeneralPage.Visibility = Visibility.Visible;
+                    break;
+                case "Appearance":
+                    AppearancePage.Visibility = Visibility.Visible;
+                    break;
+                case "Layout":
+                    LayoutPage.Visibility = Visibility.Visible;
+                    break;
+                case "About":
+                    AboutPage.Visibility = Visibility.Visible;
+                    break;
+                // その他のページは実装予定
+                default:
+                    GeneralPage.Visibility = Visibility.Visible;
+                    break;
+            }
         }
     }
 }

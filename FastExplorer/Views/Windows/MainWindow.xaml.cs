@@ -544,6 +544,31 @@ namespace FastExplorer.Views.Windows
             if (explorerPage == null)
                 return;
 
+            // ExplorerPageのキャッシュをクリアしてから背景色を更新
+            // リフレクションを使用してprivateフィールドとメソッドにアクセス
+            var explorerPageType = typeof(Views.Pages.ExplorerPage);
+            
+            // キャッシュフィールドをクリア
+            var cachedLeftListViewField = explorerPageType.GetField("_cachedLeftListView", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var cachedRightListViewField = explorerPageType.GetField("_cachedRightListView", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var cachedSinglePaneListViewField = explorerPageType.GetField("_cachedSinglePaneListView", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            
+            if (cachedLeftListViewField != null)
+                cachedLeftListViewField.SetValue(explorerPage, null);
+            if (cachedRightListViewField != null)
+                cachedRightListViewField.SetValue(explorerPage, null);
+            if (cachedSinglePaneListViewField != null)
+                cachedSinglePaneListViewField.SetValue(explorerPage, null);
+            
+            // UpdateListViewBackgroundColorsメソッドを呼び出して背景色を更新
+            var updateMethod = explorerPageType.GetMethod(
+                "UpdateListViewBackgroundColors", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (updateMethod != null)
+            {
+                updateMethod.Invoke(explorerPage, null);
+            }
+
             // TabControlとListViewを一度の走査で見つける（高速化）
             System.Windows.Controls.TabControl? tabControl = null;
             System.Windows.Controls.ListView? listView = null;
@@ -564,8 +589,26 @@ namespace FastExplorer.Views.Windows
             {
                 // プロパティをキャッシュして高速化
                 var itemContainerStyleProperty = System.Windows.Controls.ItemsControl.ItemContainerStyleProperty;
+                var backgroundProperty = System.Windows.Controls.Control.BackgroundProperty;
+                var styleProperty = System.Windows.FrameworkElement.StyleProperty;
+                
+                // ListView自体のプロパティも無効化
                 listView.InvalidateProperty(itemContainerStyleProperty);
+                listView.InvalidateProperty(backgroundProperty);
+                listView.InvalidateProperty(styleProperty);
+                
+                // ListViewItem のスタイルも無効化
                 InvalidateListViewItems(listView);
+                
+                // 仮想化されたアイテムも含めて、すべてのアイテムを強制的に再描画
+                var itemsSource = listView.Items;
+                if (itemsSource != null)
+                {
+                    itemsSource.Refresh();
+                }
+                
+                // レイアウトを強制的に更新
+                listView.UpdateLayout();
             }
         }
 
