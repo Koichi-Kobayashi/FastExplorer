@@ -188,7 +188,21 @@ namespace FastExplorer.Views.Windows
                     Owner = this
                 };
                 System.Diagnostics.Debug.WriteLine("About to show settings window");
-                settingsWindow.ShowDialog();
+                
+                // メッセージフックを無効化してSettingsWindowの閉じるボタンが正常に動作するようにする
+                // メッセージフックが有効な状態だと、WindowChromeの処理に影響を与え、
+                // 閉じるボタンが押せなくなる問題が発生する
+                DisableMessageHook();
+                try
+                {
+                    settingsWindow.ShowDialog();
+                }
+                finally
+                {
+                    // SettingsWindowが閉じた後、メッセージフックを再有効化
+                    EnableMessageHook();
+                }
+                
                 System.Diagnostics.Debug.WriteLine("Settings window closed");
             }
             catch (Exception ex)
@@ -774,7 +788,21 @@ namespace FastExplorer.Views.Windows
                         Owner = this
                     };
                     System.Diagnostics.Debug.WriteLine("About to show settings window");
-                    settingsWindow.ShowDialog();
+                    
+                    // メッセージフックを無効化してSettingsWindowの閉じるボタンが正常に動作するようにする
+                    // メッセージフックが有効な状態だと、WindowChromeの処理に影響を与え、
+                    // 閉じるボタンが押せなくなる問題が発生する
+                    DisableMessageHook();
+                    try
+                    {
+                        settingsWindow.ShowDialog();
+                    }
+                    finally
+                    {
+                        // SettingsWindowが閉じた後、メッセージフックを再有効化
+                        EnableMessageHook();
+                    }
+                    
                     System.Diagnostics.Debug.WriteLine("Settings window closed");
                 }
                 catch (Exception ex)
