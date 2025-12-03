@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -982,6 +983,14 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void ListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
+            // リネームタイマーをキャンセル
+            CancelRenameTimer();
+            // リネームをキャンセル
+            if (_isRenaming)
+            {
+                CancelRename();
+            }
+
             var listView = sender as System.Windows.Controls.ListView;
             if (listView == null)
                 return;
@@ -1218,10 +1227,20 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">キーイベント引数</param>
         private void ListView_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key != Key.Back)
+            var listView = sender as System.Windows.Controls.ListView;
+            if (listView == null)
                 return;
 
-            var listView = sender as System.Windows.Controls.ListView;
+            // F2キーでリネームを開始
+            if (e.Key == Key.F2)
+            {
+                StartRename(listView);
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key != Key.Back)
+                return;
             if (listView == null)
                 return;
 
@@ -1573,6 +1592,16 @@ namespace FastExplorer.Views.Pages
         private readonly Dictionary<System.Windows.Controls.ListView, System.Windows.Controls.ScrollViewer?> _scrollViewerCache = new();
         private readonly Dictionary<System.Windows.Controls.TabItem, System.Windows.Controls.TabControl?> _tabControlCache = new();
 
+        // リネーム用の変数
+        private FileSystemItem? _renamingItem = null;
+        private System.Windows.Controls.TextBox? _renameTextBox = null;
+        private System.Windows.Controls.TextBlock? _renameTextBlock = null;
+        private System.Windows.Controls.ListViewItem? _renamingListViewItem = null;
+        private System.Windows.Threading.DispatcherTimer? _renameClickTimer = null;
+        private bool _isRenaming = false;
+        private FileSystemItem? _lastClickedItem = null;
+        private DateTime _lastClickTime = DateTime.MinValue;
+
         /// <summary>
         /// ListViewItemでマウスが押されたときに呼び出されます（ドラッグ開始の検出）
         /// </summary>
@@ -1584,9 +1613,75 @@ namespace FastExplorer.Views.Pages
             _isDragging = false;
             _draggedItem = null;
 
-            if (sender is ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem item)
+            // リネームタイマーをキャンセル
+            CancelRenameTimer();
+
+            // System.Windows.Controls.ListViewItemを使用（エイリアスのListViewItemはWpf.Ui.Controls.ListViewItem）
+            if (sender is System.Windows.Controls.ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem item)
             {
                 _draggedItem = item;
+
+                // リネーム中の場合は何もしない
+                if (_isRenaming)
+                    return;
+
+                // 既に選択されているアイテムをクリックした場合、リネームタイマーを開始
+                var activeTab = GetActiveTab();
+                if (activeTab?.ViewModel.SelectedItem == item && _lastClickedItem == item)
+                {
+                    var now = DateTime.Now;
+                    var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
+
+                    // ダブルクリックの間隔より長く、合理的な時間内であればリネームを開始
+                    // ダブルクリック時間はシステム設定から取得（デフォルト約500ms）
+                    var doubleClickTime = GetDoubleClickTime();
+                    if (timeSinceLastClick > doubleClickTime && timeSinceLastClick < 2000)
+                    {
+                        StartRenameTimer(listViewItem, item);
+                    }
+                }
+
+                _lastClickedItem = item;
+                _lastClickTime = DateTime.Now;
+            }
+        }
+
+        /// <summary>
+        /// リネームタイマーを開始します
+        /// </summary>
+        private void StartRenameTimer(System.Windows.Controls.ListViewItem listViewItem, FileSystemItem item)
+        {
+            CancelRenameTimer();
+
+            _renameClickTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+
+            _renameClickTimer.Tick += (s, args) =>
+            {
+                _renameClickTimer?.Stop();
+                _renameClickTimer = null;
+
+                // リネーム中でなく、ドラッグ中でもなければリネームを開始
+                if (!_isRenaming && !_isDragging)
+                {
+                    StartRenameForItem(listViewItem, item);
+                }
+            };
+
+            _renameClickTimer.Start();
+        }
+
+        /// <summary>
+        /// リネームタイマーをキャンセルします
+        /// </summary>
+        private void CancelRenameTimer()
+        {
+            if (_renameClickTimer != null)
+            {
+                _renameClickTimer.Stop();
+                _renameClickTimer = null;
             }
         }
 
@@ -3463,7 +3558,337 @@ namespace FastExplorer.Views.Pages
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr LoadCursor(IntPtr hInstance, IntPtr lpCursorName);
 
+        [DllImport("user32.dll")]
+        private static extern uint GetDoubleClickTime();
+
         private static readonly IntPtr IDC_HAND = new IntPtr(32649); // Windows標準の手カーソル
+
+        #region リネーム機能
+
+        /// <summary>
+        /// 選択中のアイテムのリネームを開始します
+        /// </summary>
+        private void StartRename()
+        {
+            var activeTab = GetActiveTab();
+            if (activeTab == null)
+                return;
+
+            var selectedItem = activeTab.ViewModel.SelectedItem;
+            if (selectedItem == null)
+                return;
+
+            // アクティブなListViewを取得
+            var listView = GetActiveListView();
+            if (listView == null)
+                return;
+
+            // 選択中のListViewItemを取得
+            var listViewItem = listView.ItemContainerGenerator.ContainerFromItem(selectedItem) as System.Windows.Controls.ListViewItem;
+            if (listViewItem == null)
+                return;
+
+            StartRenameForItem(listViewItem, selectedItem);
+        }
+
+        /// <summary>
+        /// 指定されたListViewで選択中のアイテムのリネームを開始します
+        /// </summary>
+        /// <param name="listView">対象のListView</param>
+        private void StartRename(System.Windows.Controls.ListView listView)
+        {
+            if (listView == null)
+                return;
+
+            // ListViewがどのペインに属しているかを判定してタブを取得
+            Models.ExplorerTab? targetTab = null;
+
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                var pane = GetPaneForElement(listView);
+                if (pane == 0)
+                {
+                    targetTab = ViewModel.SelectedLeftPaneTab;
+                }
+                else if (pane == 2)
+                {
+                    targetTab = ViewModel.SelectedRightPaneTab;
+                }
+                else
+                {
+                    targetTab = GetActiveTab();
+                }
+            }
+            else
+            {
+                targetTab = ViewModel.SelectedTab;
+            }
+
+            if (targetTab == null)
+                return;
+
+            var selectedItem = targetTab.ViewModel.SelectedItem;
+            if (selectedItem == null)
+                return;
+
+            // 選択中のListViewItemを取得
+            var listViewItem = listView.ItemContainerGenerator.ContainerFromItem(selectedItem) as System.Windows.Controls.ListViewItem;
+            if (listViewItem == null)
+                return;
+
+            StartRenameForItem(listViewItem, selectedItem);
+        }
+
+        /// <summary>
+        /// 指定されたアイテムのリネームを開始します
+        /// </summary>
+        /// <param name="listViewItem">リネーム対象のListViewItem</param>
+        /// <param name="item">リネーム対象のFileSystemItem</param>
+        private void StartRenameForItem(System.Windows.Controls.ListViewItem listViewItem, FileSystemItem item)
+        {
+            if (_isRenaming)
+                return;
+
+            // TextBlockとTextBoxを検索
+            var textBlock = FindVisualChild<System.Windows.Controls.TextBlock>(listViewItem, "FileNameTextBlock");
+            var textBox = FindVisualChild<System.Windows.Controls.TextBox>(listViewItem, "FileNameTextBox");
+
+            if (textBlock == null || textBox == null)
+                return;
+
+            _isRenaming = true;
+            _renamingItem = item;
+            _renameTextBox = textBox;
+            _renameTextBlock = textBlock;
+            _renamingListViewItem = listViewItem;
+
+            // TextBlockを非表示にし、TextBoxを表示
+            textBlock.Visibility = Visibility.Collapsed;
+            textBox.Visibility = Visibility.Visible;
+            textBox.Text = item.Name;
+
+            // ファイルの場合、拡張子を除いた部分を選択
+            if (!item.IsDirectory && item.Name.Contains('.'))
+            {
+                var lastDotIndex = item.Name.LastIndexOf('.');
+                textBox.Focus();
+                textBox.Select(0, lastDotIndex);
+            }
+            else
+            {
+                textBox.Focus();
+                textBox.SelectAll();
+            }
+
+            // イベントハンドラーを追加
+            textBox.KeyDown += RenameTextBox_KeyDown;
+            textBox.LostFocus += RenameTextBox_LostFocus;
+        }
+
+        /// <summary>
+        /// リネームを確定します
+        /// </summary>
+        private async void CommitRename()
+        {
+            if (!_isRenaming || _renamingItem == null || _renameTextBox == null)
+                return;
+
+            var newName = _renameTextBox.Text.Trim();
+            var oldName = _renamingItem.Name;
+            var oldPath = _renamingItem.FullPath;
+
+            // 名前が変更されていない場合はキャンセル
+            if (string.IsNullOrWhiteSpace(newName) || newName == oldName)
+            {
+                CancelRename();
+                return;
+            }
+
+            // 無効な文字が含まれていないかチェック
+            var invalidChars = System.IO.Path.GetInvalidFileNameChars();
+            if (newName.IndexOfAny(invalidChars) >= 0)
+            {
+                await ShowRenameErrorMessageAsync("ファイル名に使用できない文字が含まれています。");
+                _renameTextBox?.Focus();
+                return;
+            }
+
+            try
+            {
+                var directory = System.IO.Path.GetDirectoryName(oldPath);
+                if (directory == null)
+                {
+                    CancelRename();
+                    return;
+                }
+
+                var newPath = System.IO.Path.Combine(directory, newName);
+
+                // 同じ名前のファイル/フォルダーが存在するかチェック
+                if ((System.IO.File.Exists(newPath) || System.IO.Directory.Exists(newPath)) && 
+                    !string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ShowRenameErrorMessageAsync("同じ名前のファイルまたはフォルダーが既に存在します。");
+                    _renameTextBox?.Focus();
+                    return;
+                }
+
+                // リネーム実行
+                if (_renamingItem.IsDirectory)
+                {
+                    System.IO.Directory.Move(oldPath, newPath);
+                }
+                else
+                {
+                    System.IO.File.Move(oldPath, newPath);
+                }
+
+                // UIの更新
+                EndRename();
+
+                // フォルダーの内容を更新
+                var activeTab = GetActiveTab();
+                activeTab?.ViewModel.RefreshCommand.Execute(null);
+            }
+            catch (Exception ex)
+            {
+                await ShowRenameErrorMessageAsync($"名前の変更に失敗しました: {ex.Message}");
+                _renameTextBox?.Focus();
+            }
+        }
+
+        /// <summary>
+        /// リネームエラーメッセージを表示します
+        /// </summary>
+        /// <param name="message">表示するメッセージ</param>
+        private async Task ShowRenameErrorMessageAsync(string message)
+        {
+            var messageBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "名前の変更",
+                Content = message,
+                CloseButtonText = "OK",
+                Owner = Window.GetWindow(this)
+            };
+            await messageBox.ShowDialogAsync();
+        }
+
+        /// <summary>
+        /// リネームをキャンセルします
+        /// </summary>
+        private void CancelRename()
+        {
+            EndRename();
+        }
+
+        /// <summary>
+        /// リネームモードを終了します
+        /// </summary>
+        private void EndRename()
+        {
+            if (_renameTextBox != null)
+            {
+                _renameTextBox.KeyDown -= RenameTextBox_KeyDown;
+                _renameTextBox.LostFocus -= RenameTextBox_LostFocus;
+                _renameTextBox.Visibility = Visibility.Collapsed;
+            }
+
+            if (_renameTextBlock != null)
+            {
+                _renameTextBlock.Visibility = Visibility.Visible;
+            }
+
+            _isRenaming = false;
+            _renamingItem = null;
+            _renameTextBox = null;
+            _renameTextBlock = null;
+            _renamingListViewItem = null;
+        }
+
+        /// <summary>
+        /// リネームTextBoxでキーが押されたときのハンドラー
+        /// </summary>
+        private void RenameTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                CommitRename();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                CancelRename();
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// リネームTextBoxがフォーカスを失ったときのハンドラー
+        /// </summary>
+        private void RenameTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // 少し遅延させて、別の操作（例：エラーダイアログ）によるフォーカス喪失を処理
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_isRenaming && _renameTextBox != null && !_renameTextBox.IsFocused)
+                {
+                    CommitRename();
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// 指定された名前の子要素を検索します
+        /// </summary>
+        private T? FindVisualChild<T>(DependencyObject parent, string name) where T : FrameworkElement
+        {
+            if (parent == null)
+                return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild && typedChild.Name == name)
+                {
+                    return typedChild;
+                }
+
+                var result = FindVisualChild<T>(child, name);
+                if (result != null)
+                    return result;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// アクティブなListViewを取得します
+        /// </summary>
+        private System.Windows.Controls.ListView? GetActiveListView()
+        {
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                if (ViewModel.ActivePane == 0)
+                {
+                    return _cachedLeftListView ?? FindListViewInPane(0);
+                }
+                else
+                {
+                    return _cachedRightListView ?? FindListViewInPane(2);
+                }
+            }
+            else
+            {
+                // 単一ペインモードの場合、ビジュアルツリーからListViewを検索
+                if (_cachedSinglePaneListView == null)
+                {
+                    _cachedSinglePaneListView = FindVisualChild<System.Windows.Controls.ListView>(this, "FileListView");
+                }
+                return _cachedSinglePaneListView;
+            }
+        }
+
+        #endregion
     }
 }
 

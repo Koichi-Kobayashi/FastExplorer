@@ -212,13 +212,26 @@
                     Margin="0,0,12,0"
                     VerticalAlignment="Center"
                     Symbol="{Binding IsDirectory, Converter={StaticResource DirectoryIconConverter}, Mode=OneWay, FallbackValue=''}" />
-                <TextBlock
-                    VerticalAlignment="Center"
-                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                    Text="{Binding Name, Mode=OneWay, FallbackValue=''}"
-                    TextOptions.TextFormattingMode="Display"
-                    TextOptions.TextRenderingMode="ClearType"
-                    TextTrimming="CharacterEllipsis" />
+                <Grid>
+                    <TextBlock
+                        x:Name="FileNameTextBlock"
+                        VerticalAlignment="Center"
+                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                        Text="{Binding Name, Mode=OneWay, FallbackValue=''}"
+                        TextOptions.TextFormattingMode="Display"
+                        TextOptions.TextRenderingMode="ClearType"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBox
+                        x:Name="FileNameTextBox"
+                        MinWidth="200"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource ControlFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                        BorderThickness="1"
+                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                        Padding="2,1"
+                        Visibility="Collapsed" />
+                </Grid>
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="FileSizeCellTemplate" DataType="{x:Type models:FileSystemItem}">
