@@ -3728,6 +3728,9 @@ namespace FastExplorer.Views.Pages
             var isDirectory = _renamingItem.IsDirectory;
             var renamingTab = _renamingTab;
 
+            // リネームを開始したペインを記録
+            var originalActivePane = ViewModel.ActivePane;
+
             // 名前が変更されていない場合はキャンセル
             if (string.IsNullOrWhiteSpace(newName) || newName == oldName)
             {
@@ -3783,7 +3786,13 @@ namespace FastExplorer.Views.Pages
                 // フォルダーの名前を変更した場合、他のタブのパスも更新
                 if (isDirectory)
                 {
-                    UpdateTabPathsAfterRename(oldPath, newPath);
+                    UpdateTabPathsAfterRename(oldPath, newPath, renamingTab);
+                }
+
+                // アクティブペインを元に戻す
+                if (ViewModel.IsSplitPaneEnabled)
+                {
+                    ViewModel.ActivePane = originalActivePane;
                 }
             }
             catch (Exception ex)
@@ -3798,7 +3807,8 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         /// <param name="oldPath">変更前のフォルダーパス</param>
         /// <param name="newPath">変更後のフォルダーパス</param>
-        private void UpdateTabPathsAfterRename(string oldPath, string newPath)
+        /// <param name="excludeTab">更新から除外するタブ（既にリフレッシュ済みのタブ）</param>
+        private void UpdateTabPathsAfterRename(string oldPath, string newPath, Models.ExplorerTab? excludeTab)
         {
             // すべてのタブを取得
             var allTabs = new List<Models.ExplorerTab>();
@@ -3816,6 +3826,10 @@ namespace FastExplorer.Views.Pages
             // 変更されたフォルダーのパスを含むタブのパスを更新
             foreach (var tab in allTabs)
             {
+                // 既にリフレッシュ済みのタブは除外
+                if (tab == excludeTab)
+                    continue;
+
                 var currentPath = tab.ViewModel.CurrentPath;
                 if (string.IsNullOrEmpty(currentPath))
                     continue;
@@ -3878,6 +3892,10 @@ namespace FastExplorer.Views.Pages
             _renameTextBlock = null;
             _renamingListViewItem = null;
             _renamingTab = null;
+
+            // クリック追跡をリセット（ダブルクリック誤動作防止）
+            _lastClickedItem = null;
+            _lastClickTime = DateTime.MinValue;
         }
 
         /// <summary>
