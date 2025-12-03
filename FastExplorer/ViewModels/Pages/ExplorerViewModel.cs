@@ -102,6 +102,18 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private bool _sortAscending = true;
 
+        /// <summary>
+        /// ListViewのフォントサイズ（デフォルト: 14）
+        /// </summary>
+        [ObservableProperty]
+        private double _listViewFontSize = 14.0;
+
+        /// <summary>
+        /// ListViewの行の高さ（デフォルト: 32）
+        /// </summary>
+        [ObservableProperty]
+        private double _listViewItemHeight = 32.0;
+
         #endregion
 
         #region コンストラクタ

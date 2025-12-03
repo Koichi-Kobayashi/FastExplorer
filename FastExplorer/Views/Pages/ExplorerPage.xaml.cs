@@ -2091,6 +2091,65 @@ namespace FastExplorer.Views.Pages
             }
         }
 
+        /// <summary>
+        /// ListViewでマウスホイールが回転されたときに呼び出されます（Ctrl+ホイールでフォントサイズと行の高さを変更）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスホイールイベント引数</param>
+        private void ListView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // Ctrlキーが押されていない場合は処理しない
+            if (Keyboard.Modifiers != ModifierKeys.Control)
+                return;
+
+            // イベントを処理済みとしてマーク（ListView自体の拡大縮小を防ぐ）
+            e.Handled = true;
+
+            // 現在のタブを取得
+            Models.ExplorerTab? targetTab = null;
+
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                // 分割ペインモードの場合、クリックされたListViewがどのペインに属しているかを判定
+                if (sender is System.Windows.Controls.ListView listView)
+                {
+                    var pane = GetPaneForElement(listView);
+                    targetTab = pane switch
+                    {
+                        0 => ViewModel.SelectedLeftPaneTab,
+                        2 => ViewModel.SelectedRightPaneTab,
+                        _ => GetActiveTab()
+                    };
+                }
+            }
+            else
+            {
+                // 通常モード
+                targetTab = ViewModel.SelectedTab;
+            }
+
+            if (targetTab?.ViewModel == null)
+                return;
+
+            // ホイールの回転量に応じてフォントサイズと行の高さを変更
+            // 1ノッチあたり10%変更（最小8pt、最大24pt）
+            const double minFontSize = 8.0;
+            const double maxFontSize = 24.0;
+            const double fontSizeStep = 0.1; // 10%刻み
+            const double heightRatio = 2.67; // 行の高さはフォントサイズの約2.67倍（32/12）
+
+            var currentFontSize = targetTab.ViewModel.ListViewFontSize;
+            var delta = e.Delta > 0 ? 1 : -1;
+            var newFontSize = currentFontSize * (1.0 + delta * fontSizeStep);
+            
+            // 範囲内に制限
+            newFontSize = Math.Max(minFontSize, Math.Min(maxFontSize, newFontSize));
+            
+            // フォントサイズと行の高さを更新
+            targetTab.ViewModel.ListViewFontSize = newFontSize;
+            targetTab.ViewModel.ListViewItemHeight = newFontSize * heightRatio;
+        }
+
         #endregion
 
         #region ソート・列操作

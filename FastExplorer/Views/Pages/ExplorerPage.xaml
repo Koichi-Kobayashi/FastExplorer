@@ -41,7 +41,7 @@
         </Style>
         <Style x:Key="FileListViewItemStyle" TargetType="ListViewItem">
             <Setter Property="Padding" Value="0" />
-            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="MinHeight" Value="{Binding DataContext.ViewModel.ListViewItemHeight, RelativeSource={RelativeSource AncestorType=ListView}, FallbackValue=32}" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListViewItem_PreviewMouseLeftButtonDown" />
             <EventSetter Event="PreviewMouseMove" Handler="ListViewItem_PreviewMouseMove" />
@@ -216,6 +216,7 @@
                     <TextBlock
                         x:Name="FileNameTextBlock"
                         VerticalAlignment="Center"
+                        FontSize="{Binding DataContext.ViewModel.ListViewFontSize, RelativeSource={RelativeSource AncestorType=ListView}, FallbackValue=12}"
                         Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                         Text="{Binding Name, Mode=OneWay, FallbackValue=''}"
                         TextOptions.TextFormattingMode="Display"
@@ -238,6 +239,7 @@
             <TextBlock
                 Padding="8,0"
                 HorizontalAlignment="Right"
+                FontSize="{Binding DataContext.ViewModel.ListViewFontSize, RelativeSource={RelativeSource AncestorType=ListView}, FallbackValue=12}"
                 Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding FormattedSize, Mode=OneWay, FallbackValue=''}"
                 TextOptions.TextFormattingMode="Display"
@@ -247,6 +249,7 @@
         <DataTemplate x:Key="FileExtensionCellTemplate" DataType="{x:Type models:FileSystemItem}">
             <TextBlock
                 Padding="8,0"
+                FontSize="{Binding DataContext.ViewModel.ListViewFontSize, RelativeSource={RelativeSource AncestorType=ListView}, FallbackValue=12}"
                 Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding Extension, Mode=OneWay, FallbackValue=''}"
                 TextOptions.TextFormattingMode="Display"
@@ -256,6 +259,7 @@
         <DataTemplate x:Key="FileDateCellTemplate" DataType="{x:Type models:FileSystemItem}">
             <TextBlock
                 Padding="8,0"
+                FontSize="{Binding DataContext.ViewModel.ListViewFontSize, RelativeSource={RelativeSource AncestorType=ListView}, FallbackValue=12}"
                 Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                 Text="{Binding FormattedDate, Mode=OneWay, FallbackValue=''}"
                 TextOptions.TextFormattingMode="Display"
@@ -561,6 +565,7 @@
                     MouseDown="ListView_MouseButtonDown"
                     MouseRightButtonUp="ListView_MouseRightButtonUp"
                     PreviewMouseDown="ListView_PreviewMouseDown"
+                    PreviewMouseWheel="ListView_PreviewMouseWheel"
                     RenderOptions.ClearTypeHint="Enabled"
                     ScrollViewer.CanContentScroll="False"
                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
@@ -1119,6 +1124,7 @@
                             MouseDown="ListView_MouseButtonDown"
                             MouseRightButtonUp="ListView_MouseRightButtonUp"
                             PreviewMouseDown="ListView_PreviewMouseDown"
+                            PreviewMouseWheel="ListView_PreviewMouseWheel"
                             RenderOptions.ClearTypeHint="Enabled"
                             ScrollViewer.CanContentScroll="False"
                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
