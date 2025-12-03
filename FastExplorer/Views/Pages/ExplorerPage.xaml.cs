@@ -991,6 +991,13 @@ namespace FastExplorer.Views.Pages
                 CancelRename();
             }
 
+            // リネーム直後（500ms以内）のダブルクリックは無視
+            if ((DateTime.Now - _renameCompletedTime).TotalMilliseconds < 500)
+            {
+                e.Handled = true;
+                return;
+            }
+
             var listView = sender as System.Windows.Controls.ListView;
             if (listView == null)
                 return;
@@ -1312,6 +1319,9 @@ namespace FastExplorer.Views.Pages
                         _cachedSinglePaneListView = null;
                         UpdateListViewBackgroundColorsDelayed();
                     }
+
+                    // ListViewにフォーカスを設定
+                    listView.Focus();
                 }
                 else if (pane == 2)
                 {
@@ -1329,17 +1339,24 @@ namespace FastExplorer.Views.Pages
                         _cachedSinglePaneListView = null;
                         UpdateListViewBackgroundColorsDelayed();
                     }
+
+                    // ListViewにフォーカスを設定
+                    listView.Focus();
                 }
                 else
                 {
                     // 判定できない場合は、GetActiveTab()を使用
                     targetTab = GetActiveTab();
+                    // ListViewにフォーカスを設定
+                    listView.Focus();
                 }
             }
             else
             {
                 // 通常モード
                 targetTab = ViewModel.SelectedTab;
+                // ListViewにフォーカスを設定
+                listView.Focus();
             }
 
             if (targetTab == null)
@@ -1602,6 +1619,8 @@ namespace FastExplorer.Views.Pages
         private FileSystemItem? _lastClickedItem = null;
         private DateTime _lastClickTime = DateTime.MinValue;
         private Models.ExplorerTab? _renamingTab = null;
+        private DateTime _renameCompletedTime = DateTime.MinValue;
+        private int _activePaneBeforeRename = -1; // リネーム開始前のアクティブペーン
 
         /// <summary>
         /// ListViewItemでマウスが押されたときに呼び出されます（ドラッグ開始の検出）
@@ -1616,6 +1635,14 @@ namespace FastExplorer.Views.Pages
 
             // リネームタイマーをキャンセル
             CancelRenameTimer();
+
+            // ダブルクリックの場合はリネーム処理をスキップ
+            if (e.ClickCount >= 2)
+            {
+                _lastClickedItem = null;
+                _lastClickTime = DateTime.MinValue;
+                return;
+            }
 
             // System.Windows.Controls.ListViewItemを使用（エイリアスのListViewItemはWpf.Ui.Controls.ListViewItem）
             if (sender is System.Windows.Controls.ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem item)
@@ -1635,19 +1662,28 @@ namespace FastExplorer.Views.Pages
                     if (pane == 0)
                     {
                         targetTab = ViewModel.SelectedLeftPaneTab;
+                        ViewModel.ActivePane = 0;
                     }
                     else if (pane == 2)
                     {
                         targetTab = ViewModel.SelectedRightPaneTab;
+                        ViewModel.ActivePane = 2;
                     }
                     else
                     {
                         targetTab = GetActiveTab();
                     }
+                    
+                    // 親ListViewにフォーカスを設定
+                    parentListView.Focus();
                 }
                 else
                 {
                     targetTab = ViewModel.SelectedTab ?? GetActiveTab();
+                    if (parentListView != null)
+                    {
+                        parentListView.Focus();
+                    }
                 }
 
                 // 既に選択されているアイテムをクリックした場合、リネームタイマーを開始
@@ -1679,6 +1715,9 @@ namespace FastExplorer.Views.Pages
         private void StartRenameTimer(System.Windows.Controls.ListViewItem listViewItem, FileSystemItem item, Models.ExplorerTab? tab)
         {
             CancelRenameTimer();
+
+            // リネーム開始前のアクティブペーンを記録（クリック時点で記録）
+            _activePaneBeforeRename = ViewModel.IsSplitPaneEnabled ? ViewModel.ActivePane : -1;
 
             _renameClickTimer = new System.Windows.Threading.DispatcherTimer
             {
@@ -3627,6 +3666,9 @@ namespace FastExplorer.Views.Pages
             if (listView == null)
                 return;
 
+            // リネーム開始前のアクティブペーンを記録（F2キー時点で記録）
+            _activePaneBeforeRename = ViewModel.IsSplitPaneEnabled ? ViewModel.ActivePane : -1;
+
             // ListViewがどのペインに属しているかを判定してタブを取得
             Models.ExplorerTab? targetTab = null;
 
@@ -3683,6 +3725,8 @@ namespace FastExplorer.Views.Pages
 
             if (textBlock == null || textBox == null)
                 return;
+
+            // リネーム開始前のアクティブペーンは、StartRenameTimerまたはStartRenameで既に記録済み
 
             _isRenaming = true;
             _renamingItem = item;
@@ -3777,22 +3821,36 @@ namespace FastExplorer.Views.Pages
                     System.IO.File.Move(oldPath, newPath);
                 }
 
+                // リネーム開始前のアクティブペーンを保存
+                var paneToRestore = _activePaneBeforeRename;
+
                 // UIの更新
                 EndRename();
 
-                // リネームを開始したタブをリフレッシュ
-                renamingTab?.ViewModel.RefreshCommand.Execute(null);
+                // リネームを開始したタブをリフレッシュ（アクティブペーンを保持）
+                if (renamingTab != null)
+                {
+                    // RefreshCommandの実行前後でアクティブペーンを保持
+                    if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
+                    {
+                        ViewModel.ActivePane = paneToRestore;
+                    }
+                    
+                    renamingTab.ViewModel.RefreshCommand.Execute(null);
+                    
+                    // RefreshCommandの実行後、再度アクティブペーンとフォーカスを設定
+                    if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
+                    {
+                        ViewModel.ActivePane = paneToRestore;
+                        var listView = FindListViewInPane(paneToRestore);
+                        listView?.Focus();
+                    }
+                }
 
                 // フォルダーの名前を変更した場合、他のタブのパスも更新
                 if (isDirectory)
                 {
-                    UpdateTabPathsAfterRename(oldPath, newPath, renamingTab);
-                }
-
-                // アクティブペインを元に戻す
-                if (ViewModel.IsSplitPaneEnabled)
-                {
-                    ViewModel.ActivePane = originalActivePane;
+                    UpdateTabPathsAfterRename(oldPath, newPath, renamingTab, paneToRestore);
                 }
             }
             catch (Exception ex)
@@ -3808,40 +3866,87 @@ namespace FastExplorer.Views.Pages
         /// <param name="oldPath">変更前のフォルダーパス</param>
         /// <param name="newPath">変更後のフォルダーパス</param>
         /// <param name="excludeTab">更新から除外するタブ（既にリフレッシュ済みのタブ）</param>
-        private void UpdateTabPathsAfterRename(string oldPath, string newPath, Models.ExplorerTab? excludeTab)
+        /// <param name="activePaneToMaintain">維持するアクティブペーン</param>
+        private void UpdateTabPathsAfterRename(string oldPath, string newPath, Models.ExplorerTab? excludeTab, int activePaneToMaintain)
         {
-            // すべてのタブを取得
-            var allTabs = new List<Models.ExplorerTab>();
-
-            if (ViewModel.IsSplitPaneEnabled)
+            // 遅延実行してイベント処理が完了してから更新する
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                allTabs.AddRange(ViewModel.LeftPaneTabs);
-                allTabs.AddRange(ViewModel.RightPaneTabs);
-            }
-            else
-            {
-                allTabs.AddRange(ViewModel.Tabs);
-            }
+                // アクティブペーンを保存
+                var paneToRestore = activePaneToMaintain;
 
-            // 変更されたフォルダーのパスを含むタブのパスを更新
-            foreach (var tab in allTabs)
-            {
-                // 既にリフレッシュ済みのタブは除外
-                if (tab == excludeTab)
-                    continue;
+                // すべてのタブを取得
+                var allTabs = new List<Models.ExplorerTab>();
 
-                var currentPath = tab.ViewModel.CurrentPath;
-                if (string.IsNullOrEmpty(currentPath))
-                    continue;
-
-                // パスが変更されたフォルダー自体、またはその配下の場合
-                if (currentPath.Equals(oldPath, StringComparison.OrdinalIgnoreCase) ||
-                    currentPath.StartsWith(oldPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                if (ViewModel.IsSplitPaneEnabled)
                 {
-                    // 新しいパスに更新
-                    var updatedPath = newPath + currentPath.Substring(oldPath.Length);
-                    tab.ViewModel.NavigateToPathCommand.Execute(updatedPath);
+                    allTabs.AddRange(ViewModel.LeftPaneTabs);
+                    allTabs.AddRange(ViewModel.RightPaneTabs);
                 }
+                else
+                {
+                    allTabs.AddRange(ViewModel.Tabs);
+                }
+
+                // 変更されたフォルダーのパスを含むタブのパスを更新
+                foreach (var tab in allTabs)
+                {
+                    // 既にリフレッシュ済みのタブは除外
+                    if (tab == excludeTab)
+                        continue;
+
+                    var currentPath = tab.ViewModel.CurrentPath;
+                    if (string.IsNullOrEmpty(currentPath))
+                        continue;
+
+                    // パスが変更されたフォルダー自体、またはその配下の場合
+                    if (currentPath.Equals(oldPath, StringComparison.OrdinalIgnoreCase) ||
+                        currentPath.StartsWith(oldPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // 新しいパスに更新（CurrentPathプロパティを直接設定してナビゲーションイベントを回避）
+                        var updatedPath = newPath + currentPath.Substring(oldPath.Length);
+                        tab.ViewModel.CurrentPath = updatedPath;
+                        
+                        // RefreshCommandの実行前後でアクティブペーンを保持
+                        if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
+                        {
+                            ViewModel.ActivePane = paneToRestore;
+                        }
+                        
+                        tab.ViewModel.RefreshCommand.Execute(null);
+                        
+                        // RefreshCommandの実行後、再度アクティブペーンを設定
+                        if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
+                        {
+                            ViewModel.ActivePane = paneToRestore;
+                        }
+                    }
+                }
+                // フォーカスは変更しない（ユーザーが操作中のペーンを維持）
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// リネーム後にフォーカスを復元します
+        /// </summary>
+        /// <param name="renamingListView">リネームを開始したListView</param>
+        /// <param name="originalActivePane">リネーム開始時のアクティブペイン（未使用、互換性のため残す）</param>
+        private void RestoreFocusAfterRename(System.Windows.Controls.ListView? renamingListView, int originalActivePane)
+        {
+            // ListViewが属するペインをアクティブにする
+            if (ViewModel.IsSplitPaneEnabled && renamingListView != null)
+            {
+                var pane = GetPaneForElement(renamingListView);
+                if (pane == 0 || pane == 2)
+                {
+                    ViewModel.ActivePane = pane;
+                }
+            }
+
+            // ListViewにフォーカスを戻す（即座に実行）
+            if (renamingListView != null)
+            {
+                renamingListView.Focus();
             }
         }
 
@@ -3892,10 +3997,14 @@ namespace FastExplorer.Views.Pages
             _renameTextBlock = null;
             _renamingListViewItem = null;
             _renamingTab = null;
+            _activePaneBeforeRename = -1;
 
             // クリック追跡をリセット（ダブルクリック誤動作防止）
             _lastClickedItem = null;
             _lastClickTime = DateTime.MinValue;
+
+            // リネーム完了時刻を記録（直後のダブルクリック誤動作防止）
+            _renameCompletedTime = DateTime.Now;
         }
 
         /// <summary>
