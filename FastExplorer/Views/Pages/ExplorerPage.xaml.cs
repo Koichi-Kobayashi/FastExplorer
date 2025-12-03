@@ -3869,61 +3869,63 @@ namespace FastExplorer.Views.Pages
         /// <param name="activePaneToMaintain">維持するアクティブペーン</param>
         private void UpdateTabPathsAfterRename(string oldPath, string newPath, Models.ExplorerTab? excludeTab, int activePaneToMaintain)
         {
-            // 遅延実行してイベント処理が完了してから更新する
-            Dispatcher.BeginInvoke(new Action(() =>
+            // アクティブペーンを保存
+            var paneToRestore = activePaneToMaintain;
+
+            // すべてのタブを取得
+            var allTabs = new List<Models.ExplorerTab>();
+
+            if (ViewModel.IsSplitPaneEnabled)
             {
-                // アクティブペーンを保存
-                var paneToRestore = activePaneToMaintain;
+                allTabs.AddRange(ViewModel.LeftPaneTabs);
+                allTabs.AddRange(ViewModel.RightPaneTabs);
+            }
+            else
+            {
+                allTabs.AddRange(ViewModel.Tabs);
+            }
 
-                // すべてのタブを取得
-                var allTabs = new List<Models.ExplorerTab>();
+            // 変更されたフォルダーのパスを含むタブのパスを更新
+            foreach (var tab in allTabs)
+            {
+                // 既にリフレッシュ済みのタブは除外
+                if (tab == excludeTab)
+                    continue;
 
-                if (ViewModel.IsSplitPaneEnabled)
+                var currentPath = tab.ViewModel.CurrentPath;
+                if (string.IsNullOrEmpty(currentPath))
+                    continue;
+
+                // パスが変更されたフォルダー自体、またはその配下の場合
+                if (currentPath.Equals(oldPath, StringComparison.OrdinalIgnoreCase) ||
+                    currentPath.StartsWith(oldPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 {
-                    allTabs.AddRange(ViewModel.LeftPaneTabs);
-                    allTabs.AddRange(ViewModel.RightPaneTabs);
-                }
-                else
-                {
-                    allTabs.AddRange(ViewModel.Tabs);
-                }
-
-                // 変更されたフォルダーのパスを含むタブのパスを更新
-                foreach (var tab in allTabs)
-                {
-                    // 既にリフレッシュ済みのタブは除外
-                    if (tab == excludeTab)
-                        continue;
-
-                    var currentPath = tab.ViewModel.CurrentPath;
-                    if (string.IsNullOrEmpty(currentPath))
-                        continue;
-
-                    // パスが変更されたフォルダー自体、またはその配下の場合
-                    if (currentPath.Equals(oldPath, StringComparison.OrdinalIgnoreCase) ||
-                        currentPath.StartsWith(oldPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    // 新しいパスに更新（CurrentPathプロパティを直接設定してナビゲーションイベントを回避）
+                    // パス更新を先に完了させて、バックスペースが正しく動作するようにする
+                    var updatedPath = newPath + currentPath.Substring(oldPath.Length);
+                    tab.ViewModel.CurrentPath = updatedPath;
+                    
+                    // RefreshCommandの実行は遅延実行（パス更新は即座に完了しているため、バックスペースが正しく動作する）
+                    var tabToRefresh = tab;
+                    Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        // 新しいパスに更新（CurrentPathプロパティを直接設定してナビゲーションイベントを回避）
-                        var updatedPath = newPath + currentPath.Substring(oldPath.Length);
-                        tab.ViewModel.CurrentPath = updatedPath;
-                        
                         // RefreshCommandの実行前後でアクティブペーンを保持
                         if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
                         {
                             ViewModel.ActivePane = paneToRestore;
                         }
                         
-                        tab.ViewModel.RefreshCommand.Execute(null);
+                        tabToRefresh.ViewModel.RefreshCommand.Execute(null);
                         
                         // RefreshCommandの実行後、再度アクティブペーンを設定
                         if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
                         {
                             ViewModel.ActivePane = paneToRestore;
                         }
-                    }
+                    }), System.Windows.Threading.DispatcherPriority.Background);
                 }
-                // フォーカスは変更しない（ユーザーが操作中のペーンを維持）
-            }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            // フォーカスは変更しない（ユーザーが操作中のペーンを維持）
         }
 
         /// <summary>
