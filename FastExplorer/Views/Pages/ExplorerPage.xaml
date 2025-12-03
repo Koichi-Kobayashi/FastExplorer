@@ -4,10 +4,10 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:FastExplorer.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:FastExplorer.Helpers"
     xmlns:local="clr-namespace:FastExplorer.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:FastExplorer.Models"
-    xmlns:helpers="clr-namespace:FastExplorer.Helpers"
     xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
     xmlns:sys="clr-namespace:System;assembly=mscorlib"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -25,7 +25,7 @@
     <UserControl.Resources>
         <!--  コンバーター  -->
         <helpers:SymbolRegularConverter x:Key="SymbolRegularConverter" />
-        
+
         <!--  ListView用の共通スタイル（重複を削減）  -->
         <Style x:Key="FileListViewGridViewColumnHeaderStyle" TargetType="GridViewColumnHeader">
             <Setter Property="Padding" Value="8,6" />
@@ -71,11 +71,11 @@
         <ControlTemplate x:Key="BreadcrumbButtonTemplate" TargetType="Button">
             <Border
                 x:Name="Border"
+                Padding="{TemplateBinding Padding}"
                 Background="{TemplateBinding Background}"
                 BorderBrush="Transparent"
                 BorderThickness="1"
-                CornerRadius="4"
-                Padding="{TemplateBinding Padding}">
+                CornerRadius="4">
                 <ContentPresenter
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
@@ -224,12 +224,12 @@
                     <TextBox
                         x:Name="FileNameTextBox"
                         MinWidth="200"
+                        Padding="2,1"
                         VerticalAlignment="Center"
                         Background="{DynamicResource ControlFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
                         BorderThickness="1"
                         Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                        Padding="2,1"
                         Visibility="Collapsed" />
                 </Grid>
             </StackPanel>
@@ -344,9 +344,7 @@
                                     <ui:SymbolIcon Symbol="Home24" />
                                 </ui:Button.Icon>
                             </ui:Button>
-                            <ItemsControl
-                                VerticalAlignment="Center"
-                                ItemsSource="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
+                            <ItemsControl VerticalAlignment="Center" ItemsSource="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <StackPanel Orientation="Horizontal" />
@@ -363,10 +361,10 @@
                                             <Button
                                                 Margin="2,0"
                                                 Padding="4,2"
-                                                Style="{StaticResource BreadcrumbButtonStyle}"
                                                 Command="{Binding DataContext.ViewModel.NavigateToPathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                 CommandParameter="{Binding Path}"
                                                 Cursor="Hand"
+                                                Style="{StaticResource BreadcrumbButtonStyle}"
                                                 ToolTip="{Binding Path}">
                                                 <TextBlock
                                                     VerticalAlignment="Center"
@@ -652,25 +650,46 @@
         </Style>
 
         <!--  TabControlのスクロールボタン用のRepeatButtonスタイル  -->
-        <!--  バインディングエラーを回避するため、スタイルを最小限に設定 -->
+        <!--  バインディングエラーを回避するため、スタイルを最小限に設定  -->
         <Style x:Key="TabScrollButtonStyle" TargetType="RepeatButton">
             <!--  テンプレートを設定しない（デフォルトのテンプレートを使用）  -->
         </Style>
-        
+
         <!--  右スクロールボタン用のスタイル（左と同じ）  -->
         <Style x:Key="TabScrollButtonRightStyle" TargetType="RepeatButton">
             <!--  テンプレートを設定しない（デフォルトのテンプレートを使用）  -->
         </Style>
 
         <!--  タブのコンテキストメニュー  -->
-        <ContextMenu x:Key="TabContextMenu" x:Shared="False" Opened="TabContextMenu_Opened">
-            <MenuItem x:Name="DuplicateTabMenuItem" Header="タブを複製" Click="TabContextMenuItem_Click" />
-            <MenuItem x:Name="DuplicateTabToNewWindowMenuItem" Header="新しいウィンドウにタブを複製" Click="TabContextMenuItem_Click" />
-            <MenuItem x:Name="MoveTabToNewWindowMenuItem" Header="新しいウィンドウにタブを移動" Click="TabContextMenuItem_Click" />
+        <ContextMenu
+            x:Key="TabContextMenu"
+            x:Shared="False"
+            Opened="TabContextMenu_Opened">
+            <MenuItem
+                x:Name="DuplicateTabMenuItem"
+                Click="TabContextMenuItem_Click"
+                Header="タブを複製" />
+            <MenuItem
+                x:Name="DuplicateTabToNewWindowMenuItem"
+                Click="TabContextMenuItem_Click"
+                Header="新しいウィンドウにタブを複製" />
+            <MenuItem
+                x:Name="MoveTabToNewWindowMenuItem"
+                Click="TabContextMenuItem_Click"
+                Header="新しいウィンドウにタブを移動" />
             <Separator />
-            <MenuItem x:Name="CloseTabsToLeftMenuItem" Header="これより左のタブを閉じる" Click="TabContextMenuItem_Click" />
-            <MenuItem x:Name="CloseTabsToRightMenuItem" Header="これより右のタブを閉じる" Click="TabContextMenuItem_Click" />
-            <MenuItem x:Name="CloseOtherTabsMenuItem" Header="他のタブをすべて閉じる" Click="TabContextMenuItem_Click" />
+            <MenuItem
+                x:Name="CloseTabsToLeftMenuItem"
+                Click="TabContextMenuItem_Click"
+                Header="これより左のタブを閉じる" />
+            <MenuItem
+                x:Name="CloseTabsToRightMenuItem"
+                Click="TabContextMenuItem_Click"
+                Header="これより右のタブを閉じる" />
+            <MenuItem
+                x:Name="CloseOtherTabsMenuItem"
+                Click="TabContextMenuItem_Click"
+                Header="他のタブをすべて閉じる" />
         </ContextMenu>
 
     </UserControl.Resources>
@@ -696,15 +715,15 @@
             <TabControl
                 Grid.Column="0"
                 Margin="0,0,0,0"
-                ItemsSource="{Binding ViewModel.LeftPaneTabs, Mode=OneWay}"
-                SelectedItem="{Binding ViewModel.SelectedLeftPaneTab, Mode=TwoWay}"
-                AllowDrop="True"
-                DragOver="TabControl_DragOver"
-                Drop="TabControl_Drop"
                 uiControls:TabControlExtensions.CanAddTabs="True"
                 uiControls:TabControlExtensions.CanReorderTabs="True"
                 uiControls:TabControlExtensions.TabAdding="TabControl_TabAdding"
-                uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing">
+                uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing"
+                AllowDrop="True"
+                DragOver="TabControl_DragOver"
+                Drop="TabControl_Drop"
+                ItemsSource="{Binding ViewModel.LeftPaneTabs, Mode=OneWay}"
+                SelectedItem="{Binding ViewModel.SelectedLeftPaneTab, Mode=TwoWay}">
                 <TabControl.ItemContainerStyle>
                     <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
                         <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
@@ -722,7 +741,10 @@
                             Text="{Binding Title, Mode=OneWay}"
                             TextTrimming="CharacterEllipsis">
                             <TextBlock.ToolTip>
-                                <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
+                                <TextBlock
+                                    MaxWidth="500"
+                                    Text="{Binding ViewModel.CurrentPath, Mode=OneWay}"
+                                    TextWrapping="Wrap" />
                             </TextBlock.ToolTip>
                         </TextBlock>
                     </DataTemplate>
@@ -748,15 +770,15 @@
             <TabControl
                 Grid.Column="2"
                 Margin="0,0,0,0"
-                ItemsSource="{Binding ViewModel.RightPaneTabs, Mode=OneWay}"
-                SelectedItem="{Binding ViewModel.SelectedRightPaneTab, Mode=TwoWay}"
-                AllowDrop="True"
-                DragOver="TabControl_DragOver"
-                Drop="TabControl_Drop"
                 uiControls:TabControlExtensions.CanAddTabs="True"
                 uiControls:TabControlExtensions.CanReorderTabs="True"
                 uiControls:TabControlExtensions.TabAdding="TabControl_TabAdding"
-                uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing">
+                uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing"
+                AllowDrop="True"
+                DragOver="TabControl_DragOver"
+                Drop="TabControl_Drop"
+                ItemsSource="{Binding ViewModel.RightPaneTabs, Mode=OneWay}"
+                SelectedItem="{Binding ViewModel.SelectedRightPaneTab, Mode=TwoWay}">
                 <TabControl.ItemContainerStyle>
                     <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
                         <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
@@ -774,7 +796,10 @@
                             Text="{Binding Title, Mode=OneWay}"
                             TextTrimming="CharacterEllipsis">
                             <TextBlock.ToolTip>
-                                <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
+                                <TextBlock
+                                    MaxWidth="500"
+                                    Text="{Binding ViewModel.CurrentPath, Mode=OneWay}"
+                                    TextWrapping="Wrap" />
                             </TextBlock.ToolTip>
                         </TextBlock>
                     </DataTemplate>
@@ -791,16 +816,16 @@
         <TabControl
             Grid.Row="1"
             Margin="0,0,0,4"
-            ItemsSource="{Binding ViewModel.Tabs, Mode=OneWay}"
-            SelectedItem="{Binding ViewModel.SelectedTab, Mode=TwoWay}"
-            Visibility="{Binding ViewModel.IsSplitPaneEnabled, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
-            AllowDrop="True"
-            DragOver="TabControl_DragOver"
-            Drop="TabControl_Drop"
             uiControls:TabControlExtensions.CanAddTabs="True"
             uiControls:TabControlExtensions.CanReorderTabs="True"
             uiControls:TabControlExtensions.TabAdding="TabControl_TabAdding"
-            uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing">
+            uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing"
+            AllowDrop="True"
+            DragOver="TabControl_DragOver"
+            Drop="TabControl_Drop"
+            ItemsSource="{Binding ViewModel.Tabs, Mode=OneWay}"
+            SelectedItem="{Binding ViewModel.SelectedTab, Mode=TwoWay}"
+            Visibility="{Binding ViewModel.IsSplitPaneEnabled, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
             <TabControl.ItemContainerStyle>
                 <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
                     <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
@@ -817,7 +842,10 @@
                         Text="{Binding Title, Mode=OneWay}"
                         TextTrimming="CharacterEllipsis">
                         <TextBlock.ToolTip>
-                            <TextBlock Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" TextWrapping="Wrap" MaxWidth="500" />
+                            <TextBlock
+                                MaxWidth="500"
+                                Text="{Binding ViewModel.CurrentPath, Mode=OneWay}"
+                                TextWrapping="Wrap" />
                         </TextBlock.ToolTip>
                     </TextBlock>
                 </DataTemplate>
@@ -864,9 +892,7 @@
                                             <ui:SymbolIcon Symbol="Home24" />
                                         </ui:Button.Icon>
                                     </ui:Button>
-                                    <ItemsControl
-                                        VerticalAlignment="Center"
-                                        ItemsSource="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
+                                    <ItemsControl VerticalAlignment="Center" ItemsSource="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <StackPanel Orientation="Horizontal" />

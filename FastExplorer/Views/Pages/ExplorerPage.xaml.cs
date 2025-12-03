@@ -3823,34 +3823,40 @@ namespace FastExplorer.Views.Pages
 
                 // リネーム開始前のアクティブペーンを保存
                 var paneToRestore = _activePaneBeforeRename;
+                var shouldMaintainPane = ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2);
 
                 // UIの更新
                 EndRename();
 
-                // リネームを開始したタブをリフレッシュ（アクティブペーンを保持）
-                if (renamingTab != null)
-                {
-                    // RefreshCommandの実行前後でアクティブペーンを保持
-                    if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
-                    {
-                        ViewModel.ActivePane = paneToRestore;
-                    }
-                    
-                    renamingTab.ViewModel.RefreshCommand.Execute(null);
-                    
-                    // RefreshCommandの実行後、再度アクティブペーンとフォーカスを設定
-                    if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
-                    {
-                        ViewModel.ActivePane = paneToRestore;
-                        var listView = FindListViewInPane(paneToRestore);
-                        listView?.Focus();
-                    }
-                }
-
-                // フォルダーの名前を変更した場合、他のタブのパスも更新
+                // フォルダーの名前を変更した場合、他のタブのパスを先に更新（パス更新を優先）
                 if (isDirectory)
                 {
                     UpdateTabPathsAfterRename(oldPath, newPath, renamingTab, paneToRestore);
+                }
+
+                // リネームを開始したタブをリフレッシュ（アクティブペーンを保持）
+                // パス更新の後に実行して、バックスペースの反応を改善
+                if (renamingTab != null)
+                {
+                    var tabToRefresh = renamingTab;
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        // RefreshCommandの実行前後でアクティブペーンを保持
+                        if (shouldMaintainPane)
+                        {
+                            ViewModel.ActivePane = paneToRestore;
+                        }
+                        
+                        tabToRefresh.ViewModel.RefreshCommand.Execute(null);
+                        
+                        // RefreshCommandの実行後、再度アクティブペーンとフォーカスを設定
+                        if (shouldMaintainPane)
+                        {
+                            ViewModel.ActivePane = paneToRestore;
+                            var listView = FindListViewInPane(paneToRestore);
+                            listView?.Focus();
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
                 }
             }
             catch (Exception ex)
@@ -3869,11 +3875,10 @@ namespace FastExplorer.Views.Pages
         /// <param name="activePaneToMaintain">維持するアクティブペーン</param>
         private void UpdateTabPathsAfterRename(string oldPath, string newPath, Models.ExplorerTab? excludeTab, int activePaneToMaintain)
         {
-            // アクティブペーンを保存
-            var paneToRestore = activePaneToMaintain;
-
             // すべてのタブを取得
-            var allTabs = new List<Models.ExplorerTab>();
+            var allTabs = ViewModel.IsSplitPaneEnabled
+                ? new List<Models.ExplorerTab>(ViewModel.LeftPaneTabs.Count + ViewModel.RightPaneTabs.Count)
+                : new List<Models.ExplorerTab>(ViewModel.Tabs.Count);
 
             if (ViewModel.IsSplitPaneEnabled)
             {
@@ -3885,7 +3890,10 @@ namespace FastExplorer.Views.Pages
                 allTabs.AddRange(ViewModel.Tabs);
             }
 
-            // 変更されたフォルダーのパスを含むタブのパスを更新
+            // パス更新が必要なタブを収集
+            var tabsToRefresh = new List<Models.ExplorerTab>();
+            var separator = System.IO.Path.DirectorySeparatorChar;
+
             foreach (var tab in allTabs)
             {
                 // 既にリフレッシュ済みのタブは除外
@@ -3898,34 +3906,45 @@ namespace FastExplorer.Views.Pages
 
                 // パスが変更されたフォルダー自体、またはその配下の場合
                 if (currentPath.Equals(oldPath, StringComparison.OrdinalIgnoreCase) ||
-                    currentPath.StartsWith(oldPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    currentPath.StartsWith(oldPath + separator, StringComparison.OrdinalIgnoreCase))
                 {
                     // 新しいパスに更新（CurrentPathプロパティを直接設定してナビゲーションイベントを回避）
                     // パス更新を先に完了させて、バックスペースが正しく動作するようにする
                     var updatedPath = newPath + currentPath.Substring(oldPath.Length);
                     tab.ViewModel.CurrentPath = updatedPath;
-                    
-                    // RefreshCommandの実行は遅延実行（パス更新は即座に完了しているため、バックスペースが正しく動作する）
-                    var tabToRefresh = tab;
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        // RefreshCommandの実行前後でアクティブペーンを保持
-                        if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
-                        {
-                            ViewModel.ActivePane = paneToRestore;
-                        }
-                        
-                        tabToRefresh.ViewModel.RefreshCommand.Execute(null);
-                        
-                        // RefreshCommandの実行後、再度アクティブペーンを設定
-                        if (ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2))
-                        {
-                            ViewModel.ActivePane = paneToRestore;
-                        }
-                    }), System.Windows.Threading.DispatcherPriority.Background);
+                    tabsToRefresh.Add(tab);
                 }
             }
-            // フォーカスは変更しない（ユーザーが操作中のペーンを維持）
+
+            // パス更新が必要なタブがない場合は終了
+            if (tabsToRefresh.Count == 0)
+                return;
+
+            // RefreshCommandの実行は遅延実行（パス更新は即座に完了しているため、バックスペースが正しく動作する）
+            var paneToRestore = activePaneToMaintain;
+            var shouldMaintainPane = ViewModel.IsSplitPaneEnabled && (paneToRestore == 0 || paneToRestore == 2);
+            
+            // パス更新は完了しているため、RefreshCommandの実行を遅延実行してUIスレッドをブロックしない
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                // RefreshCommandの実行前後でアクティブペーンを保持
+                if (shouldMaintainPane)
+                {
+                    ViewModel.ActivePane = paneToRestore;
+                }
+
+                // すべてのタブを一括でリフレッシュ
+                foreach (var tab in tabsToRefresh)
+                {
+                    tab.ViewModel.RefreshCommand.Execute(null);
+                }
+
+                // RefreshCommandの実行後、再度アクティブペーンを設定
+                if (shouldMaintainPane)
+                {
+                    ViewModel.ActivePane = paneToRestore;
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         /// <summary>

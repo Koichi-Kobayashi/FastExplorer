@@ -25,7 +25,7 @@
         <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
         <helpers:ThemeColorSelectionConverter x:Key="ThemeColorSelectionConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-        
+
         <!--  ナビゲーションボタンの共通スタイル  -->
         <Style x:Key="NavigationButtonStyle" TargetType="ui:Button">
             <Setter Property="Foreground" Value="Black" />
@@ -105,17 +105,16 @@
                 <StackPanel Margin="12">
                     <ui:Button
                         x:Name="GeneralButton"
-                        Style="{StaticResource NavigationButtonStyle}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
                         Appearance="Secondary"
                         Click="NavigationButton_Click"
                         Content="全般"
                         Icon="{ui:SymbolIcon Settings24}"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Tag="General" />
                     <ui:Button
                         x:Name="AppearanceButton"
-                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -123,10 +122,10 @@
                         Click="NavigationButton_Click"
                         Content="外観"
                         Icon="{ui:SymbolIcon PaintBrush24}"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Tag="Appearance" />
                     <ui:Button
                         x:Name="LayoutButton"
-                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -134,10 +133,10 @@
                         Click="NavigationButton_Click"
                         Content="レイアウト"
                         Icon="{ui:SymbolIcon LayoutColumnTwo24}"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Tag="Layout" />
                     <ui:Button
                         x:Name="OperationButton"
-                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -145,10 +144,10 @@
                         Click="NavigationButton_Click"
                         Content="操作"
                         Icon="{ui:SymbolIcon Options24}"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Tag="Operation" />
                     <ui:Button
                         x:Name="TagButton"
-                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -156,10 +155,10 @@
                         Click="NavigationButton_Click"
                         Content="タグ"
                         Icon="{ui:SymbolIcon Tag24}"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Tag="Tag" />
                     <ui:Button
                         x:Name="DevToolsButton"
-                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -167,10 +166,10 @@
                         Click="NavigationButton_Click"
                         Content="開発者向けツール"
                         Icon="{ui:SymbolIcon DeveloperBoard24}"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Tag="DevTools" />
                     <ui:Button
                         x:Name="AdvancedButton"
-                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -178,10 +177,10 @@
                         Click="NavigationButton_Click"
                         Content="高度な設定"
                         Icon="{ui:SymbolIcon Settings24}"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Tag="Advanced" />
                     <ui:Button
                         x:Name="AboutButton"
-                        Style="{StaticResource NavigationButtonStyle}"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"
@@ -189,6 +188,7 @@
                         Click="NavigationButton_Click"
                         Content="FastExplorer について"
                         Icon="{ui:SymbolIcon Info24}"
+                        Style="{StaticResource NavigationButtonStyle}"
                         Tag="About" />
                 </StackPanel>
             </Border>
