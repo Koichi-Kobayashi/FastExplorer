@@ -1601,6 +1601,7 @@ namespace FastExplorer.Views.Pages
         private bool _isRenaming = false;
         private FileSystemItem? _lastClickedItem = null;
         private DateTime _lastClickTime = DateTime.MinValue;
+        private Models.ExplorerTab? _renamingTab = null;
 
         /// <summary>
         /// ListViewItemでマウスが押されたときに呼び出されます（ドラッグ開始の検出）
@@ -1625,9 +1626,32 @@ namespace FastExplorer.Views.Pages
                 if (_isRenaming)
                     return;
 
+                // ListViewItemの親ListViewを取得してタブを判定
+                Models.ExplorerTab? targetTab = null;
+                var parentListView = FindParent<System.Windows.Controls.ListView>(listViewItem);
+                if (parentListView != null && ViewModel.IsSplitPaneEnabled)
+                {
+                    var pane = GetPaneForElement(parentListView);
+                    if (pane == 0)
+                    {
+                        targetTab = ViewModel.SelectedLeftPaneTab;
+                    }
+                    else if (pane == 2)
+                    {
+                        targetTab = ViewModel.SelectedRightPaneTab;
+                    }
+                    else
+                    {
+                        targetTab = GetActiveTab();
+                    }
+                }
+                else
+                {
+                    targetTab = ViewModel.SelectedTab ?? GetActiveTab();
+                }
+
                 // 既に選択されているアイテムをクリックした場合、リネームタイマーを開始
-                var activeTab = GetActiveTab();
-                if (activeTab?.ViewModel.SelectedItem == item && _lastClickedItem == item)
+                if (targetTab?.ViewModel.SelectedItem == item && _lastClickedItem == item)
                 {
                     var now = DateTime.Now;
                     var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
@@ -1637,7 +1661,7 @@ namespace FastExplorer.Views.Pages
                     var doubleClickTime = GetDoubleClickTime();
                     if (timeSinceLastClick > doubleClickTime && timeSinceLastClick < 2000)
                     {
-                        StartRenameTimer(listViewItem, item);
+                        StartRenameTimer(listViewItem, item, targetTab);
                     }
                 }
 
@@ -1649,7 +1673,10 @@ namespace FastExplorer.Views.Pages
         /// <summary>
         /// リネームタイマーを開始します
         /// </summary>
-        private void StartRenameTimer(System.Windows.Controls.ListViewItem listViewItem, FileSystemItem item)
+        /// <param name="listViewItem">リネーム対象のListViewItem</param>
+        /// <param name="item">リネーム対象のFileSystemItem</param>
+        /// <param name="tab">リネーム対象のタブ</param>
+        private void StartRenameTimer(System.Windows.Controls.ListViewItem listViewItem, FileSystemItem item, Models.ExplorerTab? tab)
         {
             CancelRenameTimer();
 
@@ -1666,7 +1693,7 @@ namespace FastExplorer.Views.Pages
                 // リネーム中でなく、ドラッグ中でもなければリネームを開始
                 if (!_isRenaming && !_isDragging)
                 {
-                    StartRenameForItem(listViewItem, item);
+                    StartRenameForItem(listViewItem, item, tab);
                 }
             };
 
@@ -3588,7 +3615,7 @@ namespace FastExplorer.Views.Pages
             if (listViewItem == null)
                 return;
 
-            StartRenameForItem(listViewItem, selectedItem);
+            StartRenameForItem(listViewItem, selectedItem, activeTab);
         }
 
         /// <summary>
@@ -3636,7 +3663,7 @@ namespace FastExplorer.Views.Pages
             if (listViewItem == null)
                 return;
 
-            StartRenameForItem(listViewItem, selectedItem);
+            StartRenameForItem(listViewItem, selectedItem, targetTab);
         }
 
         /// <summary>
@@ -3644,7 +3671,8 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         /// <param name="listViewItem">リネーム対象のListViewItem</param>
         /// <param name="item">リネーム対象のFileSystemItem</param>
-        private void StartRenameForItem(System.Windows.Controls.ListViewItem listViewItem, FileSystemItem item)
+        /// <param name="tab">リネーム対象のタブ（nullの場合はアクティブなタブを使用）</param>
+        private void StartRenameForItem(System.Windows.Controls.ListViewItem listViewItem, FileSystemItem item, Models.ExplorerTab? tab = null)
         {
             if (_isRenaming)
                 return;
@@ -3661,6 +3689,7 @@ namespace FastExplorer.Views.Pages
             _renameTextBox = textBox;
             _renameTextBlock = textBlock;
             _renamingListViewItem = listViewItem;
+            _renamingTab = tab ?? GetActiveTab();
 
             // TextBlockを非表示にし、TextBoxを表示
             textBlock.Visibility = Visibility.Collapsed;
@@ -3696,6 +3725,8 @@ namespace FastExplorer.Views.Pages
             var newName = _renameTextBox.Text.Trim();
             var oldName = _renamingItem.Name;
             var oldPath = _renamingItem.FullPath;
+            var isDirectory = _renamingItem.IsDirectory;
+            var renamingTab = _renamingTab;
 
             // 名前が変更されていない場合はキャンセル
             if (string.IsNullOrWhiteSpace(newName) || newName == oldName)
@@ -3734,7 +3765,7 @@ namespace FastExplorer.Views.Pages
                 }
 
                 // リネーム実行
-                if (_renamingItem.IsDirectory)
+                if (isDirectory)
                 {
                     System.IO.Directory.Move(oldPath, newPath);
                 }
@@ -3746,14 +3777,57 @@ namespace FastExplorer.Views.Pages
                 // UIの更新
                 EndRename();
 
-                // フォルダーの内容を更新
-                var activeTab = GetActiveTab();
-                activeTab?.ViewModel.RefreshCommand.Execute(null);
+                // リネームを開始したタブをリフレッシュ
+                renamingTab?.ViewModel.RefreshCommand.Execute(null);
+
+                // フォルダーの名前を変更した場合、他のタブのパスも更新
+                if (isDirectory)
+                {
+                    UpdateTabPathsAfterRename(oldPath, newPath);
+                }
             }
             catch (Exception ex)
             {
                 await ShowRenameErrorMessageAsync($"名前の変更に失敗しました: {ex.Message}");
                 _renameTextBox?.Focus();
+            }
+        }
+
+        /// <summary>
+        /// フォルダー名の変更後、影響を受けるタブのパスを更新します
+        /// </summary>
+        /// <param name="oldPath">変更前のフォルダーパス</param>
+        /// <param name="newPath">変更後のフォルダーパス</param>
+        private void UpdateTabPathsAfterRename(string oldPath, string newPath)
+        {
+            // すべてのタブを取得
+            var allTabs = new List<Models.ExplorerTab>();
+
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                allTabs.AddRange(ViewModel.LeftPaneTabs);
+                allTabs.AddRange(ViewModel.RightPaneTabs);
+            }
+            else
+            {
+                allTabs.AddRange(ViewModel.Tabs);
+            }
+
+            // 変更されたフォルダーのパスを含むタブのパスを更新
+            foreach (var tab in allTabs)
+            {
+                var currentPath = tab.ViewModel.CurrentPath;
+                if (string.IsNullOrEmpty(currentPath))
+                    continue;
+
+                // パスが変更されたフォルダー自体、またはその配下の場合
+                if (currentPath.Equals(oldPath, StringComparison.OrdinalIgnoreCase) ||
+                    currentPath.StartsWith(oldPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    // 新しいパスに更新
+                    var updatedPath = newPath + currentPath.Substring(oldPath.Length);
+                    tab.ViewModel.NavigateToPathCommand.Execute(updatedPath);
+                }
             }
         }
 
@@ -3803,6 +3877,7 @@ namespace FastExplorer.Views.Pages
             _renameTextBox = null;
             _renameTextBlock = null;
             _renamingListViewItem = null;
+            _renamingTab = null;
         }
 
         /// <summary>
