@@ -30,7 +30,7 @@
         <Style x:Key="NavigationButtonStyle" TargetType="ui:Button">
             <Setter Property="Foreground" Value="Black" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Style.Triggers>
                 <!--  ダークモードの時は白色  -->
@@ -39,7 +39,7 @@
                 </DataTrigger>
                 <!--  ホバー状態の場合（未選択）  -->
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
                 </Trigger>
                 <!--  Primary状態の場合  -->
                 <Trigger Property="Appearance" Value="Primary">
