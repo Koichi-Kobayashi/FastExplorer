@@ -41,9 +41,7 @@
             GroupName="themeSelect"
             IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
 
-        <TextBlock
-            Margin="0,24,0,12"
-            Text="Theme Color" />
+        <TextBlock Margin="0,24,0,12" Text="Theme Color" />
         <ItemsControl ItemsSource="{Binding ViewModel.ThemeColors, Mode=OneWay}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -56,10 +54,10 @@
                         Width="40"
                         Height="40"
                         Margin="4"
+                        Padding="0"
                         Command="{Binding DataContext.ViewModel.SelectThemeColorCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                         CommandParameter="{Binding}"
                         Cursor="Hand"
-                        Padding="0"
                         ToolTip="{Binding Name}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
