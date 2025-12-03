@@ -29,10 +29,17 @@ namespace FastExplorer.Views.Pages
     /// </summary>
     public partial class ExplorerPage : UserControl, INavigableView<ExplorerPageViewModel>
     {
+
+        #region プロパティ
+
         /// <summary>
         /// エクスプローラーページのViewModelを取得します
         /// </summary>
         public ExplorerPageViewModel ViewModel { get; }
+
+        #endregion
+
+        #region フィールド
 
         // パフォーマンス最適化用のキャッシュ
         private System.Windows.Controls.ListView? _cachedLeftListView;
@@ -65,6 +72,10 @@ namespace FastExplorer.Views.Pages
         private Models.ExplorerTab? _previousSelectedLeftPaneTab = null;
         private Models.ExplorerTab? _previousSelectedRightPaneTab = null;
 
+        #endregion
+
+        #region コンストラクタ
+
         /// <summary>
         /// <see cref="ExplorerPage"/>クラスの新しいインスタンスを初期化します
         /// </summary>
@@ -95,6 +106,10 @@ namespace FastExplorer.Views.Pages
             // 初期の選択タブのViewModelのPropertyChangedイベントを購読
             SubscribeToSelectedTabViewModel();
         }
+
+        #endregion
+
+        #region 初期化・イベント購読
 
         /// <summary>
         /// 現在の選択タブのViewModelのPropertyChangedイベントを購読します
@@ -266,6 +281,10 @@ namespace FastExplorer.Views.Pages
             SubscribeToSelectedTabViewModel();
         }
 
+        #endregion
+
+        #region ViewModel変更ハンドラー
+
         /// <summary>
         /// ViewModelのプロパティが変更されたときに呼び出されます
         /// </summary>
@@ -313,6 +332,9 @@ namespace FastExplorer.Views.Pages
             }
         }
 
+        #endregion
+
+        #region 背景色管理
 
         /// <summary>
         /// ListViewの背景色を遅延更新します（複数の優先度で実行して確実に更新）
@@ -645,6 +667,10 @@ namespace FastExplorer.Views.Pages
             }
         }
 
+        #endregion
+
+        #region ホームページ関連
+
         /// <summary>
         /// TabControl内のホームページScrollViewerを検索します
         /// </summary>
@@ -901,6 +927,10 @@ namespace FastExplorer.Views.Pages
             return listView;
         }
 
+        #endregion
+
+        #region ビジュアルツリー検索
+
         /// <summary>
         /// 指定された型の子要素を検索します（最適化版：最大深度制限付き）
         /// </summary>
@@ -975,6 +1005,10 @@ namespace FastExplorer.Views.Pages
                 }
             }
         }
+
+        #endregion
+
+        #region ListViewイベントハンドラー
 
         /// <summary>
         /// リストビューでマウスがダブルクリックされたときに呼び出されます
@@ -1376,6 +1410,10 @@ namespace FastExplorer.Views.Pages
             }
         }
 
+        #endregion
+
+        #region アクティブタブ・ListView取得
+
         /// <summary>
         /// 現在アクティブなタブを取得します（分割ペインモードも考慮）
         /// </summary>
@@ -1592,6 +1630,9 @@ namespace FastExplorer.Views.Pages
             }
         }
 
+        #endregion
+
+        #region ドラッグ&ドロップ
 
         // ドラッグ&ドロップ用の変数
         private Point _dragStartPoint;
@@ -1611,6 +1652,11 @@ namespace FastExplorer.Views.Pages
 
         // リネーム用の変数
         private FileSystemItem? _renamingItem = null;
+        #endregion
+
+        #region リネーム機能
+
+        // リネーム用の変数
         private System.Windows.Controls.TextBox? _renameTextBox = null;
         private System.Windows.Controls.TextBlock? _renameTextBlock = null;
         private System.Windows.Controls.ListViewItem? _renamingListViewItem = null;
@@ -1924,6 +1970,10 @@ namespace FastExplorer.Views.Pages
             return null;
         }
 
+        #endregion
+
+        #region コンテキストメニュー
+
         /// <summary>
         /// ListViewItemでマウス右ボタンが離されたときに呼び出されます（右クリックメニュー表示）
         /// </summary>
@@ -2040,6 +2090,10 @@ namespace FastExplorer.Views.Pages
                 scm.ShowContextMenu(new[] { path }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
             }
         }
+
+        #endregion
+
+        #region ソート・列操作
 
         /// <summary>
         /// GridViewColumnHeaderがクリックされたときに呼び出されます（ソート処理）
@@ -2398,25 +2452,9 @@ namespace FastExplorer.Views.Pages
             };
         }
 
-        /// <summary>
-        /// 指定された型の親要素を検索します
-        /// </summary>
-        /// <typeparam name="T">検索する型</typeparam>
-        /// <param name="element">開始要素</param>
-        /// <returns>見つかった親要素、見つからない場合はnull</returns>
-        private T? FindAncestor<T>(DependencyObject element) where T : DependencyObject
-        {
-            var current = element;
-            while (current != null)
-            {
-                if (current is T ancestor)
-                {
-                    return ancestor;
-                }
-                current = VisualTreeHelper.GetParent(current);
-            }
-            return null;
-        }
+        #endregion
+
+        #region パスコピー機能
 
         /// <summary>
         /// パスコピーボタンがクリックされたときに呼び出されます（現在のタブのパスをクリップボードにコピー）
@@ -2488,6 +2526,10 @@ namespace FastExplorer.Views.Pages
                 }
             }
         }
+
+        #endregion
+
+        #region タブ操作
 
         /// <summary>
         /// タブのButtonがクリックされたときに呼び出されます（タブのパスをクリップボードにコピー）
@@ -2675,6 +2717,10 @@ namespace FastExplorer.Views.Pages
                 }
             }
         }
+
+        #endregion
+
+        #region タブドラッグ&ドロップ
 
         /// <summary>
         /// TabItemでマウスが押されたときに呼び出されます（タブのドラッグ開始の検出）
@@ -3432,66 +3478,9 @@ namespace FastExplorer.Views.Pages
             }
         }
 
-        /// <summary>
-        /// ビジュアルツリーから指定された型の親要素を検索します（最適化版）
-        /// </summary>
-        private static T? FindParent<T>(DependencyObject child) where T : DependencyObject
-        {
-            DependencyObject? current = child;
-            while (current != null)
-            {
-                current = VisualTreeHelper.GetParent(current);
-                if (current is T parent)
-                {
-                    return parent;
-                }
-            }
-            return null;
-        }
+        #endregion
 
-        /// <summary>
-        /// ビジュアルツリーを再帰的に走査して、指定された型の子要素をすべて見つけます
-        /// </summary>
-        /// <typeparam name="T">検索する型</typeparam>
-        /// <param name="parent">親要素</param>
-        /// <param name="results">結果を格納するリスト</param>
-        private void FindVisualChildrenRecursive<T>(DependencyObject parent, List<T> results) where T : DependencyObject
-        {
-            if (parent == null)
-                return;
-
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T t)
-                {
-                    results.Add(t);
-                }
-                FindVisualChildrenRecursive(child, results);
-            }
-        }
-
-        /// <summary>
-        /// TabControl内で指定されたDataContextに対応するTabItemを検索します
-        /// </summary>
-        /// <param name="tabControl">TabControl</param>
-        /// <param name="dataContext">検索するDataContext</param>
-        /// <returns>見つかったTabItem、見つからない場合はnull</returns>
-        private System.Windows.Controls.TabItem? FindTabItemByDataContext(System.Windows.Controls.TabControl tabControl, object dataContext)
-        {
-            if (tabControl == null || dataContext == null)
-                return null;
-
-            // TabControlのItemsを走査して、DataContextが一致するTabItemを検索（Itemsコレクションの方が効率的）
-            foreach (var item in tabControl.Items)
-            {
-                if (item is System.Windows.Controls.TabItem tabItem && tabItem.DataContext == dataContext)
-                    return tabItem;
-            }
-
-            // Itemsコレクションで見つからない場合、ビジュアルツリーを走査
-            return FindChild<System.Windows.Controls.TabItem>(tabControl, ti => ti.DataContext == dataContext);
-        }
+        #region タブイベント
 
         /// <summary>
         /// TabControlでタブが追加されようとしたときに呼び出されます
@@ -3544,6 +3533,10 @@ namespace FastExplorer.Views.Pages
             }
         }
 
+        #endregion
+
+        #region Win32 API定義
+
         // Win32 APIの定義
         [StructLayout(LayoutKind.Sequential)]
         private struct POINT
@@ -3575,6 +3568,10 @@ namespace FastExplorer.Views.Pages
 
         [DllImport("user32.dll")]
         private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        #endregion
+
+        #region ウィンドウ操作（Win32 API）
 
         /// <summary>
         /// 指定されたウィンドウがデスクトップまたはその子ウィンドウであるかを確認します
@@ -3618,6 +3615,10 @@ namespace FastExplorer.Views.Pages
             return false;
         }
 
+        #endregion
+
+        #region カーソル操作（Win32 API）
+
         [DllImport("user32.dll")]
         private static extern IntPtr SetCursor(IntPtr hCursor);
 
@@ -3629,33 +3630,9 @@ namespace FastExplorer.Views.Pages
 
         private static readonly IntPtr IDC_HAND = new IntPtr(32649); // Windows標準の手カーソル
 
-        #region リネーム機能
+        #endregion
 
-        /// <summary>
-        /// 選択中のアイテムのリネームを開始します
-        /// </summary>
-        private void StartRename()
-        {
-            var activeTab = GetActiveTab();
-            if (activeTab == null)
-                return;
-
-            var selectedItem = activeTab.ViewModel.SelectedItem;
-            if (selectedItem == null)
-                return;
-
-            // アクティブなListViewを取得
-            var listView = GetActiveListView();
-            if (listView == null)
-                return;
-
-            // 選択中のListViewItemを取得
-            var listViewItem = listView.ItemContainerGenerator.ContainerFromItem(selectedItem) as System.Windows.Controls.ListViewItem;
-            if (listViewItem == null)
-                return;
-
-            StartRenameForItem(listViewItem, selectedItem, activeTab);
-        }
+        #region リネーム処理
 
         /// <summary>
         /// 指定されたListViewで選択中のアイテムのリネームを開始します
@@ -3839,7 +3816,8 @@ namespace FastExplorer.Views.Pages
                 if (renamingTab != null)
                 {
                     var tabToRefresh = renamingTab;
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    // Dispatcher.BeginInvokeの戻り値は明示的に無視（警告を抑制）
+                    _ = Dispatcher.BeginInvoke(new Action(() =>
                     {
                         // RefreshCommandの実行前後でアクティブペーンを保持
                         if (shouldMaintainPane)
@@ -3948,30 +3926,6 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
-        /// リネーム後にフォーカスを復元します
-        /// </summary>
-        /// <param name="renamingListView">リネームを開始したListView</param>
-        /// <param name="originalActivePane">リネーム開始時のアクティブペイン（未使用、互換性のため残す）</param>
-        private void RestoreFocusAfterRename(System.Windows.Controls.ListView? renamingListView, int originalActivePane)
-        {
-            // ListViewが属するペインをアクティブにする
-            if (ViewModel.IsSplitPaneEnabled && renamingListView != null)
-            {
-                var pane = GetPaneForElement(renamingListView);
-                if (pane == 0 || pane == 2)
-                {
-                    ViewModel.ActivePane = pane;
-                }
-            }
-
-            // ListViewにフォーカスを戻す（即座に実行）
-            if (renamingListView != null)
-            {
-                renamingListView.Focus();
-            }
-        }
-
-        /// <summary>
         /// リネームエラーメッセージを表示します
         /// </summary>
         /// <param name="message">表示するメッセージ</param>
@@ -4060,6 +4014,69 @@ namespace FastExplorer.Views.Pages
             }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
+        #endregion
+
+        #region ヘルパーメソッド
+
+        /// <summary>
+        /// 指定された型の親要素を検索します
+        /// </summary>
+        /// <typeparam name="T">検索する型</typeparam>
+        /// <param name="element">開始要素</param>
+        /// <returns>見つかった親要素、見つからない場合はnull</returns>
+        private T? FindAncestor<T>(DependencyObject element) where T : DependencyObject
+        {
+            var current = element;
+            while (current != null)
+            {
+                if (current is T ancestor)
+                {
+                    return ancestor;
+                }
+                current = VisualTreeHelper.GetParent(current);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// ビジュアルツリーから指定された型の親要素を検索します（最適化版）
+        /// </summary>
+        private static T? FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            DependencyObject? current = child;
+            while (current != null)
+            {
+                current = VisualTreeHelper.GetParent(current);
+                if (current is T parent)
+                {
+                    return parent;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// ビジュアルツリーを再帰的に走査して、指定された型の子要素をすべて見つけます
+        /// </summary>
+        /// <typeparam name="T">検索する型</typeparam>
+        /// <param name="parent">親要素</param>
+        /// <param name="results">結果を格納するリスト</param>
+        private void FindVisualChildrenRecursive<T>(DependencyObject parent, List<T> results) where T : DependencyObject
+        {
+            if (parent == null)
+                return;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t)
+                {
+                    results.Add(t);
+                }
+                FindVisualChildrenRecursive(child, results);
+            }
+        }
+
         /// <summary>
         /// 指定された名前の子要素を検索します
         /// </summary>
@@ -4084,34 +4101,8 @@ namespace FastExplorer.Views.Pages
             return null;
         }
 
-        /// <summary>
-        /// アクティブなListViewを取得します
-        /// </summary>
-        private System.Windows.Controls.ListView? GetActiveListView()
-        {
-            if (ViewModel.IsSplitPaneEnabled)
-            {
-                if (ViewModel.ActivePane == 0)
-                {
-                    return _cachedLeftListView ?? FindListViewInPane(0);
-                }
-                else
-                {
-                    return _cachedRightListView ?? FindListViewInPane(2);
-                }
-            }
-            else
-            {
-                // 単一ペインモードの場合、ビジュアルツリーからListViewを検索
-                if (_cachedSinglePaneListView == null)
-                {
-                    _cachedSinglePaneListView = FindVisualChild<System.Windows.Controls.ListView>(this, "FileListView");
-                }
-                return _cachedSinglePaneListView;
-            }
-        }
-
         #endregion
+
     }
 }
 

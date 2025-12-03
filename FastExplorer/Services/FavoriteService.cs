@@ -12,8 +12,14 @@ namespace FastExplorer.Services
     /// </summary>
     public class FavoriteService
     {
+        #region フィールド
+
         private readonly string _favoritesFilePath;
         private List<FavoriteItem> _favorites = new();
+
+        #endregion
+
+        #region コンストラクタ
 
         /// <summary>
         /// <see cref="FavoriteService"/>クラスの新しいインスタンスを初期化します
@@ -28,6 +34,10 @@ namespace FastExplorer.Services
             LoadFavorites();
         }
 
+        #endregion
+
+        #region お気に入り取得
+
         /// <summary>
         /// すべてのお気に入りを取得します
         /// </summary>
@@ -37,6 +47,10 @@ namespace FastExplorer.Services
             // IListを直接返すことで、呼び出し側でのToList()を回避（メモリ割り当てを削減）
             return _favorites;
         }
+
+        #endregion
+
+        #region お気に入り操作
 
         /// <summary>
         /// お気に入りを追加します
@@ -111,6 +125,10 @@ namespace FastExplorer.Services
             }
         }
 
+        #endregion
+
+        #region ファイル操作
+
         /// <summary>
         /// お気に入りを保存します
         /// </summary>
@@ -151,6 +169,10 @@ namespace FastExplorer.Services
                 InitializeDefaultFavorites();
             }
         }
+
+        #endregion
+
+        #region 初期化
 
         /// <summary>
         /// デフォルトのお気に入りを初期化します
@@ -242,6 +264,9 @@ namespace FastExplorer.Services
                 });
             }
         }
+
+        #endregion
+
     }
 }
 

@@ -8,6 +8,8 @@ namespace FastExplorer.Services
     /// </summary>
     public class FileSystemService
     {
+        #region ファイル・ディレクトリ取得
+
         /// <summary>
         /// 指定されたパスのディレクトリとファイルの一覧を取得します
         /// </summary>
@@ -107,6 +109,10 @@ namespace FastExplorer.Services
             return items;
         }
 
+        #endregion
+
+        #region パス操作
+
         /// <summary>
         /// 指定されたパスの親ディレクトリのパスを取得します
         /// </summary>
@@ -128,6 +134,10 @@ namespace FastExplorer.Services
             }
         }
 
+        #endregion
+
+        #region パス検証
+
         /// <summary>
         /// 指定されたパスが有効かどうかを確認します
         /// </summary>
@@ -145,6 +155,10 @@ namespace FastExplorer.Services
             }
         }
 
+        #endregion
+
+        #region ドライブ操作
+
         /// <summary>
         /// システム上のすべての論理ドライブを取得します
         /// </summary>
@@ -153,6 +167,10 @@ namespace FastExplorer.Services
         {
             return Directory.GetLogicalDrives();
         }
+
+        #endregion
+
+        #region ファイル操作
 
         /// <summary>
         /// ファイルまたはフォルダーを指定されたディレクトリに移動します
@@ -206,6 +224,9 @@ namespace FastExplorer.Services
                 return false;
             }
         }
+
+        #endregion
+
     }
 }
 

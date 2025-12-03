@@ -1,4 +1,4 @@
-﻿using System.Windows.Media;
+using System.Windows.Media;
 using FastExplorer.Models;
 using Wpf.Ui.Abstractions.Controls;
 
@@ -9,13 +9,23 @@ namespace FastExplorer.ViewModels.Pages
     /// </summary>
     public partial class DataViewModel : ObservableObject, INavigationAware
     {
+        #region フィールド
+
         private bool _isInitialized = false;
+
+        #endregion
+
+        #region プロパティ
 
         /// <summary>
         /// データカラーのコレクションを取得または設定します
         /// </summary>
         [ObservableProperty]
         private IEnumerable<DataColor> _colors = Array.Empty<DataColor>();
+
+        #endregion
+
+        #region ナビゲーション
 
         /// <summary>
         /// ページにナビゲートされたときに呼び出されます
@@ -34,6 +44,10 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         /// <returns>完了を表すタスク</returns>
         public Task OnNavigatedFromAsync() => Task.CompletedTask;
+
+        #endregion
+
+        #region 初期化
 
         /// <summary>
         /// ViewModelを初期化します
@@ -63,5 +77,8 @@ namespace FastExplorer.ViewModels.Pages
 
             _isInitialized = true;
         }
+
+        #endregion
+
     }
 }

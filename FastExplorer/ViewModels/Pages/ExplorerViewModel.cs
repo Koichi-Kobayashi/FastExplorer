@@ -17,6 +17,8 @@ namespace FastExplorer.ViewModels.Pages
     /// </summary>
     public partial class ExplorerViewModel : ObservableObject, INavigationAware
     {
+        #region フィールド
+
         private readonly FileSystemService _fileSystemService;
         private readonly FavoriteService? _favoriteService;
         private bool _isInitialized = false;
@@ -31,6 +33,10 @@ namespace FastExplorer.ViewModels.Pages
         
         // 文字列定数（メモリ割り当てを削減）
         private const string ShellPrefix = "shell:";
+
+        #endregion
+
+        #region プロパティ
 
         /// <summary>
         /// 現在表示しているファイルシステムアイテムのコレクション
@@ -96,6 +102,10 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private bool _sortAscending = true;
 
+        #endregion
+
+        #region コンストラクタ
+
         /// <summary>
         /// <see cref="ExplorerViewModel"/>クラスの新しいインスタンスを初期化します
         /// </summary>
@@ -106,6 +116,10 @@ namespace FastExplorer.ViewModels.Pages
             _fileSystemService = fileSystemService;
             _favoriteService = favoriteService;
         }
+
+        #endregion
+
+        #region ナビゲーション
 
         /// <summary>
         /// ページにナビゲートされたときに呼び出されます
@@ -129,6 +143,10 @@ namespace FastExplorer.ViewModels.Pages
         /// <returns>完了を表すタスク</returns>
         public Task OnNavigatedFromAsync() => Task.CompletedTask;
 
+        #endregion
+
+        #region 初期化
+
         /// <summary>
         /// ViewModelを初期化します
         /// </summary>
@@ -141,6 +159,10 @@ namespace FastExplorer.ViewModels.Pages
                 _isInitialized = true;
             }
         }
+
+        #endregion
+
+        #region パスナビゲーション
 
         /// <summary>
         /// 指定されたパスにナビゲートします
@@ -178,6 +200,10 @@ namespace FastExplorer.ViewModels.Pages
 
             NavigateToDirectory(trimmedPath);
         }
+
+        #endregion
+
+        #region 履歴ナビゲーション
 
         /// <summary>
         /// 親ディレクトリにナビゲートします
@@ -253,6 +279,10 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
+        #endregion
+
+        #region アイテムナビゲーション
+
         /// <summary>
         /// 指定されたアイテムにナビゲートします（ディレクトリの場合は開く、ファイルの場合は実行）
         /// </summary>
@@ -287,6 +317,10 @@ namespace FastExplorer.ViewModels.Pages
                 }
             }
         }
+
+        #endregion
+
+        #region ディレクトリ操作
 
         /// <summary>
         /// 現在のディレクトリを更新します
@@ -488,6 +522,10 @@ namespace FastExplorer.ViewModels.Pages
             }, cancellationToken);
         }
 
+        #endregion
+
+        #region ホームページ
+
         /// <summary>
         /// ホームページを表示します
         /// </summary>
@@ -548,6 +586,10 @@ namespace FastExplorer.ViewModels.Pages
                 }
             });
         }
+
+        #endregion
+
+        #region ホームページデータ読み込み
 
         /// <summary>
         /// ピン留めフォルダーを読み込みます
@@ -730,6 +772,10 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
+        #endregion
+
+        #region 最近使用したファイル
+
         /// <summary>
         /// ファイルを最近使用したファイルリストに追加します
         /// </summary>
@@ -792,6 +838,10 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
+        #endregion
+
+        #region ドライブ操作
+
         /// <summary>
         /// ドライブ一覧を表示します（後方互換性のため残す）
         /// </summary>
@@ -800,6 +850,10 @@ namespace FastExplorer.ViewModels.Pages
         {
             NavigateToHome(addToHistory);
         }
+
+        #endregion
+
+        #region ソート
 
         /// <summary>
         /// 指定された列でソートします
@@ -893,6 +947,9 @@ namespace FastExplorer.ViewModels.Pages
                 return _sortAscending ? result : -result;
             });
         }
+
+        #endregion
+
     }
 }
 

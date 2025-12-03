@@ -10,8 +10,14 @@ namespace FastExplorer.Services
     /// </summary>
     public class WindowSettingsService
     {
+        #region フィールド
+
         private readonly string _settingsFilePath;
         private WindowSettings _settings = new();
+
+        #endregion
+
+        #region コンストラクタ
 
         /// <summary>
         /// <see cref="WindowSettingsService"/>クラスの新しいインスタンスを初期化します
@@ -25,6 +31,10 @@ namespace FastExplorer.Services
             _settingsFilePath = Path.Combine(appDataPath, "window_settings.json");
             LoadSettings();
         }
+
+        #endregion
+
+        #region 設定取得・保存
 
         /// <summary>
         /// ウィンドウ設定を取得します
@@ -44,6 +54,10 @@ namespace FastExplorer.Services
             _settings = settings;
             SaveSettings();
         }
+
+        #endregion
+
+        #region ファイル操作
 
         /// <summary>
         /// ウィンドウ設定を保存します
@@ -83,6 +97,8 @@ namespace FastExplorer.Services
                 _settings = new WindowSettings();
             }
         }
+
+        #endregion
     }
 
     /// <summary>
@@ -90,6 +106,7 @@ namespace FastExplorer.Services
     /// </summary>
     public class WindowSettings
     {
+        #region プロパティ
         /// <summary>
         /// ウィンドウの幅を取得または設定します
         /// </summary>
@@ -159,6 +176,8 @@ namespace FastExplorer.Services
         /// 右ペインのタブのパスのリストを取得または設定します
         /// </summary>
         public List<string> RightPaneTabPaths { get; set; } = new();
+
+        #endregion
     }
 }
 

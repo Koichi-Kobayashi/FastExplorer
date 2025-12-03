@@ -18,6 +18,8 @@ namespace FastExplorer.ViewModels.Windows
     /// </summary>
     public partial class MainWindowViewModel : ObservableObject
     {
+        #region フィールド
+
         private readonly FavoriteService _favoriteService;
         private INavigationService? _navigationService;
         
@@ -33,6 +35,10 @@ namespace FastExplorer.ViewModels.Windows
         
         // Application.Currentをキャッシュ（パフォーマンス向上）
         private static System.Windows.Application? _cachedApplication;
+
+        #endregion
+
+        #region プロパティ
 
         /// <summary>
         /// アプリケーションのタイトル
@@ -70,6 +76,10 @@ namespace FastExplorer.ViewModels.Windows
         {
             _navigationService = navigationService;
         }
+
+        #endregion
+
+        #region お気に入り管理
 
         /// <summary>
         /// お気に入りを読み込みます
@@ -227,6 +237,10 @@ namespace FastExplorer.ViewModels.Windows
             return item;
         }
 
+        #endregion
+
+        #region ナビゲーション
+
         /// <summary>
         /// ホームページにナビゲートします
         /// </summary>
@@ -290,6 +304,10 @@ namespace FastExplorer.ViewModels.Windows
             }
         }
 
+        #endregion
+
+        #region お気に入り操作
+
         /// <summary>
         /// お気に入りを追加します
         /// </summary>
@@ -321,6 +339,10 @@ namespace FastExplorer.ViewModels.Windows
             LoadFavorites();
         }
 
+        #endregion
+
+        #region その他のプロパティ
+
         [ObservableProperty]
         private ObservableCollection<object> _footerMenuItems = new()
         {
@@ -337,5 +359,7 @@ namespace FastExplorer.ViewModels.Windows
         {
             new System.Windows.Controls.MenuItem { Header = "Home", Tag = "tray_home" }
         };
+
+        #endregion
     }
 }

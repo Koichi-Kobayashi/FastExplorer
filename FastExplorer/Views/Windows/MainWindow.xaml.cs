@@ -23,6 +23,8 @@ namespace FastExplorer.Views.Windows
     /// </summary>
     public partial class MainWindow : INavigationWindow
     {
+        #region フィールド
+
         private readonly WindowSettingsService _windowSettingsService;
         private readonly INavigationService _navigationService;
         private HwndSource? _hwndSource;
@@ -46,10 +48,18 @@ namespace FastExplorer.Views.Windows
         private static readonly Type ExplorerPageType = typeof(Views.Pages.ExplorerPage);
         private static readonly Type ExplorerPageViewModelType = typeof(ViewModels.Pages.ExplorerPageViewModel);
 
+        #endregion
+
+        #region プロパティ
+
         /// <summary>
         /// メインウィンドウのViewModelを取得します
         /// </summary>
         public MainWindowViewModel ViewModel { get; }
+
+        #endregion
+
+        #region コンストラクタ
 
         /// <summary>
         /// <see cref="MainWindow"/>クラスの新しいインスタンスを初期化します
@@ -140,7 +150,11 @@ namespace FastExplorer.Views.Windows
             // ウィンドウ外へのタブドロップを処理するために、ウィンドウのDropイベントを処理
             this.Drop += MainWindow_Drop;
         }
-        
+
+        #endregion
+
+        #region イベントハンドラー設定
+
         /// <summary>
         /// フッターメニュー項目のイベントハンドラーを設定します
         /// </summary>
@@ -162,7 +176,11 @@ namespace FastExplorer.Views.Windows
                 }
             }
         }
-        
+
+        #endregion
+
+        #region メニューイベントハンドラー
+
         /// <summary>
         /// Settingsメニュー項目がクリックされたときに呼び出されます
         /// </summary>
@@ -212,7 +230,7 @@ namespace FastExplorer.Views.Windows
                 System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             }
         }
-        
+
         /// <summary>
         /// ウィンドウにドロップされたときに呼び出されます（タブがウィンドウ外にドロップされた場合の処理）
         /// </summary>
@@ -224,8 +242,9 @@ namespace FastExplorer.Views.Windows
             // ウィンドウ外へのドロップは、ExplorerPageのTabItem_PreviewMouseMoveで処理される
         }
 
+        #endregion
 
-        #region INavigationWindow methods
+        #region INavigationWindow実装
 
         /// <summary>
         /// ナビゲーションコントロールを取得します
@@ -333,7 +352,9 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         public void CloseWindow() => Close();
 
-        #endregion INavigationWindow methods
+        #endregion
+
+        #region ウィンドウイベント
 
         /// <summary>
         /// ウィンドウが閉じられようとしているときに呼び出されます
@@ -439,6 +460,10 @@ namespace FastExplorer.Views.Windows
             // Application.Currentは常に存在するため、nullチェックを削除して高速化
             Application.Current.Shutdown();
         }
+
+        #endregion
+
+        #region ウィンドウ設定管理
 
         /// <summary>
         /// 保存されたウィンドウ設定を復元します
@@ -548,6 +573,10 @@ namespace FastExplorer.Views.Windows
             return null;
         }
 
+        #endregion
+
+        #region スタイル管理
+
         /// <summary>
         /// タブとListViewのスタイルを無効化してDynamicResourceの再評価を強制します
         /// </summary>
@@ -625,6 +654,10 @@ namespace FastExplorer.Views.Windows
                 listView.UpdateLayout();
             }
         }
+
+        #endregion
+
+        #region スタイル無効化ヘルパー
 
         /// <summary>
         /// ビジュアルツリーを走査してTabControlとListViewを見つけます
@@ -727,6 +760,10 @@ namespace FastExplorer.Views.Windows
                 }
             }
         }
+
+        #endregion
+
+        #region ナビゲーションイベント
 
         /// <summary>
         /// ナビゲーションビューのアイテムが選択されたときに呼び出されます
@@ -857,11 +894,48 @@ namespace FastExplorer.Views.Windows
             }
         }
 
+        #endregion
+
+        #region キーイベント
+
         /// <summary>
         /// ウィンドウでキーが押されたときに呼び出されます
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">キーイベント引数</param>
+        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            // バックスペースキーが押された場合、戻るボタンと同じ動作をする
+            if (e.Key != Key.Back)
+                return;
+
+            // テキストボックスやエディットコントロールにフォーカスがある場合は処理しない（switch式で高速化）
+            var source = e.OriginalSource;
+            if (source is System.Windows.Controls.TextBox or 
+                System.Windows.Controls.TextBlock or 
+                System.Windows.Controls.RichTextBox)
+            {
+                return;
+            }
+
+            // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+            if (_cachedExplorerPageViewModel == null)
+            {
+                _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+            }
+
+            var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
+            if (selectedTab?.ViewModel != null)
+            {
+                selectedTab.ViewModel.NavigateToParentCommand.Execute(null);
+                e.Handled = true;
+            }
+        }
+
+        #endregion
+
+        #region メッセージフック
+
         /// <summary>
         /// ソース初期化時にメッセージフックを追加
         /// </summary>
@@ -979,33 +1053,6 @@ namespace FastExplorer.Views.Windows
             return IntPtr.Zero;
         }
 
-        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
-        {
-            // バックスペースキーが押された場合、戻るボタンと同じ動作をする
-            if (e.Key != Key.Back)
-                return;
-
-            // テキストボックスやエディットコントロールにフォーカスがある場合は処理しない（switch式で高速化）
-            var source = e.OriginalSource;
-            if (source is System.Windows.Controls.TextBox or 
-                System.Windows.Controls.TextBlock or 
-                System.Windows.Controls.RichTextBox)
-            {
-                return;
-            }
-
-            // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
-            if (_cachedExplorerPageViewModel == null)
-            {
-                _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
-            }
-
-            var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
-            if (selectedTab?.ViewModel != null)
-            {
-                selectedTab.ViewModel.NavigateToParentCommand.Execute(null);
-                e.Handled = true;
-            }
-        }
+        #endregion
     }
 }

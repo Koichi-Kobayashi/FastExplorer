@@ -18,6 +18,8 @@ namespace FastExplorer.ViewModels.Pages
     /// </summary>
     public partial class SettingsViewModel : ObservableObject, INavigationAware
     {
+        #region フィールド
+
         private bool _isInitialized = false;
         private readonly WindowSettingsService _windowSettingsService;
         
@@ -28,6 +30,13 @@ namespace FastExplorer.ViewModels.Pages
         private static readonly string ThemesDictionaryTypeName = "ThemesDictionary";
         private static System.Reflection.PropertyInfo? _cachedThemeProperty;
 
+        // アセンブリのバージョンをキャッシュ（パフォーマンス向上）
+        private static string? _cachedAssemblyVersion;
+
+        #endregion
+
+        #region コンストラクタ
+
         /// <summary>
         /// <see cref="SettingsViewModel"/>クラスの新しいインスタンスを初期化します
         /// </summary>
@@ -36,6 +45,10 @@ namespace FastExplorer.ViewModels.Pages
         {
             _windowSettingsService = windowSettingsService;
         }
+
+        #endregion
+
+        #region プロパティ
 
         /// <summary>
         /// アプリケーションのバージョンを取得または設定します
@@ -79,6 +92,10 @@ namespace FastExplorer.ViewModels.Pages
     [ObservableProperty]
     private bool _isSplitPaneEnabled;
 
+        #endregion
+
+        #region ナビゲーション
+
         /// <summary>
         /// ページにナビゲートされたときに呼び出されます
         /// </summary>
@@ -113,6 +130,10 @@ namespace FastExplorer.ViewModels.Pages
             return Task.CompletedTask;
         }
 
+        #endregion
+
+        #region プロパティ変更ハンドラー
+
         /// <summary>
         /// IsSplitPaneEnabledが変更されたときに呼び出されます
         /// </summary>
@@ -131,6 +152,10 @@ namespace FastExplorer.ViewModels.Pages
                 explorerPageViewModel.IsSplitPaneEnabled = value;
             }
         }
+
+        #endregion
+
+        #region 初期化
 
         /// <summary>
         /// ViewModelを初期化します
@@ -152,6 +177,10 @@ namespace FastExplorer.ViewModels.Pages
 
             _isInitialized = true;
         }
+
+        #endregion
+
+        #region テーマカラー管理
 
         /// <summary>
         /// テーマカラーリストを初期化します
@@ -206,9 +235,6 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
-        // アセンブリのバージョンをキャッシュ（パフォーマンス向上）
-        private static string? _cachedAssemblyVersion;
-        
         /// <summary>
         /// アセンブリのバージョンを取得します
         /// </summary>
@@ -219,6 +245,10 @@ namespace FastExplorer.ViewModels.Pages
             return _cachedAssemblyVersion ??= 
                 System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? String.Empty;
         }
+
+        #endregion
+
+        #region テーマ管理
 
         /// <summary>
         /// テーマを変更します
@@ -423,6 +453,10 @@ namespace FastExplorer.ViewModels.Pages
             _windowSettingsService.SaveSettings(settings);
         }
 
+        #endregion
+
+        #region テーマカラー選択
+
         /// <summary>
         /// テーマカラーを選択します
         /// </summary>
@@ -510,6 +544,10 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
+        #endregion
+
+        #region ビジュアルツリー操作
+
         /// <summary>
         /// ビジュアルツリー内の指定された型の子要素を検索します
         /// </summary>
@@ -596,5 +634,7 @@ namespace FastExplorer.ViewModels.Pages
                 InvalidateResourcesRecursive(child);
             }
         }
+
+        #endregion
     }
 }

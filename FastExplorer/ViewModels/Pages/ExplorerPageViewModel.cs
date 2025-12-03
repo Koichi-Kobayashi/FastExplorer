@@ -14,6 +14,8 @@ namespace FastExplorer.ViewModels.Pages
     /// </summary>
     public partial class ExplorerPageViewModel : ObservableObject, INavigationAware
     {
+        #region フィールド
+
         private readonly FileSystemService _fileSystemService;
         private readonly FavoriteService? _favoriteService;
         private readonly WindowSettingsService? _windowSettingsService;
@@ -53,6 +55,10 @@ namespace FastExplorer.ViewModels.Pages
         private const int ActivePaneLeft = 0;
         private const int ActivePaneRight = 2;
         private const int ActivePaneNone = -1;
+
+        #endregion
+
+        #region プロパティ
 
         /// <summary>
         /// エクスプローラータブのコレクション
@@ -102,6 +108,10 @@ namespace FastExplorer.ViewModels.Pages
         [ObservableProperty]
         private int _activePane = -1;
 
+        #endregion
+
+        #region プロパティ変更ハンドラー
+
         /// <summary>
         /// ActivePaneが変更されたときに呼び出されます
         /// </summary>
@@ -122,6 +132,27 @@ namespace FastExplorer.ViewModels.Pages
             // ToggleSplitPaneメソッド内で直接更新するため、ここでは何もしない
             // （無限ループを防ぐため）
         }
+
+        #endregion
+
+        #region コンストラクタ
+
+        /// <summary>
+        /// <see cref="ExplorerPageViewModel"/>クラスの新しいインスタンスを初期化します
+        /// </summary>
+        /// <param name="fileSystemService">ファイルシステムサービス</param>
+        /// <param name="favoriteService">お気に入りサービス</param>
+        /// <param name="windowSettingsService">ウィンドウ設定サービス</param>
+        public ExplorerPageViewModel(FileSystemService fileSystemService, FavoriteService? favoriteService = null, WindowSettingsService? windowSettingsService = null)
+        {
+            _fileSystemService = fileSystemService;
+            _favoriteService = favoriteService;
+            _windowSettingsService = windowSettingsService;
+        }
+
+        #endregion
+
+        #region 分割ペイン管理
 
         /// <summary>
         /// 分割ペインを切り替えます
@@ -282,18 +313,9 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
-        /// <summary>
-        /// <see cref="ExplorerPageViewModel"/>クラスの新しいインスタンスを初期化します
-        /// </summary>
-        /// <param name="fileSystemService">ファイルシステムサービス</param>
-        /// <param name="favoriteService">お気に入りサービス</param>
-        /// <param name="windowSettingsService">ウィンドウ設定サービス</param>
-        public ExplorerPageViewModel(FileSystemService fileSystemService, FavoriteService? favoriteService = null, WindowSettingsService? windowSettingsService = null)
-        {
-            _fileSystemService = fileSystemService;
-            _favoriteService = favoriteService;
-            _windowSettingsService = windowSettingsService;
-        }
+        #endregion
+
+        #region ナビゲーション
 
         /// <summary>
         /// ページにナビゲートされたときに呼び出されます
@@ -477,6 +499,10 @@ namespace FastExplorer.ViewModels.Pages
         /// <returns>完了を表すタスク</returns>
         public Task OnNavigatedFromAsync() => Task.CompletedTask;
 
+        #endregion
+
+        #region タブ管理
+
         /// <summary>
         /// 新しいタブを作成します
         /// </summary>
@@ -618,6 +644,10 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
+        #endregion
+
+        #region タブ操作
+
         /// <summary>
         /// 指定されたタブを閉じます
         /// </summary>
@@ -726,6 +756,10 @@ namespace FastExplorer.ViewModels.Pages
             tabs.Move(draggedIndex, targetIndex);
         }
 
+        #endregion
+
+        #region タブタイトル管理
+
         /// <summary>
         /// タブのタイトルを現在のパスに基づいて更新します（必要な場合のみ）
         /// </summary>
@@ -747,6 +781,10 @@ namespace FastExplorer.ViewModels.Pages
         {
             tab.Title = GetTabTitleFromPath(tab.ViewModel.CurrentPath);
         }
+
+        #endregion
+
+        #region お気に入り操作
 
         /// <summary>
         /// 現在のパスをお気に入りに追加します
@@ -773,6 +811,10 @@ namespace FastExplorer.ViewModels.Pages
             }
             _cachedMainWindowViewModel?.LoadFavorites();
         }
+
+        #endregion
+
+        #region ドライブ操作
 
         /// <summary>
         /// ドライブにナビゲートします
@@ -872,6 +914,10 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
+        #endregion
+
+        #region タブ選択変更ハンドラー
+
         /// <summary>
         /// SelectedTabが変更されたときに呼び出されます
         /// </summary>
@@ -943,6 +989,10 @@ namespace FastExplorer.ViewModels.Pages
                 System.Windows.Threading.DispatcherPriority.Background,
                 new System.Action(() => UpdateStatusBar()));
         }
+
+        #endregion
+
+        #region ステータスバー管理
 
         // ステータスバー更新のスロットリング（頻繁な更新を抑制）
         private System.Windows.Threading.DispatcherTimer? _statusBarUpdateTimer;
@@ -1029,6 +1079,10 @@ namespace FastExplorer.ViewModels.Pages
                 viewModel.StatusBarText = statusText;
             }
         }
+
+        #endregion
+
+        #region 設定管理
 
         /// <summary>
         /// 分割ペインの設定を読み込みます
@@ -1170,6 +1224,10 @@ namespace FastExplorer.ViewModels.Pages
 
             return folderName;
         }
+
+        #endregion
+
+        #region タブ複製・移動
 
         /// <summary>
         /// タブを複製します
@@ -1722,6 +1780,10 @@ namespace FastExplorer.ViewModels.Pages
             System.Diagnostics.Process.Start(processStartInfo);
         }
 
+        #endregion
+
+        #region タブ一括操作
+
         /// <summary>
         /// 指定されたタブより左のタブをすべて閉じます
         /// </summary>
@@ -1949,5 +2011,8 @@ namespace FastExplorer.ViewModels.Pages
                 SelectedTab = tab;
             }
         }
+
+        #endregion
+
     }
 }
