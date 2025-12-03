@@ -42,6 +42,12 @@ namespace FastExplorer.Views.Pages
         private Services.WindowSettingsService? _cachedWindowSettingsService;
         private Brush? _cachedUnfocusedPaneBackgroundBrush;
         private Brush? _cachedControlFillColorDefaultBrush;
+        // 前回のテーマ状態を追跡（テーマまたはテーマカラーが変更された場合のみ背景色キャッシュをクリア）
+        private bool? _lastCachedIsDark = null;
+        // 前回のテーマカラーを追跡（テーマカラーが変更された場合にキャッシュをクリア）
+        private string? _lastCachedThemeColorCode = null;
+        private string? _lastCachedSecondaryColorCode = null;
+        private string? _lastCachedThirdColorCode = null;
         // TabControlのキャッシュ（ビジュアルツリー走査を削減）
         private System.Windows.Controls.TabControl? _cachedLeftTabControl;
         private System.Windows.Controls.TabControl? _cachedRightTabControl;
@@ -342,121 +348,154 @@ namespace FastExplorer.Views.Pages
                 _cachedWindowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
             }
 
-            // 背景色のキャッシュをクリアして、最新のテーマ設定を反映する
-            // これにより、テーマが変更された場合や、初期表示時に正しい色が適用される
-            _cachedFocusedBackground = null;
-            _cachedUnfocusedBackground = null;
-            _cachedControlFillColorDefaultBrush = null;
-            _cachedUnfocusedPaneBackgroundBrush = null;
+            // 現在のテーマカラーを取得
+            string? currentThemeColorCode = null;
+            string? currentSecondaryColorCode = null;
+            string? currentThirdColorCode = null;
+            if (_cachedWindowSettingsService != null)
+            {
+                var settings = _cachedWindowSettingsService.GetSettings();
+                currentThemeColorCode = settings.ThemeColorCode;
+                currentSecondaryColorCode = settings.ThemeSecondaryColorCode;
+                currentThirdColorCode = settings.ThemeThirdColorCode;
+            }
+
+            // テーマまたはテーマカラーが変更された場合、または初期表示時のみ背景色のキャッシュをクリア
+            // 左右のリストビューをクリックしてフォーカスが移動しただけではキャッシュをクリアしない
+            // これにより、テーマカラーが消える問題を防ぐ
+            bool themeChanged = _lastCachedIsDark == null || _lastCachedIsDark.Value != isDark;
+            bool themeColorChanged = _lastCachedThemeColorCode != currentThemeColorCode ||
+                                     _lastCachedSecondaryColorCode != currentSecondaryColorCode ||
+                                     _lastCachedThirdColorCode != currentThirdColorCode;
+
+            if (themeChanged || themeColorChanged)
+            {
+                _lastCachedIsDark = isDark;
+                _lastCachedThemeColorCode = currentThemeColorCode;
+                _lastCachedSecondaryColorCode = currentSecondaryColorCode;
+                _lastCachedThirdColorCode = currentThirdColorCode;
+                _cachedFocusedBackground = null;
+                _cachedUnfocusedBackground = null;
+                _cachedControlFillColorDefaultBrush = null;
+                _cachedUnfocusedPaneBackgroundBrush = null;
+            }
 
             // フォーカスがないペインの背景色を取得（最適化：キャッシュを活用）
-            try
+            // キャッシュが既に存在する場合は再計算をスキップ（パフォーマンス向上＆テーマカラー消失防止）
+            if (_cachedUnfocusedBackground == null)
             {
-                if (isDark)
+                try
                 {
-                    // ダークモードの場合は、ダークモード用の標準カラーを優先
-                    var unfocusedPaneColor = Color.FromRgb(0x2D, 0x2D, 0x30); // #2D2D30
-                    var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
-                    unfocusedPaneBrush.Freeze();
-                    _cachedUnfocusedBackground = unfocusedPaneBrush;
-                }
-                else
-                {
-                    // ライトモードの場合は、ThirdColorCodeから取得
-                    if (_cachedWindowSettingsService != null)
+                    if (isDark)
                     {
-                        var settings = _cachedWindowSettingsService.GetSettings();
-                        var thirdColorCode = settings.ThemeThirdColorCode;
-                        if (!string.IsNullOrEmpty(thirdColorCode))
+                        // ダークモードの場合は、ダークモード用の標準カラーを優先
+                        var unfocusedPaneColor = Color.FromRgb(0x2D, 0x2D, 0x30); // #2D2D30
+                        var unfocusedPaneBrush = new SolidColorBrush(unfocusedPaneColor);
+                        unfocusedPaneBrush.Freeze();
+                        _cachedUnfocusedBackground = unfocusedPaneBrush;
+                    }
+                    else
+                    {
+                        // ライトモードの場合は、ThirdColorCodeから取得
+                        if (_cachedWindowSettingsService != null)
                         {
-                            // ThirdColorCodeが設定されている場合はそれを使用
-                            var thirdColor = Helpers.FastColorConverter.ParseHexColor(thirdColorCode);
-                            var thirdColorBrush = new SolidColorBrush(thirdColor);
-                            thirdColorBrush.Freeze();
-                            _cachedUnfocusedBackground = thirdColorBrush;
+                            var settings = _cachedWindowSettingsService.GetSettings();
+                            var thirdColorCode = settings.ThemeThirdColorCode;
+                            if (!string.IsNullOrEmpty(thirdColorCode))
+                            {
+                                // ThirdColorCodeが設定されている場合はそれを使用
+                                var thirdColor = Helpers.FastColorConverter.ParseHexColor(thirdColorCode);
+                                var thirdColorBrush = new SolidColorBrush(thirdColor);
+                                thirdColorBrush.Freeze();
+                                _cachedUnfocusedBackground = thirdColorBrush;
+                            }
+                            else
+                            {
+                                // ThirdColorCodeが設定されていない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
+                                if (_cachedUnfocusedPaneBackgroundBrush == null)
+                                {
+                                    _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
+                                }
+                                _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ??
+                                    CreateDefaultUnfocusedBrush();
+                            }
                         }
                         else
                         {
-                            // ThirdColorCodeが設定されていない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
+                            // WindowSettingsServiceが取得できない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
                             if (_cachedUnfocusedPaneBackgroundBrush == null)
                             {
                                 _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
                             }
                             _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ??
-                                (_cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush());
+                                CreateDefaultUnfocusedBrush();
                         }
-                    }
-                    else
-                    {
-                        // WindowSettingsServiceが取得できない場合はUnfocusedPaneBackgroundBrushリソースを使用（キャッシュを活用）
-                        if (_cachedUnfocusedPaneBackgroundBrush == null)
-                        {
-                            _cachedUnfocusedPaneBackgroundBrush = FindResource("UnfocusedPaneBackgroundBrush") as Brush;
-                        }
-                        _cachedUnfocusedBackground = _cachedUnfocusedPaneBackgroundBrush ??
-                            (_cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush());
                     }
                 }
-            }
-            catch
-            {
-                // エラーが発生した場合は既存のキャッシュを使用、またはデフォルト値
-                _cachedUnfocusedBackground ??= CreateDefaultUnfocusedBrush();
+                catch
+                {
+                    // エラーが発生した場合はデフォルト値を使用
+                    _cachedUnfocusedBackground = CreateDefaultUnfocusedBrush();
+                }
             }
 
             // フォーカスがあるペインの背景色を取得（最適化：キャッシュを活用）
-            try
+            // キャッシュが既に存在する場合は再計算をスキップ（パフォーマンス向上＆テーマカラー消失防止）
+            if (_cachedFocusedBackground == null)
             {
-                if (isDark)
+                try
                 {
-                    // ダークモードの場合は、ダークモード用の標準カラーを優先
-                    var focusedPaneColor = Color.FromRgb(0x25, 0x25, 0x26); // #252526
-                    var focusedPaneBrush = new SolidColorBrush(focusedPaneColor);
-                    focusedPaneBrush.Freeze();
-                    _cachedFocusedBackground = focusedPaneBrush;
-                }
-                else
-                {
-                    // ライトモードの場合は、SecondaryColorCodeから取得
-                    if (_cachedWindowSettingsService != null)
+                    if (isDark)
                     {
-                        var settings = _cachedWindowSettingsService.GetSettings();
-                        var secondaryColorCode = settings.ThemeSecondaryColorCode;
-                        if (!string.IsNullOrEmpty(secondaryColorCode))
+                        // ダークモードの場合は、ダークモード用の標準カラーを優先
+                        var focusedPaneColor = Color.FromRgb(0x25, 0x25, 0x26); // #252526
+                        var focusedPaneBrush = new SolidColorBrush(focusedPaneColor);
+                        focusedPaneBrush.Freeze();
+                        _cachedFocusedBackground = focusedPaneBrush;
+                    }
+                    else
+                    {
+                        // ライトモードの場合は、SecondaryColorCodeから取得
+                        if (_cachedWindowSettingsService != null)
                         {
-                            // SecondaryColorCodeが設定されている場合はそれを使用
-                            var secondaryColor = Helpers.FastColorConverter.ParseHexColor(secondaryColorCode);
-                            var secondaryColorBrush = new SolidColorBrush(secondaryColor);
-                            secondaryColorBrush.Freeze();
-                            _cachedFocusedBackground = secondaryColorBrush;
+                            var settings = _cachedWindowSettingsService.GetSettings();
+                            var secondaryColorCode = settings.ThemeSecondaryColorCode;
+                            if (!string.IsNullOrEmpty(secondaryColorCode))
+                            {
+                                // SecondaryColorCodeが設定されている場合はそれを使用
+                                var secondaryColor = Helpers.FastColorConverter.ParseHexColor(secondaryColorCode);
+                                var secondaryColorBrush = new SolidColorBrush(secondaryColor);
+                                secondaryColorBrush.Freeze();
+                                _cachedFocusedBackground = secondaryColorBrush;
+                            }
+                            else
+                            {
+                                // SecondaryColorCodeが設定されていない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
+                                if (_cachedControlFillColorDefaultBrush == null)
+                                {
+                                    _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
+                                }
+                                _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ??
+                                    CreateDefaultFocusedBrush();
+                            }
                         }
                         else
                         {
-                            // SecondaryColorCodeが設定されていない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
+                            // WindowSettingsServiceが取得できない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
                             if (_cachedControlFillColorDefaultBrush == null)
                             {
                                 _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
                             }
                             _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ??
-                                (_cachedFocusedBackground ??= CreateDefaultFocusedBrush());
+                                CreateDefaultFocusedBrush();
                         }
-                    }
-                    else
-                    {
-                        // WindowSettingsServiceが取得できない場合はControlFillColorDefaultBrushリソースを使用（キャッシュを活用）
-                        if (_cachedControlFillColorDefaultBrush == null)
-                        {
-                            _cachedControlFillColorDefaultBrush = FindResource("ControlFillColorDefaultBrush") as Brush;
-                        }
-                        _cachedFocusedBackground = _cachedControlFillColorDefaultBrush ??
-                            (_cachedFocusedBackground ??= CreateDefaultFocusedBrush());
                     }
                 }
-            }
-            catch
-            {
-                // エラーが発生した場合は既存のキャッシュを使用、またはデフォルト値
-                _cachedFocusedBackground ??= CreateDefaultFocusedBrush();
+                catch
+                {
+                    // エラーが発生した場合はデフォルト値を使用
+                    _cachedFocusedBackground = CreateDefaultFocusedBrush();
+                }
             }
 
             // ViewModelプロパティをキャッシュ（パフォーマンス向上）
