@@ -227,6 +227,50 @@ namespace FastExplorer.Services
 
         #endregion
 
+        #region 削除操作
+
+        /// <summary>
+        /// ファイルまたはフォルダーをゴミ箱に移動します
+        /// </summary>
+        /// <param name="path">削除するファイルまたはフォルダーのパス</param>
+        /// <returns>削除に成功した場合はtrue、それ以外の場合はfalse</returns>
+        public bool DeleteToRecycleBin(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return false;
+
+            try
+            {
+                // Microsoft.VisualBasic.FileIO.FileSystemを使用してゴミ箱に移動
+                if (File.Exists(path))
+                {
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
+                        path,
+                        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                }
+                else if (Directory.Exists(path))
+                {
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(
+                        path,
+                        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                }
+                else
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        #endregion
+
     }
 }
 

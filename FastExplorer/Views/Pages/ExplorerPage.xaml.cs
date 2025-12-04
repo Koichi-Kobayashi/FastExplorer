@@ -1,25 +1,20 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Threading.Tasks;
-using System.Windows;
+using System.Runtime.InteropServices;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Runtime.InteropServices;
-using FastExplorer.ViewModels.Pages;
-using FastExplorer.Services;
+using Cysharp.Text;
 using FastExplorer.Models;
-using FastExplorer.Helpers;
-using FastExplorer.ShellContextMenu;
+using FastExplorer.Services;
+using FastExplorer.ViewModels.Pages;
 using Wpf.Ui.Abstractions.Controls;
-using Wpf.Ui.Controls;
 using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
+using Button = Wpf.Ui.Controls.Button;
 using ListView = Wpf.Ui.Controls.ListView;
 using ListViewItem = Wpf.Ui.Controls.ListViewItem;
-using Button = Wpf.Ui.Controls.Button;
 using TextBlock = Wpf.Ui.Controls.TextBlock;
 
 namespace FastExplorer.Views.Pages
@@ -1280,6 +1275,14 @@ namespace FastExplorer.Views.Pages
                 return;
             }
 
+            // Deleteキーで削除確認ダイアログを表示
+            if (e.Key == Key.Delete)
+            {
+                HandleDeleteKey(listView);
+                e.Handled = true;
+                return;
+            }
+
             if (e.Key != Key.Back)
                 return;
             if (listView == null)
@@ -1317,6 +1320,109 @@ namespace FastExplorer.Views.Pages
             {
                 targetTab.ViewModel.NavigateToParentCommand.Execute(null);
                 e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// Deleteキーが押されたときの処理を行います
+        /// </summary>
+        /// <param name="listView">対象のListView</param>
+        private async void HandleDeleteKey(System.Windows.Controls.ListView listView)
+        {
+            Models.ExplorerTab? targetTab = null;
+
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                // 分割ペインモードの場合、フォーカスがあるListViewがどのペインに属しているかを判定
+                var pane = GetPaneForElement(listView);
+                if (pane == 0)
+                {
+                    // 左ペイン
+                    targetTab = ViewModel.SelectedLeftPaneTab;
+                }
+                else if (pane == 2)
+                {
+                    // 右ペイン
+                    targetTab = ViewModel.SelectedRightPaneTab;
+                }
+                else
+                {
+                    // 判定できない場合は、GetActiveTab()を使用
+                    targetTab = GetActiveTab();
+                }
+            }
+            else
+            {
+                // 通常モード
+                targetTab = ViewModel.SelectedTab;
+            }
+
+            if (targetTab?.ViewModel == null)
+                return;
+
+            var selectedItem = targetTab.ViewModel.SelectedItem;
+            if (selectedItem == null)
+                return;
+
+            // ホームページの場合は削除しない
+            if (targetTab.ViewModel.IsHomePage)
+                return;
+
+            // 削除確認ダイアログを表示
+            var itemName = selectedItem.Name;
+            // ZString を使って文字列を構築（メモリアロケーションを削減）
+            var message = ZString.Concat("「", itemName, "」を削除しますか？").ToString();
+            
+            // Ownerウィンドウをアクティブにしてからメッセージボックスを表示
+            var ownerWindow = Window.GetWindow(this);
+            if (ownerWindow != null)
+            {
+                ownerWindow.Activate();
+            }
+            
+            var messageBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "削除の確認",
+                Content = message,
+                PrimaryButtonText = "はい",
+                CloseButtonText = "いいえ",
+                Owner = ownerWindow
+            };
+
+            var result = await messageBox.ShowDialogAsync();
+
+            if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
+            {
+                // ゴミ箱に移動
+                var fileSystemService = App.Services.GetService(typeof(Services.FileSystemService)) as Services.FileSystemService;
+                if (fileSystemService != null)
+                {
+                    var success = fileSystemService.DeleteToRecycleBin(selectedItem.FullPath);
+                    if (success)
+                    {
+                        // 削除成功後、リストを更新
+                        targetTab.ViewModel.RefreshCommand.Execute(null);
+                    }
+                    else
+                    {
+                        // Ownerウィンドウをアクティブにしてからエラーメッセージボックスを表示
+                        var errorOwnerWindow = Window.GetWindow(this);
+                        if (errorOwnerWindow != null)
+                        {
+                            errorOwnerWindow.Activate();
+                        }
+                        
+                        var errorMessageBox = new Wpf.Ui.Controls.MessageBox
+                        {
+                            Title = "エラー",
+                            Content = "削除に失敗しました。",
+                            CloseButtonText = "OK",
+                            Owner = errorOwnerWindow
+                        };
+
+                        await errorMessageBox.ShowDialogAsync();
+                    }
+                }
             }
         }
 
