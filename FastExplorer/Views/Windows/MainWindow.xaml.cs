@@ -903,6 +903,60 @@ namespace FastExplorer.Views.Windows
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">キーイベント引数</param>
+        /// <summary>
+        /// PreviewKeyDownイベントハンドラー（F5キーを処理）
+        /// </summary>
+        private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // F5キーでListViewを最新化
+            if (e.Key == Key.F5)
+            {
+                // テキストボックスやエディットコントロールにフォーカスがある場合は処理しない
+                var source = e.OriginalSource;
+                if (source is System.Windows.Controls.TextBox or 
+                    System.Windows.Controls.RichTextBox)
+                {
+                    return;
+                }
+
+                // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+                if (_cachedExplorerPageViewModel == null)
+                {
+                    _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                }
+
+                if (_cachedExplorerPageViewModel != null)
+                {
+                    if (_cachedExplorerPageViewModel.IsSplitPaneEnabled)
+                    {
+                        // 分割ペインモードの場合、左右両方のペインをリフレッシュ
+                        var leftTab = _cachedExplorerPageViewModel.SelectedLeftPaneTab;
+                        var rightTab = _cachedExplorerPageViewModel.SelectedRightPaneTab;
+
+                        if (leftTab?.ViewModel != null)
+                        {
+                            leftTab.ViewModel.RefreshCommand.Execute(null);
+                        }
+
+                        if (rightTab?.ViewModel != null)
+                        {
+                            rightTab.ViewModel.RefreshCommand.Execute(null);
+                        }
+                    }
+                    else
+                    {
+                        // 通常モード
+                        var targetTab = _cachedExplorerPageViewModel.SelectedTab;
+                        if (targetTab?.ViewModel != null)
+                        {
+                            targetTab.ViewModel.RefreshCommand.Execute(null);
+                        }
+                    }
+                }
+                e.Handled = true;
+            }
+        }
+
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
             // Ctrl+Zが押された場合、Undo操作を実行

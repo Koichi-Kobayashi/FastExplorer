@@ -19,6 +19,7 @@
     ExtendsContentIntoTitleBar="True"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     KeyDown="MainWindow_KeyDown"
+    PreviewKeyDown="MainWindow_PreviewKeyDown"
     RenderOptions.ClearTypeHint="Enabled"
     SnapsToDevicePixels="True"
     UseLayoutRounding="True"

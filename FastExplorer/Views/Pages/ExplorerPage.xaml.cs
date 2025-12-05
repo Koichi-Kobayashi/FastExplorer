@@ -1264,6 +1264,48 @@ namespace FastExplorer.Views.Pages
         }
 
         /// <summary>
+        /// UserControlレベルでキーが押されたときに呼び出されます（F5キーを処理）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">キーイベント引数</param>
+        private void ExplorerPage_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // F5キーでListViewを最新化
+            if (e.Key == Key.F5)
+            {
+                if (ViewModel.IsSplitPaneEnabled)
+                {
+                    // 分割ペインモードの場合、左右両方のペインをリフレッシュ
+                    var leftTab = ViewModel.SelectedLeftPaneTab;
+                    var rightTab = ViewModel.SelectedRightPaneTab;
+
+                    if (leftTab?.ViewModel != null)
+                    {
+                        leftTab.ViewModel.RefreshCommand.Execute(null);
+                    }
+
+                    if (rightTab?.ViewModel != null)
+                    {
+                        rightTab.ViewModel.RefreshCommand.Execute(null);
+                    }
+
+                    e.Handled = true;
+                }
+                else
+                {
+                    // 通常モード
+                    var targetTab = ViewModel.SelectedTab;
+                    if (targetTab?.ViewModel != null)
+                    {
+                        // RefreshCommandを実行
+                        targetTab.ViewModel.RefreshCommand.Execute(null);
+                        e.Handled = true;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// リストビューでキーが押されたときに呼び出されます
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
@@ -1286,6 +1328,39 @@ namespace FastExplorer.Views.Pages
             if (e.Key == Key.Delete)
             {
                 HandleDeleteKey(listView);
+                e.Handled = true;
+                return;
+            }
+
+            // F5キーでListViewを最新化
+            if (e.Key == Key.F5)
+            {
+                if (ViewModel.IsSplitPaneEnabled)
+                {
+                    // 分割ペインモードの場合、左右両方のペインをリフレッシュ
+                    var leftTab = ViewModel.SelectedLeftPaneTab;
+                    var rightTab = ViewModel.SelectedRightPaneTab;
+
+                    if (leftTab?.ViewModel != null)
+                    {
+                        leftTab.ViewModel.RefreshCommand.Execute(null);
+                    }
+
+                    if (rightTab?.ViewModel != null)
+                    {
+                        rightTab.ViewModel.RefreshCommand.Execute(null);
+                    }
+                }
+                else
+                {
+                    // 通常モード
+                    var targetTab = ViewModel.SelectedTab;
+                    if (targetTab?.ViewModel != null)
+                    {
+                        // RefreshCommandを実行
+                        targetTab.ViewModel.RefreshCommand.Execute(null);
+                    }
+                }
                 e.Handled = true;
                 return;
             }
