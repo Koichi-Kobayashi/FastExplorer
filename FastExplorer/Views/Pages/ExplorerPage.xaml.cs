@@ -4127,6 +4127,14 @@ namespace FastExplorer.Views.Pages
                 {
                     UpdateTabPathsAfterRename(oldPath, newPath, renamingTab, paneToRestore);
                 }
+                else
+                {
+                    // ファイル名を変更した場合、同じ親ディレクトリを開いているすべてのタブを更新
+                    if (renamingTab != null)
+                    {
+                        RefreshTabsInSameDirectory(renamingTab);
+                    }
+                }
 
                 // リネームを開始したタブをリフレッシュ（アクティブペーンを保持）
                 // パス更新の後に実行して、バックスペースの反応を改善

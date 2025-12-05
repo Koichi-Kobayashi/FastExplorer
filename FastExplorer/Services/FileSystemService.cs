@@ -227,6 +227,65 @@ namespace FastExplorer.Services
 
         #endregion
 
+        #region リネーム操作
+
+        /// <summary>
+        /// ファイルまたはフォルダーをリネームします
+        /// </summary>
+        /// <param name="oldPath">リネーム前のパス</param>
+        /// <param name="newName">新しい名前</param>
+        /// <returns>リネームに成功した場合はtrue、それ以外の場合はfalse</returns>
+        public bool RenameItem(string oldPath, string newName)
+        {
+            if (string.IsNullOrEmpty(oldPath) || string.IsNullOrEmpty(newName))
+                return false;
+
+            try
+            {
+                // 新しい名前が無効な文字を含んでいる場合はエラー
+                if (newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    return false;
+
+                // 親ディレクトリのパスを取得
+                var parentDirectory = Path.GetDirectoryName(oldPath);
+                if (string.IsNullOrEmpty(parentDirectory))
+                    return false;
+
+                // 新しいパスを構築
+                var newPath = Path.Combine(parentDirectory, newName);
+
+                // 同じパスの場合は何もしない
+                if (string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                // 移動先に既に同じ名前のファイル/フォルダーが存在する場合はエラー
+                if (File.Exists(newPath) || Directory.Exists(newPath))
+                    return false;
+
+                // ファイルまたはディレクトリをリネーム
+                if (File.Exists(oldPath))
+                {
+                    File.Move(oldPath, newPath);
+                }
+                else if (Directory.Exists(oldPath))
+                {
+                    Directory.Move(oldPath, newPath);
+                }
+                else
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        #endregion
+
         #region 削除操作
 
         /// <summary>
