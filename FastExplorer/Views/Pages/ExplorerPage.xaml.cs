@@ -68,6 +68,9 @@ namespace FastExplorer.Views.Pages
         private Models.ExplorerTab? _previousSelectedLeftPaneTab = null;
         private Models.ExplorerTab? _previousSelectedRightPaneTab = null;
 
+        // UndoRedoService
+        private readonly Services.UndoRedoService? _undoRedoService;
+
         #endregion
 
         #region コンストラクタ
@@ -80,6 +83,9 @@ namespace FastExplorer.Views.Pages
         {
             ViewModel = viewModel;
             DataContext = this;
+
+            // UndoRedoServiceを取得
+            _undoRedoService = App.Services.GetService(typeof(Services.UndoRedoService)) as Services.UndoRedoService;
 
             InitializeComponent();
 
@@ -1284,12 +1290,149 @@ namespace FastExplorer.Views.Pages
                 return;
             }
 
+            // Ctrl+Zが押された場合、Undo操作を実行
+            if (e.Key == Key.Z && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                // テキストボックスにフォーカスがある場合は処理しない
+                var source = e.OriginalSource;
+                if (source is System.Windows.Controls.TextBox or 
+                    System.Windows.Controls.RichTextBox)
+                {
+                    return;
+                }
+
+                // UndoRedoServiceを取得
+                if (_undoRedoService != null && _undoRedoService.CanUndo)
+                {
+                    System.Diagnostics.Debug.WriteLine("[Undo] Ctrl+Zが押されました。Undo操作を実行します。");
+                    try
+                    {
+                        // Undo操作を実行
+                        var undoResult = _undoRedoService.Undo();
+                        System.Diagnostics.Debug.WriteLine($"[Undo] Undo操作の結果: {undoResult}");
+                        if (undoResult)
+                        {
+                            // 成功した場合、現在のタブをリフレッシュ
+                            Models.ExplorerTab? targetTab = null;
+
+                            if (ViewModel.IsSplitPaneEnabled)
+                            {
+                                // 分割ペインモードの場合、フォーカスがあるListViewがどのペインに属しているかを判定
+                                var pane = GetPaneForElement(listView);
+                                if (pane == 0)
+                                {
+                                    // 左ペイン
+                                    targetTab = ViewModel.SelectedLeftPaneTab;
+                                }
+                                else if (pane == 2)
+                                {
+                                    // 右ペイン
+                                    targetTab = ViewModel.SelectedRightPaneTab;
+                                }
+                                else
+                                {
+                                    // 判定できない場合は、GetActiveTab()を使用
+                                    targetTab = GetActiveTab();
+                                }
+                            }
+                            else
+                            {
+                                // 通常モード
+                                targetTab = ViewModel.SelectedTab;
+                            }
+
+                            if (targetTab != null)
+                            {
+                                targetTab.ViewModel.RefreshCommand.Execute(null);
+                            }
+                            e.Handled = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Undo操作で例外が発生した場合は何もしない
+                        System.Diagnostics.Debug.WriteLine($"[Undo] Undo操作で例外が発生しました: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[Undo] スタックトレース: {ex.StackTrace}");
+                        e.Handled = true;
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Undo] _undoRedoServiceがnullまたはCanUndoがfalseです。_undoRedoService: {_undoRedoService != null}, CanUndo: {_undoRedoService?.CanUndo}");
+                }
+                return;
+            }
+
+            // Ctrl+Yが押された場合、Redo操作を実行
+            if (e.Key == Key.Y && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                // テキストボックスにフォーカスがある場合は処理しない
+                var source = e.OriginalSource;
+                if (source is System.Windows.Controls.TextBox or 
+                    System.Windows.Controls.RichTextBox)
+                {
+                    return;
+                }
+
+                // UndoRedoServiceを取得
+                if (_undoRedoService != null && _undoRedoService.CanRedo)
+                {
+                    try
+                    {
+                        // Redo操作を実行
+                        if (_undoRedoService.Redo())
+                        {
+                            // 成功した場合、現在のタブをリフレッシュ
+                            Models.ExplorerTab? targetTab = null;
+
+                            if (ViewModel.IsSplitPaneEnabled)
+                            {
+                                // 分割ペインモードの場合、フォーカスがあるListViewがどのペインに属しているかを判定
+                                var pane = GetPaneForElement(listView);
+                                if (pane == 0)
+                                {
+                                    // 左ペイン
+                                    targetTab = ViewModel.SelectedLeftPaneTab;
+                                }
+                                else if (pane == 2)
+                                {
+                                    // 右ペイン
+                                    targetTab = ViewModel.SelectedRightPaneTab;
+                                }
+                                else
+                                {
+                                    // 判定できない場合は、GetActiveTab()を使用
+                                    targetTab = GetActiveTab();
+                                }
+                            }
+                            else
+                            {
+                                // 通常モード
+                                targetTab = ViewModel.SelectedTab;
+                            }
+
+                            if (targetTab != null)
+                            {
+                                targetTab.ViewModel.RefreshCommand.Execute(null);
+                            }
+                            e.Handled = true;
+                        }
+                    }
+                    catch
+                    {
+                        // Redo操作で例外が発生した場合は何もしない
+                        e.Handled = true;
+                    }
+                }
+                return;
+            }
+
             if (e.Key != Key.Back)
                 return;
             if (listView == null)
                 return;
 
-            Models.ExplorerTab? targetTab = null;
+            Models.ExplorerTab? targetTab2 = null;
 
             if (ViewModel.IsSplitPaneEnabled)
             {
@@ -1298,28 +1441,28 @@ namespace FastExplorer.Views.Pages
                 if (pane == 0)
                 {
                     // 左ペイン
-                    targetTab = ViewModel.SelectedLeftPaneTab;
+                    targetTab2 = ViewModel.SelectedLeftPaneTab;
                 }
                 else if (pane == 2)
                 {
                     // 右ペイン
-                    targetTab = ViewModel.SelectedRightPaneTab;
+                    targetTab2 = ViewModel.SelectedRightPaneTab;
                 }
                 else
                 {
                     // 判定できない場合は、GetActiveTab()を使用
-                    targetTab = GetActiveTab();
+                    targetTab2 = GetActiveTab();
                 }
             }
             else
             {
                 // 通常モード
-                targetTab = ViewModel.SelectedTab;
+                targetTab2 = ViewModel.SelectedTab;
             }
 
-            if (targetTab != null)
+            if (targetTab2 != null)
             {
-                targetTab.ViewModel.NavigateToParentCommand.Execute(null);
+                targetTab2.ViewModel.NavigateToParentCommand.Execute(null);
                 e.Handled = true;
             }
         }
@@ -1401,6 +1544,20 @@ namespace FastExplorer.Views.Pages
                     var success = fileSystemService.DeleteToRecycleBin(selectedItem.FullPath);
                     if (success)
                     {
+                        // Undo/Redo操作を記録
+                        if (_undoRedoService != null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[DeleteOperation] 削除操作を記録: {selectedItem.FullPath}, IsDirectory: {selectedItem.IsDirectory}");
+                            var recycleBinService = App.Services.GetService(typeof(Services.RecycleBinService)) as Services.RecycleBinService;
+                            var deleteOperation = new Models.DeleteOperation(selectedItem.FullPath, selectedItem.IsDirectory, recycleBinService);
+                            _undoRedoService.AddOperation(deleteOperation);
+                            System.Diagnostics.Debug.WriteLine($"[DeleteOperation] 削除操作を記録完了: {selectedItem.FullPath}");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("[DeleteOperation] _undoRedoServiceがnullです");
+                        }
+
                         // 削除成功後、リストを更新
                         targetTab.ViewModel.RefreshCommand.Execute(null);
                     }
@@ -3962,6 +4119,13 @@ namespace FastExplorer.Views.Pages
                 else
                 {
                     System.IO.File.Move(oldPath, newPath);
+                }
+
+                // Undo/Redo操作を記録
+                if (_undoRedoService != null)
+                {
+                    var renameOperation = new Models.RenameOperation(oldPath, newPath, isDirectory);
+                    _undoRedoService.AddOperation(renameOperation);
                 }
 
                 // リネーム開始前のアクティブペーンを保存

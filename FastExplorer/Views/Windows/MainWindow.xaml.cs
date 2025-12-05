@@ -905,13 +905,170 @@ namespace FastExplorer.Views.Windows
         /// <param name="e">キーイベント引数</param>
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
+            // Ctrl+Zが押された場合、Undo操作を実行
+            if (e.Key == Key.Z && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                // テキストボックスやエディットコントロールにフォーカスがある場合は処理しない
+                var source = e.OriginalSource;
+                if (source is System.Windows.Controls.TextBox or 
+                    System.Windows.Controls.RichTextBox)
+                {
+                    return;
+                }
+
+                // UndoRedoServiceを取得
+                var undoRedoService = App.Services.GetService(typeof(Services.UndoRedoService)) as Services.UndoRedoService;
+                if (undoRedoService != null && undoRedoService.CanUndo)
+                {
+                    System.Diagnostics.Debug.WriteLine("[Undo] Ctrl+Zが押されました（MainWindow）。Undo操作を実行します。");
+                    try
+                    {
+                        // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+                        if (_cachedExplorerPageViewModel == null)
+                        {
+                            _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                        }
+
+                        // Undo操作を実行
+                        var undoResult = undoRedoService.Undo();
+                        System.Diagnostics.Debug.WriteLine($"[Undo] Undo操作の結果（MainWindow）: {undoResult}");
+                        if (undoResult)
+                        {
+                            // 成功した場合、現在のタブをリフレッシュ
+                            if (_cachedExplorerPageViewModel != null)
+                            {
+                                ViewModels.Pages.ExplorerViewModel? targetViewModel = null;
+                                
+                                if (_cachedExplorerPageViewModel.IsSplitPaneEnabled)
+                                {
+                                    // アクティブなペインのタブを取得
+                                    var activePane = _cachedExplorerPageViewModel.ActivePane;
+                                    if (activePane == 0) // 左ペイン
+                                    {
+                                        targetViewModel = _cachedExplorerPageViewModel.SelectedLeftPaneTab?.ViewModel;
+                                    }
+                                    else if (activePane == 2) // 右ペイン
+                                    {
+                                        targetViewModel = _cachedExplorerPageViewModel.SelectedRightPaneTab?.ViewModel;
+                                    }
+                                    else
+                                    {
+                                        // アクティブペインが設定されていない場合は、左ペインを優先
+                                        targetViewModel = _cachedExplorerPageViewModel.SelectedLeftPaneTab?.ViewModel 
+                                            ?? _cachedExplorerPageViewModel.SelectedRightPaneTab?.ViewModel;
+                                    }
+                                }
+                                else
+                                {
+                                    // 通常モード
+                                    targetViewModel = _cachedExplorerPageViewModel.SelectedTab?.ViewModel;
+                                }
+
+                                if (targetViewModel != null)
+                                {
+                                    targetViewModel.RefreshCommand.Execute(null);
+                                }
+                            }
+                            e.Handled = true;
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Undo操作で例外が発生した場合は何もしない
+                        System.Diagnostics.Debug.WriteLine($"[Undo] Undo操作で例外が発生しました（MainWindow）: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"[Undo] スタックトレース: {ex.StackTrace}");
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Undo] undoRedoServiceがnullまたはCanUndoがfalseです（MainWindow）。undoRedoService: {undoRedoService != null}, CanUndo: {undoRedoService?.CanUndo}");
+                }
+            }
+
+            // Ctrl+Yが押された場合、Redo操作を実行
+            if (e.Key == Key.Y && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                // テキストボックスやエディットコントロールにフォーカスがある場合は処理しない
+                var source = e.OriginalSource;
+                if (source is System.Windows.Controls.TextBox or 
+                    System.Windows.Controls.RichTextBox)
+                {
+                    return;
+                }
+
+                // UndoRedoServiceを取得
+                var undoRedoService = App.Services.GetService(typeof(Services.UndoRedoService)) as Services.UndoRedoService;
+                if (undoRedoService != null && undoRedoService.CanRedo)
+                {
+                    try
+                    {
+                        // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
+                        if (_cachedExplorerPageViewModel == null)
+                        {
+                            _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
+                        }
+
+                        // Redo操作を実行
+                        if (undoRedoService.Redo())
+                        {
+                            // 成功した場合、現在のタブをリフレッシュ
+                            if (_cachedExplorerPageViewModel != null)
+                            {
+                                ViewModels.Pages.ExplorerViewModel? targetViewModel = null;
+                                
+                                if (_cachedExplorerPageViewModel.IsSplitPaneEnabled)
+                                {
+                                    // アクティブなペインのタブを取得
+                                    var activePane = _cachedExplorerPageViewModel.ActivePane;
+                                    if (activePane == 0) // 左ペイン
+                                    {
+                                        targetViewModel = _cachedExplorerPageViewModel.SelectedLeftPaneTab?.ViewModel;
+                                    }
+                                    else if (activePane == 2) // 右ペイン
+                                    {
+                                        targetViewModel = _cachedExplorerPageViewModel.SelectedRightPaneTab?.ViewModel;
+                                    }
+                                    else
+                                    {
+                                        // アクティブペインが設定されていない場合は、左ペインを優先
+                                        targetViewModel = _cachedExplorerPageViewModel.SelectedLeftPaneTab?.ViewModel 
+                                            ?? _cachedExplorerPageViewModel.SelectedRightPaneTab?.ViewModel;
+                                    }
+                                }
+                                else
+                                {
+                                    // 通常モード
+                                    targetViewModel = _cachedExplorerPageViewModel.SelectedTab?.ViewModel;
+                                }
+
+                                if (targetViewModel != null)
+                                {
+                                    targetViewModel.RefreshCommand.Execute(null);
+                                }
+                            }
+                            e.Handled = true;
+                            return;
+                        }
+                    }
+                    catch
+                    {
+                        // Redo操作で例外が発生した場合は何もしない
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+
             // バックスペースキーが押された場合、戻るボタンと同じ動作をする
             if (e.Key != Key.Back)
                 return;
 
             // テキストボックスやエディットコントロールにフォーカスがある場合は処理しない（switch式で高速化）
-            var source = e.OriginalSource;
-            if (source is System.Windows.Controls.TextBox or 
+            var source2 = e.OriginalSource;
+            if (source2 is System.Windows.Controls.TextBox or 
                 System.Windows.Controls.TextBlock or 
                 System.Windows.Controls.RichTextBox)
             {

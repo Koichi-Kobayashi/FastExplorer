@@ -70,6 +70,12 @@ namespace FastExplorer
                 // WindowSettingsService
                 services.AddSingleton<Services.WindowSettingsService>();
 
+                // UndoRedoService
+                services.AddSingleton<Services.UndoRedoService>();
+
+                // RecycleBinService
+                services.AddSingleton<Services.RecycleBinService>();
+
                 services.AddSingleton<Views.Pages.ExplorerPage>();
                 services.AddSingleton<ViewModels.Pages.ExplorerPageViewModel>();
                 services.AddSingleton<SettingsPage>();
