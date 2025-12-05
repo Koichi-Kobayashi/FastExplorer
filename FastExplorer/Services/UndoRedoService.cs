@@ -29,12 +29,8 @@ namespace FastExplorer.Services
         public void AddOperation(IUndoableOperation operation)
         {
             if (operation == null)
-            {
-                System.Diagnostics.Debug.WriteLine("[UndoRedoService] AddOperation: operationがnullです");
                 return;
-            }
 
-            System.Diagnostics.Debug.WriteLine($"[UndoRedoService] AddOperation: {operation.Description} を追加します。現在のスタックサイズ: {_undoStack.Count}");
             _undoStack.Push(operation);
 
             // 履歴が最大数を超えた場合、古い操作を削除
@@ -54,7 +50,6 @@ namespace FastExplorer.Services
 
             // 新しい操作が追加されたら、Redoスタックをクリア
             _redoStack.Clear();
-            System.Diagnostics.Debug.WriteLine($"[UndoRedoService] AddOperation完了。スタックサイズ: {_undoStack.Count}");
         }
 
         /// <summary>
@@ -64,36 +59,26 @@ namespace FastExplorer.Services
         public bool Undo()
         {
             if (!CanUndo)
-            {
-                System.Diagnostics.Debug.WriteLine("[UndoRedoService] Undo: CanUndoがfalseです。スタックサイズ: {_undoStack.Count}");
                 return false;
-            }
 
             var operation = _undoStack.Pop();
-            System.Diagnostics.Debug.WriteLine($"[UndoRedoService] Undo: {operation.Description} をUndoします。残りのスタックサイズ: {_undoStack.Count}");
             try
             {
-                var undoResult = operation.Undo();
-                System.Diagnostics.Debug.WriteLine($"[UndoRedoService] Undo: {operation.Description} のUndo結果: {undoResult}");
-                if (undoResult)
+                if (operation.Undo())
                 {
                     _redoStack.Push(operation);
-                    System.Diagnostics.Debug.WriteLine($"[UndoRedoService] Undo成功。Redoスタックサイズ: {_redoStack.Count}");
                     return true;
                 }
                 else
                 {
                     // Undoに失敗した場合はスタックに戻す
                     _undoStack.Push(operation);
-                    System.Diagnostics.Debug.WriteLine($"[UndoRedoService] Undo失敗。スタックに戻しました。スタックサイズ: {_undoStack.Count}");
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch
             {
                 // 例外が発生した場合はスタックに戻さず、操作を破棄
-                System.Diagnostics.Debug.WriteLine($"[UndoRedoService] Undoで例外が発生しました: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[UndoRedoService] スタックトレース: {ex.StackTrace}");
                 return false;
             }
         }

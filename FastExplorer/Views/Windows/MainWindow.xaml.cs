@@ -920,7 +920,6 @@ namespace FastExplorer.Views.Windows
                 var undoRedoService = App.Services.GetService(typeof(Services.UndoRedoService)) as Services.UndoRedoService;
                 if (undoRedoService != null && undoRedoService.CanUndo)
                 {
-                    System.Diagnostics.Debug.WriteLine("[Undo] Ctrl+Zが押されました（MainWindow）。Undo操作を実行します。");
                     try
                     {
                         // ViewModelをキャッシュから取得（なければ取得してキャッシュ）
@@ -930,9 +929,7 @@ namespace FastExplorer.Views.Windows
                         }
 
                         // Undo操作を実行
-                        var undoResult = undoRedoService.Undo();
-                        System.Diagnostics.Debug.WriteLine($"[Undo] Undo操作の結果（MainWindow）: {undoResult}");
-                        if (undoResult)
+                        if (undoRedoService.Undo())
                         {
                             // 成功した場合、現在のタブをリフレッシュ
                             if (_cachedExplorerPageViewModel != null)
@@ -973,18 +970,12 @@ namespace FastExplorer.Views.Windows
                             return;
                         }
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         // Undo操作で例外が発生した場合は何もしない
-                        System.Diagnostics.Debug.WriteLine($"[Undo] Undo操作で例外が発生しました（MainWindow）: {ex.Message}");
-                        System.Diagnostics.Debug.WriteLine($"[Undo] スタックトレース: {ex.StackTrace}");
                         e.Handled = true;
                         return;
                     }
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[Undo] undoRedoServiceがnullまたはCanUndoがfalseです（MainWindow）。undoRedoService: {undoRedoService != null}, CanUndo: {undoRedoService?.CanUndo}");
                 }
             }
 

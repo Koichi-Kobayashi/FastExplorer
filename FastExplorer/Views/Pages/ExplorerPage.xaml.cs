@@ -1304,13 +1304,10 @@ namespace FastExplorer.Views.Pages
                 // UndoRedoServiceを取得
                 if (_undoRedoService != null && _undoRedoService.CanUndo)
                 {
-                    System.Diagnostics.Debug.WriteLine("[Undo] Ctrl+Zが押されました。Undo操作を実行します。");
                     try
                     {
                         // Undo操作を実行
-                        var undoResult = _undoRedoService.Undo();
-                        System.Diagnostics.Debug.WriteLine($"[Undo] Undo操作の結果: {undoResult}");
-                        if (undoResult)
+                        if (_undoRedoService.Undo())
                         {
                             // 成功した場合、現在のタブをリフレッシュ
                             Models.ExplorerTab? targetTab = null;
@@ -1348,17 +1345,11 @@ namespace FastExplorer.Views.Pages
                             e.Handled = true;
                         }
                     }
-                    catch (Exception ex)
+                    catch
                     {
                         // Undo操作で例外が発生した場合は何もしない
-                        System.Diagnostics.Debug.WriteLine($"[Undo] Undo操作で例外が発生しました: {ex.Message}");
-                        System.Diagnostics.Debug.WriteLine($"[Undo] スタックトレース: {ex.StackTrace}");
                         e.Handled = true;
                     }
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[Undo] _undoRedoServiceがnullまたはCanUndoがfalseです。_undoRedoService: {_undoRedoService != null}, CanUndo: {_undoRedoService?.CanUndo}");
                 }
                 return;
             }
@@ -1547,15 +1538,9 @@ namespace FastExplorer.Views.Pages
                         // Undo/Redo操作を記録
                         if (_undoRedoService != null)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[DeleteOperation] 削除操作を記録: {selectedItem.FullPath}, IsDirectory: {selectedItem.IsDirectory}");
                             var recycleBinService = App.Services.GetService(typeof(Services.RecycleBinService)) as Services.RecycleBinService;
                             var deleteOperation = new Models.DeleteOperation(selectedItem.FullPath, selectedItem.IsDirectory, recycleBinService);
                             _undoRedoService.AddOperation(deleteOperation);
-                            System.Diagnostics.Debug.WriteLine($"[DeleteOperation] 削除操作を記録完了: {selectedItem.FullPath}");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine("[DeleteOperation] _undoRedoServiceがnullです");
                         }
 
                         // 削除成功後、リストを更新

@@ -40,42 +40,21 @@ namespace FastExplorer.Models
         /// <returns>Undoに成功した場合はtrue、それ以外の場合はfalse</returns>
         public bool Undo()
         {
-            System.Diagnostics.Debug.WriteLine($"[DeleteOperation] Undo開始: {_path}, IsDirectory: {_isDirectory}, DeletedAt: {_deletedAt}");
             try
             {
                 // ゴミ箱から復元を試みる
                 if (_recycleBinService != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[DeleteOperation] RecycleBinService.RestoreFromRecycleBinを呼び出します: {_path}");
-                    var restoreResult = _recycleBinService.RestoreFromRecycleBin(_path, _deletedAt);
-                    System.Diagnostics.Debug.WriteLine($"[DeleteOperation] RestoreFromRecycleBinの結果: {restoreResult}");
-                    if (restoreResult)
+                    if (_recycleBinService.RestoreFromRecycleBin(_path, _deletedAt))
                     {
                         _restoredPath = _path;
-                        System.Diagnostics.Debug.WriteLine($"[DeleteOperation] Undo成功: {_path}");
-                        
-                        // 復元後のファイル存在確認（少し待機してから確認）
-                        System.Threading.Thread.Sleep(200);
-                        bool fileExists = _isDirectory ? Directory.Exists(_path) : File.Exists(_path);
-                        System.Diagnostics.Debug.WriteLine($"[DeleteOperation] 復元後のファイル存在確認: {fileExists}, パス: {_path}");
-                        
                         return true;
                     }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[DeleteOperation] RestoreFromRecycleBinがfalseを返しました: {_path}");
-                    }
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[DeleteOperation] _recycleBinServiceがnullです: {_path}");
                 }
                 return false;
             }
-            catch (Exception ex)
+            catch
             {
-                System.Diagnostics.Debug.WriteLine($"[DeleteOperation] Undoで例外が発生しました: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[DeleteOperation] スタックトレース: {ex.StackTrace}");
                 return false;
             }
         }
