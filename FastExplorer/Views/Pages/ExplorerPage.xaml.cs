@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Cysharp.Text;
+using FastExplorer.Helpers;
 using FastExplorer.Models;
 using FastExplorer.Services;
 using FastExplorer.ViewModels.Pages;

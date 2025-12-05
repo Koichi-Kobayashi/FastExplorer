@@ -720,10 +720,10 @@
             <TabControl
                 Grid.Column="0"
                 Margin="0,0,0,0"
-                uiControls:TabControlExtensions.CanAddTabs="True"
-                uiControls:TabControlExtensions.CanReorderTabs="True"
-                uiControls:TabControlExtensions.TabAdding="TabControl_TabAdding"
-                uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing"
+                helpers:TabControlExtensions.CanAddTabs="True"
+                helpers:TabControlExtensions.CanReorderTabs="True"
+                helpers:TabControlExtensions.TabAdding="TabControl_TabAdding"
+                helpers:TabControlExtensions.TabClosing="TabControl_TabClosing"
                 AllowDrop="True"
                 DragOver="TabControl_DragOver"
                 Drop="TabControl_Drop"
@@ -731,7 +731,7 @@
                 SelectedItem="{Binding ViewModel.SelectedLeftPaneTab, Mode=TwoWay}">
                 <TabControl.ItemContainerStyle>
                     <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
-                        <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
+                        <Setter Property="helpers:TabControlExtensions.IsClosable" Value="True" />
                         <Setter Property="ContextMenu" Value="{StaticResource TabContextMenu}" />
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                         <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
@@ -775,10 +775,10 @@
             <TabControl
                 Grid.Column="2"
                 Margin="0,0,0,0"
-                uiControls:TabControlExtensions.CanAddTabs="True"
-                uiControls:TabControlExtensions.CanReorderTabs="True"
-                uiControls:TabControlExtensions.TabAdding="TabControl_TabAdding"
-                uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing"
+                helpers:TabControlExtensions.CanAddTabs="True"
+                helpers:TabControlExtensions.CanReorderTabs="True"
+                helpers:TabControlExtensions.TabAdding="TabControl_TabAdding"
+                helpers:TabControlExtensions.TabClosing="TabControl_TabClosing"
                 AllowDrop="True"
                 DragOver="TabControl_DragOver"
                 Drop="TabControl_Drop"
@@ -786,7 +786,7 @@
                 SelectedItem="{Binding ViewModel.SelectedRightPaneTab, Mode=TwoWay}">
                 <TabControl.ItemContainerStyle>
                     <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
-                        <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
+                        <Setter Property="helpers:TabControlExtensions.IsClosable" Value="True" />
                         <Setter Property="ContextMenu" Value="{StaticResource TabContextMenu}" />
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                         <EventSetter Event="PreviewMouseLeftButtonUp" Handler="TabItem_PreviewMouseLeftButtonUp" />
@@ -821,10 +821,10 @@
         <TabControl
             Grid.Row="1"
             Margin="0,0,0,4"
-            uiControls:TabControlExtensions.CanAddTabs="True"
-            uiControls:TabControlExtensions.CanReorderTabs="True"
-            uiControls:TabControlExtensions.TabAdding="TabControl_TabAdding"
-            uiControls:TabControlExtensions.TabClosing="TabControl_TabClosing"
+            helpers:TabControlExtensions.CanAddTabs="True"
+            helpers:TabControlExtensions.CanReorderTabs="True"
+            helpers:TabControlExtensions.TabAdding="TabControl_TabAdding"
+            helpers:TabControlExtensions.TabClosing="TabControl_TabClosing"
             AllowDrop="True"
             DragOver="TabControl_DragOver"
             Drop="TabControl_Drop"
@@ -833,7 +833,7 @@
             Visibility="{Binding ViewModel.IsSplitPaneEnabled, Mode=OneWay, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
             <TabControl.ItemContainerStyle>
                 <Style BasedOn="{StaticResource {x:Type TabItem}}" TargetType="TabItem">
-                    <Setter Property="uiControls:TabControlExtensions.IsClosable" Value="True" />
+                    <Setter Property="helpers:TabControlExtensions.IsClosable" Value="True" />
                     <Setter Property="ContextMenu" Value="{StaticResource TabContextMenu}" />
                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItem_PreviewMouseLeftButtonDown" />
                     <EventSetter Event="PreviewMouseMove" Handler="TabItem_PreviewMouseMove" />
