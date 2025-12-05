@@ -177,6 +177,31 @@ namespace FastExplorer.Services
         /// </summary>
         public List<string> RightPaneTabPaths { get; set; } = new();
 
+        /// <summary>
+        /// 背景画像のファイルパスを取得または設定します
+        /// </summary>
+        public string? BackgroundImagePath { get; set; }
+
+        /// <summary>
+        /// 背景画像の不透明度を取得または設定します（0.0～1.0）
+        /// </summary>
+        public double BackgroundImageOpacity { get; set; } = 1.0;
+
+        /// <summary>
+        /// 背景画像の調整方法を取得または設定します
+        /// </summary>
+        public string BackgroundImageStretch { get; set; } = "FitToWindow";
+
+        /// <summary>
+        /// 背景画像の垂直方向の配置を取得または設定します
+        /// </summary>
+        public string BackgroundImageVerticalAlignment { get; set; } = "Center";
+
+        /// <summary>
+        /// 背景画像の水平方向の配置を取得または設定します
+        /// </summary>
+        public string BackgroundImageHorizontalAlignment { get; set; } = "Center";
+
         #endregion
     }
 }

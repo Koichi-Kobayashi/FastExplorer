@@ -1,11 +1,15 @@
 using System;
+using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Linq;
 using System.Windows.Interop;
+using FastExplorer.Models;
 using FastExplorer.Services;
 using FastExplorer.ViewModels.Windows;
 using FastExplorer.Helpers;
@@ -84,7 +88,7 @@ namespace FastExplorer.Views.Windows
 
             InitializeComponent();
             
-            // すべての初期化処理を1つのLoadedイベントハンドラーに統合（起動時の高速化）
+                // すべての初期化処理を1つのLoadedイベントハンドラーに統合（起動時の高速化）
             void InitializeHandler(object? s, RoutedEventArgs e)
             {
                 Loaded -= InitializeHandler; // 一度だけ実行されるように解除
@@ -99,6 +103,9 @@ namespace FastExplorer.Views.Windows
                 
                 // ViewModelにNavigationServiceを設定
                 viewModel.SetNavigationService(navigationService);
+                
+                // 背景画像を読み込む
+                LoadBackgroundImage();
                 
                 // テーマカラーはApp.xaml.csのApplyThemeColorOnStartupで適用されるため、
                 // ここではタブとListViewのスタイルを無効化するだけ（起動時のテーマ復元を確実にするため）
@@ -218,7 +225,11 @@ namespace FastExplorer.Views.Windows
                 finally
                 {
                     // SettingsWindowが閉じた後、メッセージフックを再有効化
-                    EnableMessageHook();
+                    // Dispatcherで実行して、確実に再有効化されるようにする
+                    Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        EnableMessageHook();
+                    }), System.Windows.Threading.DispatcherPriority.Normal);
                 }
                 
                 System.Diagnostics.Debug.WriteLine("Settings window closed");
@@ -837,7 +848,11 @@ namespace FastExplorer.Views.Windows
                     finally
                     {
                         // SettingsWindowが閉じた後、メッセージフックを再有効化
-                        EnableMessageHook();
+                        // Dispatcherで実行して、確実に再有効化されるようにする
+                        Dispatcher.BeginInvoke(new System.Action(() =>
+                        {
+                            EnableMessageHook();
+                        }), System.Windows.Threading.DispatcherPriority.Normal);
                     }
                     
                     System.Diagnostics.Debug.WriteLine("Settings window closed");
@@ -1253,6 +1268,123 @@ namespace FastExplorer.Views.Windows
             // 処理されなかった場合は、通常処理に任せる
             handled = false;
             return IntPtr.Zero;
+        }
+
+        #endregion
+
+        #region 背景画像管理
+
+        /// <summary>
+        /// 起動時に背景画像を読み込みます
+        /// </summary>
+        private void LoadBackgroundImage()
+        {
+            var settings = _windowSettingsService.GetSettings();
+            if (!string.IsNullOrEmpty(settings.BackgroundImagePath))
+            {
+                var opacity = settings.BackgroundImageOpacity;
+                var stretch = Enum.TryParse<BackgroundImageStretch>(settings.BackgroundImageStretch, out var s) ? s : BackgroundImageStretch.FitToWindow;
+                var vAlign = Enum.TryParse<BackgroundImageAlignment>(settings.BackgroundImageVerticalAlignment, out var va) ? va : BackgroundImageAlignment.Center;
+                var hAlign = Enum.TryParse<BackgroundImageAlignment>(settings.BackgroundImageHorizontalAlignment, out var ha) ? ha : BackgroundImageAlignment.Center;
+                
+                ApplyBackgroundImage(settings.BackgroundImagePath, opacity, stretch, vAlign, hAlign);
+            }
+        }
+
+        /// <summary>
+        /// 背景画像を適用します
+        /// </summary>
+        /// <param name="imagePath">画像ファイルのパス</param>
+        /// <param name="opacity">不透明度（0.0～1.0）</param>
+        /// <param name="stretch">画像の調整方法</param>
+        /// <param name="verticalAlignment">垂直方向の配置</param>
+        /// <param name="horizontalAlignment">水平方向の配置</param>
+        public void ApplyBackgroundImage(
+            string? imagePath,
+            double opacity,
+            BackgroundImageStretch stretch,
+            BackgroundImageAlignment verticalAlignment,
+            BackgroundImageAlignment horizontalAlignment)
+        {
+            var backgroundImageBrush = BackgroundImageBrush;
+            var backgroundImageOverlayBrush = BackgroundImageOverlayBrush;
+            
+            if (backgroundImageBrush == null || backgroundImageOverlayBrush == null)
+                return;
+
+            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
+            {
+                // 画像が設定されていない、またはファイルが存在しない場合は背景をクリア
+                backgroundImageBrush.ImageSource = null;
+                backgroundImageOverlayBrush.ImageSource = null;
+                backgroundImageOverlayBrush.Opacity = 0.0;
+                return;
+            }
+
+            try
+            {
+                // 画像を読み込む
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(imagePath, UriKind.Absolute);
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                // Stretchプロパティを計算
+                var stretchValue = stretch switch
+                {
+                    BackgroundImageStretch.FitToWindow => Stretch.Uniform,
+                    BackgroundImageStretch.Fill => Stretch.UniformToFill,
+                    BackgroundImageStretch.Tile => Stretch.None,
+                    BackgroundImageStretch.None => Stretch.None,
+                    _ => Stretch.Uniform
+                };
+
+                // AlignmentXプロパティを計算（水平方向）
+                var alignmentX = horizontalAlignment switch
+                {
+                    BackgroundImageAlignment.Start => AlignmentX.Left,
+                    BackgroundImageAlignment.Center => AlignmentX.Center,
+                    BackgroundImageAlignment.End => AlignmentX.Right,
+                    _ => AlignmentX.Center
+                };
+
+                // AlignmentYプロパティを計算（垂直方向）
+                var alignmentY = verticalAlignment switch
+                {
+                    BackgroundImageAlignment.Start => AlignmentY.Top,
+                    BackgroundImageAlignment.Center => AlignmentY.Center,
+                    BackgroundImageAlignment.End => AlignmentY.Bottom,
+                    _ => AlignmentY.Center
+                };
+
+                // TileModeを計算
+                var tileMode = stretch == BackgroundImageStretch.Tile ? TileMode.Tile : TileMode.None;
+
+                // 最下層の背景画像を設定（完全な不透明度で表示）
+                backgroundImageBrush.ImageSource = bitmap;
+                backgroundImageBrush.Opacity = 1.0;
+                backgroundImageBrush.Stretch = stretchValue;
+                backgroundImageBrush.AlignmentX = alignmentX;
+                backgroundImageBrush.AlignmentY = alignmentY;
+                backgroundImageBrush.TileMode = tileMode;
+
+                // 最上層のオーバーレイ画像を設定（アルファブレンド透過用）
+                backgroundImageOverlayBrush.ImageSource = bitmap;
+                backgroundImageOverlayBrush.Opacity = opacity;
+                backgroundImageOverlayBrush.Stretch = stretchValue;
+                backgroundImageOverlayBrush.AlignmentX = alignmentX;
+                backgroundImageOverlayBrush.AlignmentY = alignmentY;
+                backgroundImageOverlayBrush.TileMode = tileMode;
+            }
+            catch
+            {
+                // 画像の読み込みに失敗した場合は背景をクリア
+                backgroundImageBrush.ImageSource = null;
+                backgroundImageOverlayBrush.ImageSource = null;
+                backgroundImageOverlayBrush.Opacity = 0.0;
+            }
         }
 
         #endregion

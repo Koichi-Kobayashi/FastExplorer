@@ -346,6 +346,79 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <!--  背景画像  -->
+                        <Expander
+                            Margin="0,24,0,0"
+                            Header="背景画像"
+                            IsExpanded="False">
+                            <StackPanel Margin="0,12,0,0">
+                                <Grid Margin="0,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox
+                                        Grid.Column="0"
+                                        Margin="0,0,8,0"
+                                        IsReadOnly="True"
+                                        Text="{Binding ViewModel.BackgroundImagePath, Mode=OneWay}"
+                                        ToolTip="{Binding ViewModel.BackgroundImagePath, Mode=OneWay}" />
+                                    <Button
+                                        Grid.Column="1"
+                                        Margin="0,0,4,0"
+                                        Command="{Binding ViewModel.BrowseBackgroundImageCommand, Mode=OneWay}"
+                                        Content="参照" />
+                                    <Button
+                                        Grid.Column="2"
+                                        Margin="0,0,4,0"
+                                        Command="{Binding ViewModel.ClearBackgroundImageCommand, Mode=OneWay}"
+                                        Content="×"
+                                        ToolTip="背景画像をクリア" />
+                                </Grid>
+
+                                <TextBlock Margin="0,16,0,8" Text="不透明度" />
+                                <Slider
+                                    Margin="0,0,0,0"
+                                    IsMoveToPointEnabled="True"
+                                    Maximum="1.0"
+                                    Minimum="0.0"
+                                    TickFrequency="0.1"
+                                    Value="{Binding ViewModel.BackgroundImageOpacity, Mode=TwoWay}" />
+
+                                <TextBlock Margin="0,16,0,8" Text="画像の調整" />
+                                <ComboBox
+                                    Margin="0,0,0,0"
+                                    SelectedValue="{Binding ViewModel.BackgroundImageStretchString, Mode=TwoWay}"
+                                    SelectedValuePath="Tag">
+                                    <ComboBoxItem Content="ウィンドウのサイズに合わせる" Tag="FitToWindow" />
+                                    <ComboBoxItem Content="ウィンドウを埋める" Tag="Fill" />
+                                    <ComboBoxItem Content="タイル状に繰り返す" Tag="Tile" />
+                                    <ComboBoxItem Content="元のサイズで表示" Tag="None" />
+                                </ComboBox>
+
+                                <TextBlock Margin="0,16,0,8" Text="垂直方向の配置" />
+                                <ComboBox
+                                    Margin="0,0,0,0"
+                                    SelectedValue="{Binding ViewModel.BackgroundImageVerticalAlignmentString, Mode=TwoWay}"
+                                    SelectedValuePath="Tag">
+                                    <ComboBoxItem Content="上" Tag="Start" />
+                                    <ComboBoxItem Content="中央" Tag="Center" />
+                                    <ComboBoxItem Content="下" Tag="End" />
+                                </ComboBox>
+
+                                <TextBlock Margin="0,16,0,8" Text="水平方向の配置" />
+                                <ComboBox
+                                    Margin="0,0,0,0"
+                                    SelectedValue="{Binding ViewModel.BackgroundImageHorizontalAlignmentString, Mode=TwoWay}"
+                                    SelectedValuePath="Tag">
+                                    <ComboBoxItem Content="左" Tag="Start" />
+                                    <ComboBoxItem Content="中央" Tag="Center" />
+                                    <ComboBoxItem Content="右" Tag="End" />
+                                </ComboBox>
+                            </StackPanel>
+                        </Expander>
                     </StackPanel>
                 </ScrollViewer>
 

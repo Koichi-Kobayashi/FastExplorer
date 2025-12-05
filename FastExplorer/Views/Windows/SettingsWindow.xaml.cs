@@ -28,7 +28,12 @@ namespace FastExplorer.Views.Windows
             InitializeComponent();
             
             // TitleBarの×ボタンイベントを処理
-            TitleBar.CloseClicked += (s, e) => Close();
+            TitleBar.CloseClicked += (s, e) => 
+            {
+                // 閉じる前に設定を保存
+                _ = ViewModel.OnNavigatedFromAsync();
+                Close();
+            };
             
             // ウィンドウ読み込み時にViewModelを初期化
             Loaded += async (s, e) =>

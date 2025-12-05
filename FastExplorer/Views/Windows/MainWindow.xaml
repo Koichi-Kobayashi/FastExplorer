@@ -32,10 +32,22 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
+
+        <!--  背景画像レイヤー（最下層）  -->
+        <Grid Grid.RowSpan="2" Panel.ZIndex="0">
+            <Grid.Background>
+                <ImageBrush
+                    x:Name="BackgroundImageBrush"
+                    Opacity="1.0"
+                    Stretch="Uniform" />
+            </Grid.Background>
+        </Grid>
+
         <ui:NavigationView
             x:Name="RootNavigation"
             Grid.Row="1"
             Padding="0"
+            Panel.ZIndex="1"
             FooterMenuItemsSource="{Binding ViewModel.FooterMenuItems, Mode=OneWay}"
             FrameMargin="0"
             IsBackButtonVisible="Visible"
@@ -59,16 +71,32 @@
         <ContentPresenter
             x:Name="RootContentDialog"
             Grid.Row="0"
-            Grid.RowSpan="2" />
+            Grid.RowSpan="2"
+            Panel.ZIndex="2" />
 
         <ui:TitleBar
             x:Name="TitleBar"
             Title="{Binding ViewModel.ApplicationTitle, Mode=OneWay}"
             Grid.Row="0"
+            Panel.ZIndex="3"
             CloseWindowByDoubleClickOnIcon="True">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon Source="pack://application:,,,/Assets/wpfui-icon-256.png" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
+
+        <!--  背景画像オーバーレイ（最上層、アルファブレンド透過用）  -->
+        <Grid
+            x:Name="BackgroundImageOverlay"
+            Grid.RowSpan="2"
+            Panel.ZIndex="4"
+            IsHitTestVisible="False">
+            <Grid.Background>
+                <ImageBrush
+                    x:Name="BackgroundImageOverlayBrush"
+                    Opacity="0.0"
+                    Stretch="Uniform" />
+            </Grid.Background>
+        </Grid>
     </Grid>
 </ui:FluentWindow>

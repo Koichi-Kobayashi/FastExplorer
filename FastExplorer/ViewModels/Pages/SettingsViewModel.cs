@@ -4,9 +4,11 @@ using FastExplorer.Services;
 using FastExplorer.Views.Pages;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Media;
+using Microsoft.Win32;
 using Wpf.Ui.Abstractions.Controls;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -21,6 +23,7 @@ namespace FastExplorer.ViewModels.Pages
         #region フィールド
 
         private bool _isInitialized = false;
+        private bool _isLoadingSettings = false; // 設定を読み込み中かどうか
         private readonly WindowSettingsService _windowSettingsService;
         
         // 型をキャッシュ（パフォーマンス向上）
@@ -92,6 +95,36 @@ namespace FastExplorer.ViewModels.Pages
     [ObservableProperty]
     private bool _isSplitPaneEnabled;
 
+    /// <summary>
+    /// 背景画像のファイルパスを取得または設定します
+    /// </summary>
+    [ObservableProperty]
+    private string? _backgroundImagePath;
+
+    /// <summary>
+    /// 背景画像の不透明度を取得または設定します（0.0～1.0）
+    /// </summary>
+    [ObservableProperty]
+    private double _backgroundImageOpacity = 1.0;
+
+    /// <summary>
+    /// 背景画像の調整方法を取得または設定します
+    /// </summary>
+    [ObservableProperty]
+    private BackgroundImageStretch _backgroundImageStretch = BackgroundImageStretch.FitToWindow;
+
+    /// <summary>
+    /// 背景画像の垂直方向の配置を取得または設定します
+    /// </summary>
+    [ObservableProperty]
+    private BackgroundImageAlignment _backgroundImageVerticalAlignment = BackgroundImageAlignment.Center;
+
+    /// <summary>
+    /// 背景画像の水平方向の配置を取得または設定します
+    /// </summary>
+    [ObservableProperty]
+    private BackgroundImageAlignment _backgroundImageHorizontalAlignment = BackgroundImageAlignment.Center;
+
         #endregion
 
         #region ナビゲーション
@@ -112,6 +145,138 @@ namespace FastExplorer.ViewModels.Pages
                 CurrentTheme = ApplicationThemeManager.GetAppTheme();
                 // 選択中のテーマカラーも更新
                 UpdateSelectedThemeColor();
+                
+                // 背景画像の設定を再読み込み（設定画面を開くたびに最新の設定を反映）
+                _isLoadingSettings = true; // 設定読み込み中フラグを設定
+                try
+                {
+                    var settings = _windowSettingsService.GetSettings();
+                    
+                    // プロパティを明示的に設定して変更通知を発火（値が同じ場合でもUIを更新）
+                    // 一度異なる値に設定してから目的の値に設定することで、確実に変更通知を発火
+                    var newPath = settings.BackgroundImagePath;
+                    var tempPath = BackgroundImagePath;
+                    BackgroundImagePath = null; // 一度クリア
+                    BackgroundImagePath = newPath ?? string.Empty; // 設定値を設定
+                    if (tempPath == newPath)
+                    {
+                        // 値が同じ場合でも明示的に変更通知を発火
+                        OnPropertyChanged(nameof(BackgroundImagePath));
+                    }
+                    
+                    var newOpacity = settings.BackgroundImageOpacity;
+                    if (newOpacity <= 0)
+                    {
+                        newOpacity = 1.0; // デフォルト値
+                    }
+                    var tempOpacity = BackgroundImageOpacity;
+                    // 一度異なる値に設定してから目的の値に設定
+                    BackgroundImageOpacity = tempOpacity == newOpacity ? newOpacity + 0.0001 : -1.0;
+                    BackgroundImageOpacity = newOpacity;
+                    if (Math.Abs(tempOpacity - newOpacity) <= 0.001)
+                    {
+                        OnPropertyChanged(nameof(BackgroundImageOpacity));
+                    }
+                    
+                    // enumプロパティを更新し、文字列プロパティの変更通知も発火
+                    BackgroundImageStretch stretchValue;
+                    if (!string.IsNullOrEmpty(settings.BackgroundImageStretch) && Enum.TryParse<BackgroundImageStretch>(settings.BackgroundImageStretch, out stretchValue))
+                    {
+                        // 値が同じ場合でも一度異なる値に設定してから目的の値に設定
+                        var tempStretch = BackgroundImageStretch;
+                        if (tempStretch == stretchValue)
+                        {
+                            // 一時的に異なる値に設定
+                            BackgroundImageStretch = tempStretch == BackgroundImageStretch.FitToWindow 
+                                ? BackgroundImageStretch.Fill 
+                                : BackgroundImageStretch.FitToWindow;
+                        }
+                        BackgroundImageStretch = stretchValue;
+                    }
+                    else
+                    {
+                        stretchValue = BackgroundImageStretch.FitToWindow;
+                        var tempStretch = BackgroundImageStretch;
+                        if (tempStretch != stretchValue)
+                        {
+                            BackgroundImageStretch = stretchValue;
+                        }
+                        else
+                        {
+                            // 一時的に異なる値に設定
+                            BackgroundImageStretch = BackgroundImageStretch.Fill;
+                            BackgroundImageStretch = stretchValue;
+                        }
+                    }
+                    OnPropertyChanged(nameof(BackgroundImageStretch));
+                    OnPropertyChanged(nameof(BackgroundImageStretchString));
+                    
+                    BackgroundImageAlignment vAlignValue;
+                    if (!string.IsNullOrEmpty(settings.BackgroundImageVerticalAlignment) && Enum.TryParse<BackgroundImageAlignment>(settings.BackgroundImageVerticalAlignment, out vAlignValue))
+                    {
+                        var tempVAlign = BackgroundImageVerticalAlignment;
+                        if (tempVAlign == vAlignValue)
+                        {
+                            // 一時的に異なる値に設定
+                            BackgroundImageVerticalAlignment = tempVAlign == BackgroundImageAlignment.Center 
+                                ? BackgroundImageAlignment.Start 
+                                : BackgroundImageAlignment.Center;
+                        }
+                        BackgroundImageVerticalAlignment = vAlignValue;
+                    }
+                    else
+                    {
+                        vAlignValue = BackgroundImageAlignment.Center;
+                        var tempVAlign = BackgroundImageVerticalAlignment;
+                        if (tempVAlign != vAlignValue)
+                        {
+                            BackgroundImageVerticalAlignment = vAlignValue;
+                        }
+                        else
+                        {
+                            // 一時的に異なる値に設定
+                            BackgroundImageVerticalAlignment = BackgroundImageAlignment.Start;
+                            BackgroundImageVerticalAlignment = vAlignValue;
+                        }
+                    }
+                    OnPropertyChanged(nameof(BackgroundImageVerticalAlignment));
+                    OnPropertyChanged(nameof(BackgroundImageVerticalAlignmentString));
+                    
+                    BackgroundImageAlignment hAlignValue;
+                    if (!string.IsNullOrEmpty(settings.BackgroundImageHorizontalAlignment) && Enum.TryParse<BackgroundImageAlignment>(settings.BackgroundImageHorizontalAlignment, out hAlignValue))
+                    {
+                        var tempHAlign = BackgroundImageHorizontalAlignment;
+                        if (tempHAlign == hAlignValue)
+                        {
+                            // 一時的に異なる値に設定
+                            BackgroundImageHorizontalAlignment = tempHAlign == BackgroundImageAlignment.Center 
+                                ? BackgroundImageAlignment.Start 
+                                : BackgroundImageAlignment.Center;
+                        }
+                        BackgroundImageHorizontalAlignment = hAlignValue;
+                    }
+                    else
+                    {
+                        hAlignValue = BackgroundImageAlignment.Center;
+                        var tempHAlign = BackgroundImageHorizontalAlignment;
+                        if (tempHAlign != hAlignValue)
+                        {
+                            BackgroundImageHorizontalAlignment = hAlignValue;
+                        }
+                        else
+                        {
+                            // 一時的に異なる値に設定
+                            BackgroundImageHorizontalAlignment = BackgroundImageAlignment.Start;
+                            BackgroundImageHorizontalAlignment = hAlignValue;
+                        }
+                    }
+                    OnPropertyChanged(nameof(BackgroundImageHorizontalAlignment));
+                    OnPropertyChanged(nameof(BackgroundImageHorizontalAlignmentString));
+                }
+                finally
+                {
+                    _isLoadingSettings = false; // 設定読み込み完了
+                }
             }
 
             return Task.CompletedTask;
@@ -126,6 +291,14 @@ namespace FastExplorer.ViewModels.Pages
             // 分割ペインの設定を保存
             var settings = _windowSettingsService.GetSettings();
             settings.IsSplitPaneEnabled = IsSplitPaneEnabled;
+            
+            // 背景画像の設定を保存
+            settings.BackgroundImagePath = BackgroundImagePath;
+            settings.BackgroundImageOpacity = BackgroundImageOpacity;
+            settings.BackgroundImageStretch = BackgroundImageStretch.ToString();
+            settings.BackgroundImageVerticalAlignment = BackgroundImageVerticalAlignment.ToString();
+            settings.BackgroundImageHorizontalAlignment = BackgroundImageHorizontalAlignment.ToString();
+            
             _windowSettingsService.SaveSettings(settings);
             return Task.CompletedTask;
         }
@@ -153,6 +326,148 @@ namespace FastExplorer.ViewModels.Pages
             }
         }
 
+        /// <summary>
+        /// 背景画像の設定が変更されたときに呼び出されます
+        /// </summary>
+        partial void OnBackgroundImagePathChanged(string? value)
+        {
+            if (!_isLoadingSettings)
+            {
+                SaveBackgroundImageSettings();
+                ApplyBackgroundImage();
+            }
+        }
+
+        /// <summary>
+        /// 背景画像の不透明度が変更されたときに呼び出されます
+        /// </summary>
+        partial void OnBackgroundImageOpacityChanged(double value)
+        {
+            if (!_isLoadingSettings)
+            {
+                SaveBackgroundImageSettings();
+                ApplyBackgroundImage();
+            }
+        }
+
+        /// <summary>
+        /// 背景画像の調整方法が変更されたときに呼び出されます
+        /// </summary>
+        partial void OnBackgroundImageStretchChanged(BackgroundImageStretch value)
+        {
+            OnPropertyChanged(nameof(BackgroundImageStretchString));
+            if (!_isLoadingSettings)
+            {
+                SaveBackgroundImageSettings();
+                ApplyBackgroundImage();
+            }
+        }
+
+        /// <summary>
+        /// 背景画像の垂直方向の配置が変更されたときに呼び出されます
+        /// </summary>
+        partial void OnBackgroundImageVerticalAlignmentChanged(BackgroundImageAlignment value)
+        {
+            OnPropertyChanged(nameof(BackgroundImageVerticalAlignmentString));
+            if (!_isLoadingSettings)
+            {
+                SaveBackgroundImageSettings();
+                ApplyBackgroundImage();
+            }
+        }
+
+        /// <summary>
+        /// 背景画像の水平方向の配置が変更されたときに呼び出されます
+        /// </summary>
+        partial void OnBackgroundImageHorizontalAlignmentChanged(BackgroundImageAlignment value)
+        {
+            OnPropertyChanged(nameof(BackgroundImageHorizontalAlignmentString));
+            if (!_isLoadingSettings)
+            {
+                SaveBackgroundImageSettings();
+                ApplyBackgroundImage();
+            }
+        }
+
+        /// <summary>
+        /// 背景画像の調整方法を文字列から設定します（ComboBox用）
+        /// </summary>
+        public string BackgroundImageStretchString
+        {
+            get => BackgroundImageStretch.ToString();
+            set
+            {
+                if (Enum.TryParse<BackgroundImageStretch>(value, out var stretch))
+                {
+                    BackgroundImageStretch = stretch;
+                    OnPropertyChanged(nameof(BackgroundImageStretchString));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 背景画像の垂直方向の配置を文字列から設定します（ComboBox用）
+        /// </summary>
+        public string BackgroundImageVerticalAlignmentString
+        {
+            get => BackgroundImageVerticalAlignment.ToString();
+            set
+            {
+                if (Enum.TryParse<BackgroundImageAlignment>(value, out var alignment))
+                {
+                    BackgroundImageVerticalAlignment = alignment;
+                    OnPropertyChanged(nameof(BackgroundImageVerticalAlignmentString));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 背景画像の水平方向の配置を文字列から設定します（ComboBox用）
+        /// </summary>
+        public string BackgroundImageHorizontalAlignmentString
+        {
+            get => BackgroundImageHorizontalAlignment.ToString();
+            set
+            {
+                if (Enum.TryParse<BackgroundImageAlignment>(value, out var alignment))
+                {
+                    BackgroundImageHorizontalAlignment = alignment;
+                    OnPropertyChanged(nameof(BackgroundImageHorizontalAlignmentString));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 背景画像の設定を保存します
+        /// </summary>
+        private void SaveBackgroundImageSettings()
+        {
+            var settings = _windowSettingsService.GetSettings();
+            settings.BackgroundImagePath = BackgroundImagePath;
+            settings.BackgroundImageOpacity = BackgroundImageOpacity;
+            settings.BackgroundImageStretch = BackgroundImageStretch.ToString();
+            settings.BackgroundImageVerticalAlignment = BackgroundImageVerticalAlignment.ToString();
+            settings.BackgroundImageHorizontalAlignment = BackgroundImageHorizontalAlignment.ToString();
+            _windowSettingsService.SaveSettings(settings);
+        }
+
+        /// <summary>
+        /// 背景画像を適用します
+        /// </summary>
+        private void ApplyBackgroundImage()
+        {
+            Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                foreach (Window window in Application.Current.Windows)
+                {
+                    if (window is Views.Windows.MainWindow mainWindow)
+                    {
+                        mainWindow.ApplyBackgroundImage(BackgroundImagePath, BackgroundImageOpacity, BackgroundImageStretch, BackgroundImageVerticalAlignment, BackgroundImageHorizontalAlignment);
+                    }
+                }
+            }), System.Windows.Threading.DispatcherPriority.Render);
+        }
+
         #endregion
 
         #region 初期化
@@ -171,6 +486,55 @@ namespace FastExplorer.ViewModels.Pages
             // 分割ペインの設定を読み込む
             var settings = _windowSettingsService.GetSettings();
             IsSplitPaneEnabled = settings.IsSplitPaneEnabled;
+            
+            // 背景画像の設定を読み込む
+            _isLoadingSettings = true; // 設定読み込み中フラグを設定
+            try
+            {
+                BackgroundImagePath = settings.BackgroundImagePath;
+                // 不透明度を読み込む（0以下の場合はデフォルト値1.0を使用）
+                var opacity = settings.BackgroundImageOpacity;
+                if (opacity <= 0)
+                {
+                    opacity = 1.0;
+                }
+                BackgroundImageOpacity = opacity;
+                
+                // enumプロパティを更新し、文字列プロパティの変更通知も発火
+                if (!string.IsNullOrEmpty(settings.BackgroundImageStretch) && Enum.TryParse<BackgroundImageStretch>(settings.BackgroundImageStretch, out var stretch))
+                {
+                    BackgroundImageStretch = stretch;
+                }
+                else
+                {
+                    BackgroundImageStretch = BackgroundImageStretch.FitToWindow;
+                }
+                OnPropertyChanged(nameof(BackgroundImageStretchString));
+                
+                if (!string.IsNullOrEmpty(settings.BackgroundImageVerticalAlignment) && Enum.TryParse<BackgroundImageAlignment>(settings.BackgroundImageVerticalAlignment, out var vAlign))
+                {
+                    BackgroundImageVerticalAlignment = vAlign;
+                }
+                else
+                {
+                    BackgroundImageVerticalAlignment = BackgroundImageAlignment.Center;
+                }
+                OnPropertyChanged(nameof(BackgroundImageVerticalAlignmentString));
+                
+                if (!string.IsNullOrEmpty(settings.BackgroundImageHorizontalAlignment) && Enum.TryParse<BackgroundImageAlignment>(settings.BackgroundImageHorizontalAlignment, out var hAlign))
+                {
+                    BackgroundImageHorizontalAlignment = hAlign;
+                }
+                else
+                {
+                    BackgroundImageHorizontalAlignment = BackgroundImageAlignment.Center;
+                }
+                OnPropertyChanged(nameof(BackgroundImageHorizontalAlignmentString));
+            }
+            finally
+            {
+                _isLoadingSettings = false; // 設定読み込み完了
+            }
             
             // 現在選択されているテーマカラーを設定
             UpdateSelectedThemeColor();
@@ -542,6 +906,37 @@ namespace FastExplorer.ViewModels.Pages
             catch (Exception)
             {
             }
+        }
+
+        #endregion
+
+        #region 背景画像管理
+
+        /// <summary>
+        /// 背景画像を参照するコマンド
+        /// </summary>
+        [RelayCommand]
+        private void BrowseBackgroundImage()
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "画像ファイル|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tiff;*.webp|すべてのファイル|*.*",
+                Title = "背景画像を選択"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                BackgroundImagePath = openFileDialog.FileName;
+            }
+        }
+
+        /// <summary>
+        /// 背景画像をクリアするコマンド
+        /// </summary>
+        [RelayCommand]
+        private void ClearBackgroundImage()
+        {
+            BackgroundImagePath = null;
         }
 
         #endregion
