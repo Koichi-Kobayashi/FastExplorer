@@ -33,6 +33,11 @@ namespace FastExplorer.ViewModels.Pages
         
         // 文字列定数（メモリ割り当てを削減）
         private const string ShellPrefix = "shell:";
+        
+        // FileSystemWatcher関連
+        private FileSystemWatcher? _fileSystemWatcher;
+        private System.Windows.Threading.DispatcherTimer? _refreshTimer;
+        private bool _refreshPending = false;
 
         #endregion
 
@@ -49,6 +54,15 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         [ObservableProperty]
         private string _currentPath = string.Empty;
+        
+        /// <summary>
+        /// CurrentPathが変更されたときに呼び出されます
+        /// </summary>
+        partial void OnCurrentPathChanged(string value)
+        {
+            // FileSystemWatcherを更新
+            UpdateFileSystemWatcher(value);
+        }
 
         /// <summary>
         /// 選択されているアイテム
@@ -153,7 +167,12 @@ namespace FastExplorer.ViewModels.Pages
         /// ページから離れるときに呼び出されます
         /// </summary>
         /// <returns>完了を表すタスク</returns>
-        public Task OnNavigatedFromAsync() => Task.CompletedTask;
+        public Task OnNavigatedFromAsync()
+        {
+            // FileSystemWatcherをクリーンアップ
+            CleanupFileSystemWatcher();
+            return Task.CompletedTask;
+        }
 
         #endregion
 
@@ -568,6 +587,9 @@ namespace FastExplorer.ViewModels.Pages
             }
             Items.Clear();
             IsLoading = true;
+            
+            // FileSystemWatcherを停止（ホームページでは監視しない）
+            CleanupFileSystemWatcher();
 
             // ピン留めフォルダーを読み込み（同期的、軽量）
             LoadPinnedFolders();
@@ -958,6 +980,136 @@ namespace FastExplorer.ViewModels.Pages
                 // ソート方向を適用（三項演算子で分岐を削減）
                 return _sortAscending ? result : -result;
             });
+        }
+
+        #endregion
+
+        #region FileSystemWatcher
+
+        /// <summary>
+        /// FileSystemWatcherを更新します
+        /// </summary>
+        /// <param name="path">監視するパス</param>
+        private void UpdateFileSystemWatcher(string? path)
+        {
+            // 既存のFileSystemWatcherを停止して破棄
+            if (_fileSystemWatcher != null)
+            {
+                _fileSystemWatcher.EnableRaisingEvents = false;
+                _fileSystemWatcher.Dispose();
+                _fileSystemWatcher = null;
+            }
+
+            // パスが空、またはホームページの場合は監視しない
+            if (string.IsNullOrEmpty(path) || IsHomePage)
+                return;
+
+            // パスが存在しない場合は監視しない
+            if (!Directory.Exists(path))
+                return;
+
+            try
+            {
+                // 新しいFileSystemWatcherを作成
+                _fileSystemWatcher = new FileSystemWatcher(path)
+                {
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite,
+                    IncludeSubdirectories = false,
+                    EnableRaisingEvents = true
+                };
+
+                // イベントハンドラーを登録
+                _fileSystemWatcher.Created += OnFileSystemChanged;
+                _fileSystemWatcher.Deleted += OnFileSystemChanged;
+                _fileSystemWatcher.Renamed += OnFileSystemRenamed;
+                _fileSystemWatcher.Changed += OnFileSystemChanged;
+            }
+            catch
+            {
+                // エラーが発生した場合は監視を無効化
+                _fileSystemWatcher?.Dispose();
+                _fileSystemWatcher = null;
+            }
+        }
+
+        /// <summary>
+        /// ファイルシステムの変更イベントハンドラー
+        /// </summary>
+        private void OnFileSystemChanged(object sender, FileSystemEventArgs e)
+        {
+            // スロットリング：一定時間内の複数のイベントを1つにまとめる
+            ScheduleRefresh();
+        }
+
+        /// <summary>
+        /// ファイルシステムのリネームイベントハンドラー
+        /// </summary>
+        private void OnFileSystemRenamed(object sender, RenamedEventArgs e)
+        {
+            // スロットリング：一定時間内の複数のイベントを1つにまとめる
+            ScheduleRefresh();
+        }
+
+        /// <summary>
+        /// リフレッシュをスケジュールします（スロットリング付き）
+        /// </summary>
+        private void ScheduleRefresh()
+        {
+            // 既にリフレッシュが保留中の場合は何もしない
+            if (_refreshPending)
+                return;
+
+            _refreshPending = true;
+
+            // タイマーが存在しない場合は作成
+            if (_refreshTimer == null)
+            {
+                _refreshTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(500) // 500ms間隔で更新
+                };
+                _refreshTimer.Tick += (s, e) =>
+                {
+                    _refreshTimer.Stop();
+                    _refreshPending = false;
+                    
+                    // UIスレッドでリフレッシュを実行
+                    var dispatcher = _cachedDispatcher ?? System.Windows.Application.Current?.Dispatcher;
+                    dispatcher?.BeginInvoke(() =>
+                    {
+                        // 現在のパスがまだ有効な場合のみリフレッシュ
+                        if (!string.IsNullOrEmpty(CurrentPath) && Directory.Exists(CurrentPath))
+                        {
+                            Refresh();
+                        }
+                    }, System.Windows.Threading.DispatcherPriority.Background);
+                };
+            }
+
+            // タイマーをリセットして再開始
+            _refreshTimer.Stop();
+            _refreshTimer.Start();
+        }
+
+        /// <summary>
+        /// FileSystemWatcherをクリーンアップします
+        /// </summary>
+        private void CleanupFileSystemWatcher()
+        {
+            if (_fileSystemWatcher != null)
+            {
+                _fileSystemWatcher.EnableRaisingEvents = false;
+                _fileSystemWatcher.Dispose();
+                _fileSystemWatcher = null;
+            }
+
+            if (_refreshTimer != null)
+            {
+                _refreshTimer.Stop();
+                _refreshTimer = null;
+            }
+
+            _refreshPending = false;
         }
 
         #endregion

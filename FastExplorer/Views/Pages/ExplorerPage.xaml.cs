@@ -1340,7 +1340,8 @@ namespace FastExplorer.Views.Pages
 
                             if (targetTab != null)
                             {
-                                targetTab.ViewModel.RefreshCommand.Execute(null);
+                                // Undo成功後、同じ親ディレクトリを開いているすべてのタブを更新
+                                RefreshTabsInSameDirectory(targetTab);
                             }
                             e.Handled = true;
                         }
@@ -1404,7 +1405,8 @@ namespace FastExplorer.Views.Pages
 
                             if (targetTab != null)
                             {
-                                targetTab.ViewModel.RefreshCommand.Execute(null);
+                                // Redo成功後、同じ親ディレクトリを開いているすべてのタブを更新
+                                RefreshTabsInSameDirectory(targetTab);
                             }
                             e.Handled = true;
                         }
@@ -1543,8 +1545,8 @@ namespace FastExplorer.Views.Pages
                             _undoRedoService.AddOperation(deleteOperation);
                         }
 
-                        // 削除成功後、リストを更新
-                        targetTab.ViewModel.RefreshCommand.Execute(null);
+                        // 削除成功後、同じ親ディレクトリを開いているすべてのタブを更新
+                        RefreshTabsInSameDirectory(targetTab);
                     }
                     else
                     {
@@ -4186,6 +4188,11 @@ namespace FastExplorer.Views.Pages
             // パス更新が必要なタブを収集
             var tabsToRefresh = new List<Models.ExplorerTab>();
             var separator = System.IO.Path.DirectorySeparatorChar;
+            
+            // リネームされたフォルダーの親ディレクトリを取得
+            var parentDirectory = System.IO.Path.GetDirectoryName(oldPath);
+            if (string.IsNullOrEmpty(parentDirectory))
+                parentDirectory = System.IO.Path.GetPathRoot(oldPath);
 
             foreach (var tab in allTabs)
             {
@@ -4205,6 +4212,13 @@ namespace FastExplorer.Views.Pages
                     // パス更新を先に完了させて、バックスペースが正しく動作するようにする
                     var updatedPath = newPath + currentPath.Substring(oldPath.Length);
                     tab.ViewModel.CurrentPath = updatedPath;
+                    tabsToRefresh.Add(tab);
+                }
+                // リネームされたフォルダーの親ディレクトリを開いているタブも更新
+                else if (!string.IsNullOrEmpty(parentDirectory) && 
+                         currentPath.Equals(parentDirectory, StringComparison.OrdinalIgnoreCase))
+                {
+                    // 同じ親ディレクトリを開いているタブもリフレッシュ（パスは変更不要）
                     tabsToRefresh.Add(tab);
                 }
             }
@@ -4236,6 +4250,65 @@ namespace FastExplorer.Views.Pages
                 if (shouldMaintainPane)
                 {
                     ViewModel.ActivePane = paneToRestore;
+                }
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        /// <summary>
+        /// 指定されたタブと同じ親ディレクトリを開いているすべてのタブをリフレッシュします
+        /// </summary>
+        /// <param name="targetTab">基準となるタブ</param>
+        private void RefreshTabsInSameDirectory(Models.ExplorerTab? targetTab)
+        {
+            if (targetTab?.ViewModel == null)
+                return;
+
+            var currentPath = targetTab.ViewModel.CurrentPath;
+            if (string.IsNullOrEmpty(currentPath))
+                return;
+
+            // すべてのタブを取得
+            var allTabs = ViewModel.IsSplitPaneEnabled
+                ? new List<Models.ExplorerTab>(ViewModel.LeftPaneTabs.Count + ViewModel.RightPaneTabs.Count)
+                : new List<Models.ExplorerTab>(ViewModel.Tabs.Count);
+
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                allTabs.AddRange(ViewModel.LeftPaneTabs);
+                allTabs.AddRange(ViewModel.RightPaneTabs);
+            }
+            else
+            {
+                allTabs.AddRange(ViewModel.Tabs);
+            }
+
+            // 同じパスを開いているタブを収集
+            var tabsToRefresh = new List<Models.ExplorerTab>();
+
+            foreach (var tab in allTabs)
+            {
+                var tabPath = tab.ViewModel.CurrentPath;
+                if (string.IsNullOrEmpty(tabPath))
+                    continue;
+
+                // 同じパスを開いているタブを追加
+                if (tabPath.Equals(currentPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    tabsToRefresh.Add(tab);
+                }
+            }
+
+            // パス更新が必要なタブがない場合は終了
+            if (tabsToRefresh.Count == 0)
+                return;
+
+            // RefreshCommandの実行は遅延実行
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                // すべてのタブを一括でリフレッシュ
+                foreach (var tab in tabsToRefresh)
+                {
+                    tab.ViewModel.RefreshCommand.Execute(null);
                 }
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
