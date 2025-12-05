@@ -104,8 +104,11 @@ namespace FastExplorer.Views.Windows
                 // ViewModelにNavigationServiceを設定
                 viewModel.SetNavigationService(navigationService);
                 
-                // 背景画像を読み込む
-                LoadBackgroundImage();
+                // 背景画像を読み込む（起動を高速化するため遅延実行）
+                _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new System.Action(() =>
+                {
+                    LoadBackgroundImage();
+                }));
                 
                 // テーマカラーはApp.xaml.csのApplyThemeColorOnStartupで適用されるため、
                 // ここではタブとListViewのスタイルを無効化するだけ（起動時のテーマ復元を確実にするため）

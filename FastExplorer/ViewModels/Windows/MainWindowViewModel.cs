@@ -65,7 +65,33 @@ namespace FastExplorer.ViewModels.Windows
         public MainWindowViewModel(FavoriteService favoriteService)
         {
             _favoriteService = favoriteService;
-            LoadFavorites();
+            
+            // 起動時の高速化のため、ホームアイテムのみ先に追加
+            // お気に入りの読み込みはBackground優先度で遅延実行
+            if (_homeMenuItem == null)
+            {
+                _homeMenuItem = new NavigationViewItem()
+                {
+                    Content = "ホーム",
+                    Icon = new SymbolIcon { Symbol = SymbolRegular.Folder24 },
+                    Tag = "HOME" // ホームアイテムを識別するためのTag
+                };
+                
+                // Clickイベントを設定（ItemInvokedイベントが発火しない場合のフォールバック）
+                _homeMenuItem.Click += (s, e) =>
+                {
+                    NavigateToHome();
+                };
+                
+                MenuItems.Insert(0, _homeMenuItem);
+            }
+            
+            // お気に入りの読み込みを遅延実行（起動を高速化）
+            var app = _cachedApplication ?? (_cachedApplication = System.Windows.Application.Current);
+            app?.Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                LoadFavorites();
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         /// <summary>
@@ -86,7 +112,7 @@ namespace FastExplorer.ViewModels.Windows
         /// </summary>
         public void LoadFavorites()
         {
-            // ホームアイテムが存在しない場合は作成
+            // ホームアイテムが存在しない場合は作成（コンストラクタで既に作成されている可能性がある）
             if (_homeMenuItem == null)
             {
                 _homeMenuItem = new NavigationViewItem()
