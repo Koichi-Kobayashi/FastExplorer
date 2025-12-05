@@ -152,59 +152,39 @@ namespace FastExplorer.ViewModels.Pages
                 {
                     var settings = _windowSettingsService.GetSettings();
                     
-                    // プロパティを明示的に設定して変更通知を発火（値が同じ場合でもUIを更新）
-                    // 一度異なる値に設定してから目的の値に設定することで、確実に変更通知を発火
+                    // プロパティを設定（値が同じ場合でも変更通知を発火）
                     var newPath = settings.BackgroundImagePath;
-                    var tempPath = BackgroundImagePath;
-                    BackgroundImagePath = null; // 一度クリア
-                    BackgroundImagePath = newPath ?? string.Empty; // 設定値を設定
-                    if (tempPath == newPath)
+                    if (BackgroundImagePath != newPath)
                     {
-                        // 値が同じ場合でも明示的に変更通知を発火
-                        OnPropertyChanged(nameof(BackgroundImagePath));
+                        BackgroundImagePath = newPath;
                     }
+                    OnPropertyChanged(nameof(BackgroundImagePath));
                     
                     var newOpacity = settings.BackgroundImageOpacity;
                     if (newOpacity <= 0)
                     {
                         newOpacity = 1.0; // デフォルト値
                     }
-                    var tempOpacity = BackgroundImageOpacity;
-                    // 一度異なる値に設定してから目的の値に設定
-                    BackgroundImageOpacity = tempOpacity == newOpacity ? newOpacity + 0.0001 : -1.0;
-                    BackgroundImageOpacity = newOpacity;
-                    if (Math.Abs(tempOpacity - newOpacity) <= 0.001)
+                    if (Math.Abs(BackgroundImageOpacity - newOpacity) > 0.001)
                     {
-                        OnPropertyChanged(nameof(BackgroundImageOpacity));
+                        BackgroundImageOpacity = newOpacity;
                     }
+                    OnPropertyChanged(nameof(BackgroundImageOpacity));
                     
                     // enumプロパティを更新し、文字列プロパティの変更通知も発火
                     BackgroundImageStretch stretchValue;
                     if (!string.IsNullOrEmpty(settings.BackgroundImageStretch) && Enum.TryParse<BackgroundImageStretch>(settings.BackgroundImageStretch, out stretchValue))
                     {
-                        // 値が同じ場合でも一度異なる値に設定してから目的の値に設定
-                        var tempStretch = BackgroundImageStretch;
-                        if (tempStretch == stretchValue)
+                        if (BackgroundImageStretch != stretchValue)
                         {
-                            // 一時的に異なる値に設定
-                            BackgroundImageStretch = tempStretch == BackgroundImageStretch.FitToWindow 
-                                ? BackgroundImageStretch.Fill 
-                                : BackgroundImageStretch.FitToWindow;
+                            BackgroundImageStretch = stretchValue;
                         }
-                        BackgroundImageStretch = stretchValue;
                     }
                     else
                     {
                         stretchValue = BackgroundImageStretch.FitToWindow;
-                        var tempStretch = BackgroundImageStretch;
-                        if (tempStretch != stretchValue)
+                        if (BackgroundImageStretch != stretchValue)
                         {
-                            BackgroundImageStretch = stretchValue;
-                        }
-                        else
-                        {
-                            // 一時的に異なる値に設定
-                            BackgroundImageStretch = BackgroundImageStretch.Fill;
                             BackgroundImageStretch = stretchValue;
                         }
                     }
@@ -214,28 +194,16 @@ namespace FastExplorer.ViewModels.Pages
                     BackgroundImageAlignment vAlignValue;
                     if (!string.IsNullOrEmpty(settings.BackgroundImageVerticalAlignment) && Enum.TryParse<BackgroundImageAlignment>(settings.BackgroundImageVerticalAlignment, out vAlignValue))
                     {
-                        var tempVAlign = BackgroundImageVerticalAlignment;
-                        if (tempVAlign == vAlignValue)
+                        if (BackgroundImageVerticalAlignment != vAlignValue)
                         {
-                            // 一時的に異なる値に設定
-                            BackgroundImageVerticalAlignment = tempVAlign == BackgroundImageAlignment.Center 
-                                ? BackgroundImageAlignment.Start 
-                                : BackgroundImageAlignment.Center;
+                            BackgroundImageVerticalAlignment = vAlignValue;
                         }
-                        BackgroundImageVerticalAlignment = vAlignValue;
                     }
                     else
                     {
                         vAlignValue = BackgroundImageAlignment.Center;
-                        var tempVAlign = BackgroundImageVerticalAlignment;
-                        if (tempVAlign != vAlignValue)
+                        if (BackgroundImageVerticalAlignment != vAlignValue)
                         {
-                            BackgroundImageVerticalAlignment = vAlignValue;
-                        }
-                        else
-                        {
-                            // 一時的に異なる値に設定
-                            BackgroundImageVerticalAlignment = BackgroundImageAlignment.Start;
                             BackgroundImageVerticalAlignment = vAlignValue;
                         }
                     }
@@ -245,28 +213,16 @@ namespace FastExplorer.ViewModels.Pages
                     BackgroundImageAlignment hAlignValue;
                     if (!string.IsNullOrEmpty(settings.BackgroundImageHorizontalAlignment) && Enum.TryParse<BackgroundImageAlignment>(settings.BackgroundImageHorizontalAlignment, out hAlignValue))
                     {
-                        var tempHAlign = BackgroundImageHorizontalAlignment;
-                        if (tempHAlign == hAlignValue)
+                        if (BackgroundImageHorizontalAlignment != hAlignValue)
                         {
-                            // 一時的に異なる値に設定
-                            BackgroundImageHorizontalAlignment = tempHAlign == BackgroundImageAlignment.Center 
-                                ? BackgroundImageAlignment.Start 
-                                : BackgroundImageAlignment.Center;
+                            BackgroundImageHorizontalAlignment = hAlignValue;
                         }
-                        BackgroundImageHorizontalAlignment = hAlignValue;
                     }
                     else
                     {
                         hAlignValue = BackgroundImageAlignment.Center;
-                        var tempHAlign = BackgroundImageHorizontalAlignment;
-                        if (tempHAlign != hAlignValue)
+                        if (BackgroundImageHorizontalAlignment != hAlignValue)
                         {
-                            BackgroundImageHorizontalAlignment = hAlignValue;
-                        }
-                        else
-                        {
-                            // 一時的に異なる値に設定
-                            BackgroundImageHorizontalAlignment = BackgroundImageAlignment.Start;
                             BackgroundImageHorizontalAlignment = hAlignValue;
                         }
                     }
