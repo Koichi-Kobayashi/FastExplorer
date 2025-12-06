@@ -3749,8 +3749,20 @@ namespace FastExplorer.Views.Pages
                     }
 
                     // コレクションの変更を実行（同期的に実行して、SelectedItemが正しく設定されるようにする）
+                    // タブを削除する前に、削除後に空になるかどうかを確認
+                    bool willBeEmpty = sourceTabs.Count == 1;
+                    
+                    // 元のペインを特定（削除前に判定）
+                    bool isLeftPane = sourceTabs == ViewModel.LeftPaneTabs;
+                    
                     sourceTabs.RemoveAt(sourceIndex);
                     dropTabs.Insert(insertIndex, _draggedTab);
+
+                    // タブを移動した後、元のペインが空になった場合はホームタブを作成
+                    if (willBeEmpty && isSplitPaneEnabled)
+                    {
+                        ViewModel.CreateHomeTabForPane(isLeftPane);
+                    }
 
                     // ペイン間でタブを移動した場合、移動先のペインをアクティブにする（SelectedItemを設定する前に実行）
                     // これにより、背景色が正しく更新される

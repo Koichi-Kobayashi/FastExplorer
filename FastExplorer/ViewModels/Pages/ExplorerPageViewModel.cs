@@ -569,10 +569,31 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
+        /// 指定されたペインにホームタブを作成します
+        /// </summary>
+        /// <param name="isLeftPane">左ペインかどうか（falseの場合は右ペイン）</param>
+        public void CreateHomeTabForPane(bool isLeftPane)
+        {
+            var homeTab = CreateTabInternal(null);
+            if (isLeftPane)
+            {
+                LeftPaneTabs.Add(homeTab);
+                SelectedLeftPaneTab = homeTab;
+            }
+            else
+            {
+                RightPaneTabs.Add(homeTab);
+                SelectedRightPaneTab = homeTab;
+            }
+            UpdateTabTitle(homeTab);
+            homeTab.ViewModel.NavigateToHome();
+        }
+
+        /// <summary>
         /// タブを作成する内部メソッド
         /// </summary>
         /// <param name="pathToOpen">開くパス。nullまたは空の場合はホームディレクトリを開く</param>
-        private ExplorerTab CreateTabInternal(string? pathToOpen = null)
+        internal ExplorerTab CreateTabInternal(string? pathToOpen = null)
         {
             var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
             var tab = new ExplorerTab
@@ -778,7 +799,7 @@ namespace FastExplorer.ViewModels.Pages
         /// タブのタイトルを現在のパスに基づいて更新します
         /// </summary>
         /// <param name="tab">タイトルを更新するタブ</param>
-        private void UpdateTabTitle(ExplorerTab tab)
+        internal void UpdateTabTitle(ExplorerTab tab)
         {
             tab.Title = GetTabTitleFromPath(tab.ViewModel.CurrentPath);
         }
