@@ -163,10 +163,7 @@ namespace FastExplorer
             }
 
             // テーマを先に適用（起動時の高速化のため、同期的に実行）
-            _darkThemeResources = new ResourceDictionary
-            {
-                Source = new Uri("pack://application:,,,/Resources/DarkThemeResources.xaml", UriKind.Absolute)
-            };
+            // リソースディクショナリーは必要になったときに読み込む（遅延初期化）
             LoadAndApplyThemeOnStartup();
             // リソース更新は既にLoadAndApplyThemeOnStartup内で実行されているため、ここでは実行しない
 
@@ -216,28 +213,26 @@ namespace FastExplorer
                 ApplicationTheme themeToApply = ApplicationTheme.Unknown;
                 Services.WindowSettings? settings = null;
                 
-                if (File.Exists(settingsFilePath))
+                // 起動時の高速化：File.Exists()の呼び出しを削減（直接ReadAllTextを試みる）
+                try
                 {
-                    try
+                    var json = File.ReadAllText(settingsFilePath);
+                    settings = System.Text.Json.JsonSerializer.Deserialize<Services.WindowSettings>(json);
+                    
+                    var themeStr = settings?.Theme;
+                    if (themeStr != null && themeStr.Length > 0)
                     {
-                        var json = File.ReadAllText(settingsFilePath);
-                        settings = System.Text.Json.JsonSerializer.Deserialize<Services.WindowSettings>(json);
-                        
-                        var themeStr = settings?.Theme;
-                        if (themeStr != null && themeStr.Length > 0)
-                        {
-                            // switch式を最適化（文字列比較を高速化）
-                            if (themeStr == "Dark")
-                                themeToApply = ApplicationTheme.Dark;
-                            else if (themeStr == "Light")
-                                themeToApply = ApplicationTheme.Light;
-                            // それ以外はUnknown（システムテーマ）
-                        }
+                        // switch式を最適化（文字列比較を高速化）
+                        if (themeStr == "Dark")
+                            themeToApply = ApplicationTheme.Dark;
+                        else if (themeStr == "Light")
+                            themeToApply = ApplicationTheme.Light;
+                        // それ以外はUnknown（システムテーマ）
                     }
-                    catch
-                    {
-                        // JSONの読み込みに失敗した場合はデフォルトのテーマを使用
-                    }
+                }
+                catch
+                {
+                    // ファイルが存在しない、またはJSONの読み込みに失敗した場合はデフォルトのテーマを使用
                 }
 
                 // ThemesDictionaryのThemeプロパティを先に更新（ApplicationThemeManager.Apply()の前に）

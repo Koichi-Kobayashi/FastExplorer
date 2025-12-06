@@ -82,18 +82,13 @@ namespace FastExplorer.Services
         {
             try
             {
-                if (File.Exists(_settingsFilePath))
-                {
-                    var json = File.ReadAllText(_settingsFilePath);
-                    _settings = JsonSerializer.Deserialize<WindowSettings>(json) ?? new WindowSettings();
-                }
-                else
-                {
-                    _settings = new WindowSettings();
-                }
+                // 起動時の高速化：File.Exists()の呼び出しを削減（直接ReadAllTextを試みる）
+                var json = File.ReadAllText(_settingsFilePath);
+                _settings = JsonSerializer.Deserialize<WindowSettings>(json) ?? new WindowSettings();
             }
             catch
             {
+                // ファイルが存在しない、または読み込みに失敗した場合はデフォルト設定を使用
                 _settings = new WindowSettings();
             }
         }

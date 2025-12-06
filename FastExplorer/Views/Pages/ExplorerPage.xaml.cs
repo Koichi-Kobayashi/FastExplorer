@@ -16,6 +16,8 @@ using Wpf.Ui.Controls;
 using Button = Wpf.Ui.Controls.Button;
 using ListView = Wpf.Ui.Controls.ListView;
 using ListViewItem = Wpf.Ui.Controls.ListViewItem;
+using TabAddingEventArgs = Wpf.Ui.Controls.TabAddingEventArgs;
+using TabClosingEventArgs = Wpf.Ui.Controls.TabClosingEventArgs;
 using TextBlock = Wpf.Ui.Controls.TextBlock;
 
 namespace FastExplorer.Views.Pages

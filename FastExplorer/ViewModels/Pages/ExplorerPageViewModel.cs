@@ -632,14 +632,15 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         private void NavigateTabToPath(ExplorerTab tab, string? pathToOpen)
         {
-            if (!string.IsNullOrEmpty(pathToOpen) && System.IO.Directory.Exists(pathToOpen))
+            if (!string.IsNullOrEmpty(pathToOpen))
             {
-                // パスが指定されていて存在する場合は、そのパスに移動
+                // 起動時の高速化のため、Directory.Exists()の呼び出しを削減
+                // パスが指定されている場合は、直接移動を試みる（存在チェックはViewModel内で行われる）
                 tab.ViewModel.NavigateToPathCommand.Execute(pathToOpen);
             }
             else
             {
-                // パスが指定されていない、または存在しない場合はホームに移動
+                // パスが指定されていない場合はホームに移動
                 tab.ViewModel.NavigateToHome();
             }
         }
@@ -1161,10 +1162,41 @@ namespace FastExplorer.ViewModels.Pages
             if (tabPaths == null || tabPaths.Count == 0)
                 return;
 
-            // パフォーマンス最適化：タブを一時リストに作成してから一括追加
-            var tabsToAdd = new System.Collections.Generic.List<ExplorerTab>(tabPaths.Count);
-            
-            foreach (var path in tabPaths)
+            // 最初のタブは同期的に復元（前回終了時のタブを即座に表示）
+            var firstPath = tabPaths[0];
+            var firstTab = CreateAndRestoreTab(firstPath, isFirstTab: true);
+            if (firstTab != null)
+            {
+                tabs.Add(firstTab);
+                setSelectedTab(firstTab);
+            }
+
+            // 残りのタブはBackground優先度で遅延実行（起動を高速化）
+            if (tabPaths.Count > 1)
+            {
+                var remainingPaths = new System.Collections.Generic.List<string>(tabPaths.Count - 1);
+                for (int i = 1; i < tabPaths.Count; i++)
+                {
+                    remainingPaths.Add(tabPaths[i]);
+                }
+
+                // Dispatcherをキャッシュ（パフォーマンス向上）
+                var dispatcher = _cachedDispatcher ??= System.Windows.Application.Current?.Dispatcher;
+                dispatcher?.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new System.Action(() =>
+                {
+                    RestoreRemainingTabs(remainingPaths, tabs);
+                }));
+            }
+        }
+
+        /// <summary>
+        /// タブを作成して復元します
+        /// </summary>
+        /// <param name="path">復元するパス</param>
+        /// <param name="isFirstTab">最初のタブかどうか（最初のタブは同期的に処理）</param>
+        private ExplorerTab? CreateAndRestoreTab(string? path, bool isFirstTab = false)
+        {
+            try
             {
                 var viewModel = new ExplorerViewModel(_fileSystemService, _favoriteService);
                 var tab = new ExplorerTab
@@ -1178,24 +1210,67 @@ namespace FastExplorer.ViewModels.Pages
                 AttachPropertyChangedHandler(tab, viewModel);
 
                 // タブをパスに移動
-                NavigateTabToPath(tab, path);
-                
-                // タイトルを更新
-                UpdateTabTitle(tab);
-                
-                tabsToAdd.Add(tab);
-            }
+                if (!string.IsNullOrEmpty(path))
+                {
+                    if (isFirstTab)
+                    {
+                        // 最初のタブは同期的に処理（前回終了時のタブを即座に表示）
+                        if (System.IO.Directory.Exists(path))
+                        {
+                            tab.ViewModel.NavigateToPathCommand.Execute(path);
+                        }
+                        else
+                        {
+                            tab.ViewModel.NavigateToHome();
+                        }
+                        UpdateTabTitle(tab);
+                    }
+                    else
+                    {
+                        // 残りのタブは遅延実行（起動を高速化）
+                        var pathCopy = path;
+                        var dispatcher = _cachedDispatcher ??= System.Windows.Application.Current?.Dispatcher;
+                        dispatcher?.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new System.Action(() =>
+                        {
+                            if (System.IO.Directory.Exists(pathCopy))
+                            {
+                                tab.ViewModel.NavigateToPathCommand.Execute(pathCopy);
+                            }
+                            else
+                            {
+                                tab.ViewModel.NavigateToHome();
+                            }
+                            UpdateTabTitle(tab);
+                        }));
+                    }
+                }
+                else
+                {
+                    // パスが指定されていない場合はホームに移動
+                    tab.ViewModel.NavigateToHome();
+                    UpdateTabTitle(tab);
+                }
 
-            // 一括追加（各Addで通知が発行されるが、初期化時なのでUIの再構築コストは低い）
-            foreach (var tab in tabsToAdd)
-            {
-                tabs.Add(tab);
+                return tab;
             }
-
-            // 最初のタブを選択
-            if (tabsToAdd.Count > 0)
+            catch
             {
-                setSelectedTab(tabsToAdd[0]);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 残りのタブを復元します
+        /// </summary>
+        private void RestoreRemainingTabs(System.Collections.Generic.List<string> tabPaths, ObservableCollection<ExplorerTab> tabs)
+        {
+            foreach (var path in tabPaths)
+            {
+                var tab = CreateAndRestoreTab(path);
+                if (tab != null)
+                {
+                    tabs.Add(tab);
+                }
             }
         }
 
