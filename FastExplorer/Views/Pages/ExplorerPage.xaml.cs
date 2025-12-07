@@ -2880,25 +2880,34 @@ namespace FastExplorer.Views.Pages
                 }
             }
 
-            if (ViewModel == null)
+            // ViewModelを一度だけ取得してキャッシュ（パフォーマンス向上）
+            var viewModel = ViewModel;
+            if (viewModel == null)
                 return;
 
             // 分割ペインモードの場合、クリックされたボタンが属するペインをアクティブにする
-            if (ViewModel.IsSplitPaneEnabled && tab != null)
+            // プロパティアクセスを一度だけ取得してキャッシュ（パフォーマンス向上）
+            var isSplitPaneEnabled = viewModel.IsSplitPaneEnabled;
+            if (isSplitPaneEnabled && tab != null)
             {
-                // タブが左ペインか右ペインかを判定
-                var leftPaneTabs = ViewModel.LeftPaneTabs;
-                var rightPaneTabs = ViewModel.RightPaneTabs;
-                
-                if (leftPaneTabs.Contains(tab))
+                // タブが左ペインか右ペインかを判定（IndexOfで存在確認とインデックス取得を同時に行う）
+                var leftPaneTabs = viewModel.LeftPaneTabs;
+                var leftIndex = leftPaneTabs.IndexOf(tab);
+                if (leftIndex >= 0)
                 {
                     // 左ペインのタブの場合、左ペインをアクティブにする
-                    ViewModel.ActivePane = 0; // ActivePaneLeft
+                    viewModel.ActivePane = 0; // ActivePaneLeft
                 }
-                else if (rightPaneTabs.Contains(tab))
+                else
                 {
-                    // 右ペインのタブの場合、右ペインをアクティブにする
-                    ViewModel.ActivePane = 2; // ActivePaneRight
+                    // 右ペインのタブかチェック
+                    var rightPaneTabs = viewModel.RightPaneTabs;
+                    var rightIndex = rightPaneTabs.IndexOf(tab);
+                    if (rightIndex >= 0)
+                    {
+                        // 右ペインのタブの場合、右ペインをアクティブにする
+                        viewModel.ActivePane = 2; // ActivePaneRight
+                    }
                 }
             }
 
@@ -2910,9 +2919,10 @@ namespace FastExplorer.Views.Pages
             else
             {
                 // タブが見つからない場合は、NavigateToHomeInActivePaneCommandを使用（フォールバック）
-                if (ViewModel.NavigateToHomeInActivePaneCommand?.CanExecute(null) == true)
+                var command = viewModel.NavigateToHomeInActivePaneCommand;
+                if (command?.CanExecute(null) == true)
                 {
-                    ViewModel.NavigateToHomeInActivePaneCommand.Execute(null);
+                    command.Execute(null);
                 }
             }
         }
