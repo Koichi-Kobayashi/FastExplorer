@@ -91,6 +91,17 @@ namespace FastExplorer.Views.Pages
 
             InitializeComponent();
 
+            // デバッグ: コマンドが生成されているか確認
+            this.Loaded += (s, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine($"[ExplorerPage.Loaded] ViewModel: {(ViewModel != null ? "存在" : "null")}");
+                System.Diagnostics.Debug.WriteLine($"[ExplorerPage.Loaded] NavigateToHomeInActivePaneCommand: {(ViewModel?.NavigateToHomeInActivePaneCommand != null ? "存在" : "null")}");
+                if (ViewModel?.NavigateToHomeInActivePaneCommand != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ExplorerPage.Loaded] Command.CanExecute: {ViewModel.NavigateToHomeInActivePaneCommand.CanExecute(null)}");
+                }
+            };
+
             // ActivePaneの変更を監視して、ListViewの背景色を更新
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
@@ -2848,6 +2859,28 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">ルーティングイベント引数</param>
+        /// <summary>
+        /// ホームボタンがクリックされたときのイベントハンドラー
+        /// </summary>
+        private void HomeButton_Click(object sender, RoutedEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] ホームボタンがクリックされました");
+            System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] ViewModel: {(ViewModel != null ? "存在" : "null")}");
+            System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] NavigateToHomeInActivePaneCommand: {(ViewModel?.NavigateToHomeInActivePaneCommand != null ? "存在" : "null")}");
+            System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] Command.CanExecute: {(ViewModel?.NavigateToHomeInActivePaneCommand?.CanExecute(null) == true ? "true" : "false")}");
+            
+            // コマンドが存在する場合は実行
+            if (ViewModel?.NavigateToHomeInActivePaneCommand != null && ViewModel.NavigateToHomeInActivePaneCommand.CanExecute(null))
+            {
+                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] NavigateToHomeInActivePaneCommand.Execute()を呼び出します");
+                ViewModel.NavigateToHomeInActivePaneCommand.Execute(null);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] エラー: コマンドが存在しないか、実行できません");
+            }
+        }
+
         private void CopyPathButton_Click(object sender, RoutedEventArgs e)
         {
             // ボタンのDataContextから直接タブを取得（最適化：親要素を辿る前にボタン自体のDataContextを確認）

@@ -289,10 +289,13 @@ namespace FastExplorer.ViewModels.Windows
                         _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
                     }
                     
-                    if (_cachedExplorerPageViewModel != null && _cachedExplorerPageViewModel.SelectedTab != null)
+                    if (_cachedExplorerPageViewModel != null)
                     {
-                        // ホームページにナビゲート
-                        _cachedExplorerPageViewModel.SelectedTab.ViewModel.NavigateToHome();
+                        // 分割ペインモードを考慮してホームにナビゲート
+                        if (_cachedExplorerPageViewModel.NavigateToHomeInActivePaneCommand?.CanExecute(null) == true)
+                        {
+                            _cachedExplorerPageViewModel.NavigateToHomeInActivePaneCommand.Execute(null);
+                        }
                     }
                 }), System.Windows.Threading.DispatcherPriority.Loaded);
             }

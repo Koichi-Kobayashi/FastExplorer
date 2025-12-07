@@ -26,6 +26,7 @@ namespace FastExplorer.ViewModels.Pages
         private readonly Stack<string> _forwardHistory = new();
         private bool _isNavigating = false;
         private readonly List<FileSystemItem> _recentFiles = new();
+        private readonly List<FavoriteItem> _recentFolders = new();
         private CancellationTokenSource? _navigationCancellationTokenSource;
         
         // 非同期処理の最適化（Dispatcherのキャッシュ）
@@ -93,6 +94,12 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         [ObservableProperty]
         private ObservableCollection<FileSystemItem> _recentFilesList = new();
+
+        /// <summary>
+        /// 最近使用したフォルダーのコレクション
+        /// </summary>
+        [ObservableProperty]
+        private ObservableCollection<FavoriteItem> _recentFoldersList = new();
 
         /// <summary>
         /// ホームページを表示するかどうか
@@ -202,9 +209,12 @@ namespace FastExplorer.ViewModels.Pages
         [RelayCommand]
         private void NavigateToPath(string? path)
         {
+            System.Diagnostics.Debug.WriteLine($"[ExplorerViewModel.NavigateToPath] 呼び出されました: path='{path}'");
+            
             // IsNullOrWhiteSpaceでIsNullOrEmptyもカバーされるため、1回のチェックで十分
             if (string.IsNullOrWhiteSpace(path))
             {
+                System.Diagnostics.Debug.WriteLine($"[ExplorerViewModel.NavigateToPath] パスが空のため、NavigateToHome()を呼び出します");
                 NavigateToHome();
                 return;
             }
@@ -397,6 +407,12 @@ namespace FastExplorer.ViewModels.Pages
                 _forwardHistory.Clear();
             }
 
+            // 最近使用したフォルダーに追加（ホームページ以外の場合）
+            if (!string.IsNullOrEmpty(path) && path != CurrentPath)
+            {
+                AddToRecentFolders(path);
+            }
+
             // プロパティ変更を最適化（値が実際に変更された場合のみ通知）
             if (CurrentPath != path)
             {
@@ -563,10 +579,16 @@ namespace FastExplorer.ViewModels.Pages
         /// <param name="addToHistory">履歴に追加するかどうか</param>
         public void NavigateToHome(bool addToHistory = true)
         {
+            System.Diagnostics.Debug.WriteLine($"[ExplorerViewModel.NavigateToHome] 呼び出されました: addToHistory={addToHistory}, _isNavigating={_isNavigating}, CurrentPath='{CurrentPath}', IsHomePage={IsHomePage}");
+            
             if (_isNavigating)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ExplorerViewModel.NavigateToHome] _isNavigatingがtrueのため、早期リターンします");
                 return;
+            }
 
             _isNavigating = true;
+            System.Diagnostics.Debug.WriteLine($"[ExplorerViewModel.NavigateToHome] _isNavigatingをtrueに設定しました");
 
             // 履歴に追加する場合、現在のパスを戻る履歴に追加し、進む履歴をクリア
             // ホームボタンを押したときもブラウザーバックで戻れるように、現在のパスが空でない場合のみ履歴に追加
@@ -581,10 +603,12 @@ namespace FastExplorer.ViewModels.Pages
             {
                 CurrentPath = string.Empty;
             }
-            if (!IsHomePage)
-            {
-                IsHomePage = true;
-            }
+            // IsHomePageを常に設定して、PropertyChangedイベントを確実に発火させる
+            // （既にtrueの場合でも、UIの更新を確実にするため）
+            IsHomePage = true;
+            // PropertyChangedイベントを明示的に発火させて、UIの更新を確実にする
+            OnPropertyChanged(nameof(IsHomePage));
+            System.Diagnostics.Debug.WriteLine($"[ExplorerViewModel.NavigateToHome] IsHomePageをtrueに設定し、PropertyChangedイベントを発火しました");
             Items.Clear();
             IsLoading = true;
             
@@ -596,6 +620,9 @@ namespace FastExplorer.ViewModels.Pages
 
             // 最近使用したファイルを読み込み（同期的、軽量）
             LoadRecentFiles();
+
+            // 最近使用したフォルダーを読み込み（同期的、軽量）
+            LoadRecentFolders();
 
             // ドライブ情報を非同期で読み込み（UIスレッドをブロックしない）
             _ = Task.Run(async () =>
@@ -616,6 +643,7 @@ namespace FastExplorer.ViewModels.Pages
                     {
                         IsLoading = false;
                         _isNavigating = false;
+                        System.Diagnostics.Debug.WriteLine($"[ExplorerViewModel.NavigateToHome] 非同期処理完了: IsLoading=false, _isNavigating=false, IsHomePage={IsHomePage}");
                     }, System.Windows.Threading.DispatcherPriority.Normal);
                 }
             });
@@ -670,6 +698,112 @@ namespace FastExplorer.ViewModels.Pages
                 {
                     pinnedFolders.Add(favorite);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 最近使用したフォルダーを読み込みます
+        /// </summary>
+        private void LoadRecentFolders()
+        {
+            var recentFoldersList = RecentFoldersList;
+            recentFoldersList.Clear();
+            // 最大20件まで保持、表示は最大10件
+            var count = Math.Min(_recentFolders.Count, 10);
+            // リストの容量を事前に確保
+            var validFolders = new List<FavoriteItem>(count);
+            for (int i = 0; i < count; i++)
+            {
+                var folder = _recentFolders[i];
+                var path = folder.Path;
+                // フォルダーが存在する場合のみ追加
+                if (!string.IsNullOrEmpty(path))
+                {
+                    // shell:で始まるパスは常に有効
+                    if (path.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        validFolders.Add(folder);
+                    }
+                    else if (Directory.Exists(path))
+                    {
+                        validFolders.Add(folder);
+                    }
+                }
+            }
+            // 一括追加（メモリ割り当てを削減）
+            foreach (var folder in validFolders)
+            {
+                recentFoldersList.Add(folder);
+            }
+        }
+
+        /// <summary>
+        /// フォルダーを最近使用したフォルダーリストに追加します
+        /// </summary>
+        /// <param name="folderPath">フォルダーパス</param>
+        private void AddToRecentFolders(string folderPath)
+        {
+            try
+            {
+                // ホームページの場合は追加しない
+                if (string.IsNullOrEmpty(folderPath))
+                    return;
+
+                var folderName = Path.GetFileName(folderPath);
+                if (string.IsNullOrEmpty(folderName))
+                {
+                    // ルートディレクトリの場合は、ドライブ名を使用
+                    var root = Path.GetPathRoot(folderPath);
+                    if (!string.IsNullOrEmpty(root))
+                    {
+                        folderName = root.TrimEnd('\\');
+                    }
+                    else
+                    {
+                        folderName = folderPath;
+                    }
+                }
+
+                var favorite = new FavoriteItem
+                {
+                    Name = folderName,
+                    Path = folderPath
+                };
+
+                // 既に存在する場合は削除
+                var folderPathSpan = folderPath.AsSpan();
+                var folderPathLength = folderPathSpan.Length;
+                var recentFoldersCount = _recentFolders.Count;
+                for (int i = recentFoldersCount - 1; i >= 0; i--)
+                {
+                    var existingPath = _recentFolders[i].Path;
+                    var existingPathSpan = existingPath.AsSpan();
+                    // 長さチェックを先に行う（高速化）
+                    if (existingPathSpan.Length == folderPathLength &&
+                        existingPathSpan.CompareTo(folderPathSpan, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        _recentFolders.RemoveAt(i);
+                        break; // 一度見つかったら終了
+                    }
+                }
+                // 先頭に追加
+                _recentFolders.Insert(0, favorite);
+                // 最大20件まで保持
+                var currentRecentFoldersCount = _recentFolders.Count;
+                if (currentRecentFoldersCount > 20)
+                {
+                    _recentFolders.RemoveRange(20, currentRecentFoldersCount - 20);
+                }
+
+                // ホームページ表示中の場合は更新
+                if (IsHomePage)
+                {
+                    LoadRecentFolders();
+                }
+            }
+            catch
+            {
+                // エラーハンドリング
             }
         }
 

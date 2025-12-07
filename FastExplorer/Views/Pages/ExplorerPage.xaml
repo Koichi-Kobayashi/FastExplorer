@@ -342,8 +342,7 @@
                                 Margin="0,0,4,0"
                                 Padding="8,4"
                                 Appearance="Secondary"
-                                Command="{Binding ViewModel.NavigateToPathCommand, Mode=OneWay}"
-                                CommandParameter=""
+                                Click="HomeButton_Click"
                                 Style="{StaticResource HoverableButtonStyle}"
                                 ToolTip="ホーム">
                                 <ui:Button.Icon>
@@ -479,7 +478,37 @@
                                 FontSize="16"
                                 FontWeight="SemiBold"
                                 Text="クイック アクセス" />
+                            
+                            <!--  ピン留めされたフォルダー  -->
                             <ItemsControl ItemsSource="{Binding ViewModel.PinnedFolders, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="6" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <StaticResource ResourceKey="PinnedFolderTemplate" />
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!--  最近使用したファイル  -->
+                            <ItemsControl
+                                Margin="0,16,0,0"
+                                ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Vertical" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <StaticResource ResourceKey="RecentFileTemplate" />
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!--  最近使用したフォルダー  -->
+                            <ItemsControl
+                                Margin="0,16,0,0"
+                                ItemsSource="{Binding ViewModel.RecentFoldersList, Mode=OneWay}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <UniformGrid Columns="6" />
@@ -528,25 +557,6 @@
                                     Text="ネットワークの場所がありません。ネットワークの場所を使用しない場合は、ウィジェットを無効にすることができます。"
                                     TextWrapping="Wrap" />
                             </Border>
-                        </StackPanel>
-
-                        <!--  最近使用したファイル  -->
-                        <StackPanel>
-                            <TextBlock
-                                Margin="0,0,0,12"
-                                FontSize="16"
-                                FontWeight="SemiBold"
-                                Text="最近使用したファイル" />
-                            <ItemsControl ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Vertical" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <StaticResource ResourceKey="RecentFileTemplate" />
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -880,8 +890,7 @@
                                         Margin="0,0,4,0"
                                         Padding="8,4"
                                         Appearance="Secondary"
-                                        Command="{Binding ViewModel.NavigateToPathCommand, Mode=OneWay}"
-                                        CommandParameter=""
+                                        Click="HomeButton_Click"
                                         ToolTip="ホーム">
                                         <ui:Button.Style>
                                             <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
@@ -1038,7 +1047,37 @@
                                         FontSize="16"
                                         FontWeight="SemiBold"
                                         Text="クイック アクセス" />
+                                    
+                                    <!--  ピン留めされたフォルダー  -->
                                     <ItemsControl ItemsSource="{Binding ViewModel.PinnedFolders, Mode=OneWay}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="6" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <StaticResource ResourceKey="PinnedFolderTemplate" />
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!--  最近使用したファイル  -->
+                                    <ItemsControl
+                                        Margin="0,16,0,0"
+                                        ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Vertical" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <StaticResource ResourceKey="RecentFileTemplate" />
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!--  最近使用したフォルダー  -->
+                                    <ItemsControl
+                                        Margin="0,16,0,0"
+                                        ItemsSource="{Binding ViewModel.RecentFoldersList, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <UniformGrid Columns="6" />
@@ -1087,25 +1126,6 @@
                                             Text="ネットワークの場所がありません。ネットワークの場所を使用しない場合は、ウィジェットを無効にすることができます。"
                                             TextWrapping="Wrap" />
                                     </Border>
-                                </StackPanel>
-
-                                <!--  最近使用したファイル  -->
-                                <StackPanel>
-                                    <TextBlock
-                                        Margin="0,0,0,12"
-                                        FontSize="16"
-                                        FontWeight="SemiBold"
-                                        Text="最近使用したファイル" />
-                                    <ItemsControl ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Vertical" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <StaticResource ResourceKey="RecentFileTemplate" />
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>

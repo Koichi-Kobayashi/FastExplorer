@@ -875,17 +875,9 @@ namespace FastExplorer.Views.Windows
                 _cachedExplorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ViewModels.Pages.ExplorerPageViewModel;
             }
             
-            var selectedTab = _cachedExplorerPageViewModel?.SelectedTab;
-            
             // エクスプローラーページにナビゲート（共通処理、nullチェック削減で高速化）
             _navigationService?.Navigate(ExplorerPageType);
             
-            // ページが読み込まれるのを待ってから処理を実行
-            // DispatcherPriority.Normalを使用することで、レイアウト完了を待たずに高速に実行される
-            if (selectedTab?.ViewModel == null)
-                return;
-            
-            var viewModel = selectedTab.ViewModel;
             // ReadOnlySpan<char>を使用してメモリ割り当てを削減（高速化）
             var isHome = tag.AsSpan().SequenceEqual(HomeTag.AsSpan());
             
@@ -897,9 +889,15 @@ namespace FastExplorer.Views.Windows
             {
                 _ = Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    // ホームボタンを押したときも履歴に追加して、ブラウザーバックで戻れるようにする
-                    // NavigateToHome内でCurrentPathが空でない場合のみ履歴に追加される
-                    viewModel.NavigateToHome(addToHistory: true);
+                    // 分割ペインモードを考慮してホームにナビゲート
+                    if (_cachedExplorerPageViewModel != null)
+                    {
+                        // NavigateToHomeInActivePaneCommandを使用して、アクティブなペインのタブにホームに移動
+                        if (_cachedExplorerPageViewModel.NavigateToHomeInActivePaneCommand?.CanExecute(null) == true)
+                        {
+                            _cachedExplorerPageViewModel.NavigateToHomeInActivePaneCommand.Execute(null);
+                        }
+                    }
                 }), DispatcherPriority.Normal);
             }
             else
@@ -907,7 +905,29 @@ namespace FastExplorer.Views.Windows
                 var path = tag; // クロージャで使用するため変数に保存
                 _ = Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    viewModel.NavigateToPathCommand.Execute(path);
+                    // 分割ペインモードを考慮してタブを取得
+                    Models.ExplorerTab? selectedTab = null;
+                    if (_cachedExplorerPageViewModel != null)
+                    {
+                        if (_cachedExplorerPageViewModel.IsSplitPaneEnabled)
+                        {
+                            // 分割ペインモードの場合、アクティブなペインのタブを使用
+                            var activePane = _cachedExplorerPageViewModel.ActivePane;
+                            selectedTab = activePane == 0 ? _cachedExplorerPageViewModel.SelectedLeftPaneTab
+                                : activePane == 2 ? _cachedExplorerPageViewModel.SelectedRightPaneTab
+                                : _cachedExplorerPageViewModel.SelectedLeftPaneTab ?? _cachedExplorerPageViewModel.SelectedRightPaneTab;
+                        }
+                        else
+                        {
+                            // 通常モード
+                            selectedTab = _cachedExplorerPageViewModel.SelectedTab;
+                        }
+                    }
+                    
+                    if (selectedTab?.ViewModel != null)
+                    {
+                        selectedTab.ViewModel.NavigateToPathCommand.Execute(path);
+                    }
                 }), DispatcherPriority.Normal);
             }
         }

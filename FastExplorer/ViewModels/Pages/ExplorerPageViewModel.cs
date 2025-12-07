@@ -148,6 +148,9 @@ namespace FastExplorer.ViewModels.Pages
             _fileSystemService = fileSystemService;
             _favoriteService = favoriteService;
             _windowSettingsService = windowSettingsService;
+            
+            // デバッグ: コマンドが生成されているか確認
+            System.Diagnostics.Debug.WriteLine($"[ExplorerPageViewModel] コンストラクタ: NavigateToHomeInActivePaneCommand={(NavigateToHomeInActivePaneCommand != null ? "存在" : "null")}");
         }
 
         #endregion
@@ -894,6 +897,81 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
+        /// アクティブなペインのタブにホームナビゲーションを実行します
+        /// </summary>
+        [RelayCommand]
+        private void NavigateToHomeInActivePane()
+        {
+            System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] メソッドが呼ばれました");
+
+            // プロパティアクセスをキャッシュ（パフォーマンス向上）
+            var isSplitPaneEnabled = IsSplitPaneEnabled;
+            ExplorerTab? targetTab;
+
+            System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] IsSplitPaneEnabled: {isSplitPaneEnabled}");
+
+            if (isSplitPaneEnabled)
+            {
+                // 分割ペインモードの場合、アクティブなペインのタブを使用
+                var selectedLeftPaneTab = SelectedLeftPaneTab;
+                var selectedRightPaneTab = SelectedRightPaneTab;
+                var activePane = ActivePane;
+                
+                System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] ActivePane: {activePane} (Left={ActivePaneLeft}, Right={ActivePaneRight}, None={ActivePaneNone})");
+                System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] SelectedLeftPaneTab: {(selectedLeftPaneTab != null ? "存在" : "null")}");
+                System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] SelectedRightPaneTab: {(selectedRightPaneTab != null ? "存在" : "null")}");
+                
+                // ActivePaneが未設定（-1）の場合は、左ペインをデフォルトとして使用
+                if (activePane == ActivePaneNone)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] ActivePaneが未設定のため、デフォルトペインを選択します");
+                    // 左ペインが存在する場合は左ペイン、存在しない場合は右ペインを使用
+                    targetTab = selectedLeftPaneTab ?? selectedRightPaneTab;
+                    // ActivePaneを更新（左ペインが存在する場合は左、存在しない場合は右）
+                    if (selectedLeftPaneTab != null)
+                    {
+                        ActivePane = ActivePaneLeft;
+                        System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] ActivePaneを左ペインに設定しました");
+                    }
+                    else if (selectedRightPaneTab != null)
+                    {
+                        ActivePane = ActivePaneRight;
+                        System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] ActivePaneを右ペインに設定しました");
+                    }
+                }
+                else
+                {
+                    targetTab = activePane == ActivePaneLeft ? selectedLeftPaneTab : selectedRightPaneTab;
+                    System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] ActivePaneに基づいてタブを選択: {(activePane == ActivePaneLeft ? "左ペイン" : "右ペイン")}");
+                }
+
+                // タブが見つからない場合は、フォールバック（null合体演算子を使用）
+                targetTab ??= selectedLeftPaneTab ?? selectedRightPaneTab;
+            }
+            else
+            {
+                // 通常モード
+                targetTab = SelectedTab;
+                System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] 通常モード: SelectedTab={(targetTab != null ? "存在" : "null")}");
+            }
+
+            // 早期リターン：タブまたはViewModelがnullの場合
+            if (targetTab?.ViewModel == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] エラー: targetTabまたはViewModelがnullです (targetTab={(targetTab != null ? "存在" : "null")}, ViewModel={(targetTab?.ViewModel != null ? "存在" : "null")})");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] ホームナビゲーションを実行します (CurrentPath: {targetTab.ViewModel.CurrentPath})");
+            
+            // NavigateToPathCommandを使用してホームにナビゲート（空文字列を渡すとNavigateToHomeが呼ばれる）
+            // これにより、シングルペインモードと同じ動作になる
+            targetTab.ViewModel.NavigateToPathCommand.Execute(string.Empty);
+            
+            System.Diagnostics.Debug.WriteLine($"[NavigateToHomeInActivePane] NavigateToPathCommand.Execute(string.Empty)を呼び出しました");
+        }
+
+        /// <summary>
         /// 指定されたタブのパスをクリップボードにコピーします
         /// </summary>
         /// <param name="tab">パスをコピーするタブ</param>
@@ -969,6 +1047,12 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         partial void OnSelectedLeftPaneTabChanged(ExplorerTab? value)
         {
+            // 左ペインのタブが選択された場合、ActivePaneを左ペインに設定
+            if (value != null && IsSplitPaneEnabled)
+            {
+                ActivePane = ActivePaneLeft;
+            }
+
             // タブ切り替え時の処理を最小限に（高速化）
             // タイトルとステータスバーの更新は遅延実行して、タブ切り替えの応答性を優先
             var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
@@ -993,6 +1077,12 @@ namespace FastExplorer.ViewModels.Pages
         /// </summary>
         partial void OnSelectedRightPaneTabChanged(ExplorerTab? value)
         {
+            // 右ペインのタブが選択された場合、ActivePaneを右ペインに設定
+            if (value != null && IsSplitPaneEnabled)
+            {
+                ActivePane = ActivePaneRight;
+            }
+
             // タブ切り替え時の処理を最小限に（高速化）
             // タイトルとステータスバーの更新は遅延実行して、タブ切り替えの応答性を優先
             var dispatcher = _cachedDispatcher ?? (_cachedDispatcher = System.Windows.Application.Current?.Dispatcher);
