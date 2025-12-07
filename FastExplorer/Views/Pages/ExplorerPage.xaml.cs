@@ -91,17 +91,6 @@ namespace FastExplorer.Views.Pages
 
             InitializeComponent();
 
-            // デバッグ: コマンドが生成されているか確認
-            this.Loaded += (s, e) =>
-            {
-                System.Diagnostics.Debug.WriteLine($"[ExplorerPage.Loaded] ViewModel: {(ViewModel != null ? "存在" : "null")}");
-                System.Diagnostics.Debug.WriteLine($"[ExplorerPage.Loaded] NavigateToHomeInActivePaneCommand: {(ViewModel?.NavigateToHomeInActivePaneCommand != null ? "存在" : "null")}");
-                if (ViewModel?.NavigateToHomeInActivePaneCommand != null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[ExplorerPage.Loaded] Command.CanExecute: {ViewModel.NavigateToHomeInActivePaneCommand.CanExecute(null)}");
-                }
-            };
-
             // ActivePaneの変更を監視して、ListViewの背景色を更新
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
@@ -2864,8 +2853,6 @@ namespace FastExplorer.Views.Pages
         /// </summary>
         private void HomeButton_Click(object sender, RoutedEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] ホームボタンがクリックされました");
-            
             // ボタンのDataContextから直接タブを取得（最適化：親要素を辿る前にボタン自体のDataContextを確認）
             Models.ExplorerTab? tab = null;
 
@@ -2894,10 +2881,7 @@ namespace FastExplorer.Views.Pages
             }
 
             if (ViewModel == null)
-            {
-                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] エラー: ViewModelがnullです");
                 return;
-            }
 
             // 分割ペインモードの場合、クリックされたボタンが属するペインをアクティブにする
             if (ViewModel.IsSplitPaneEnabled && tab != null)
@@ -2910,26 +2894,22 @@ namespace FastExplorer.Views.Pages
                 {
                     // 左ペインのタブの場合、左ペインをアクティブにする
                     ViewModel.ActivePane = 0; // ActivePaneLeft
-                    System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] 左ペインをアクティブにしました");
                 }
                 else if (rightPaneTabs.Contains(tab))
                 {
                     // 右ペインのタブの場合、右ペインをアクティブにする
                     ViewModel.ActivePane = 2; // ActivePaneRight
-                    System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] 右ペインをアクティブにしました");
                 }
             }
 
             // タブが見つかった場合は、そのタブに直接ホームに移動
             if (tab?.ViewModel != null)
             {
-                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] タブが見つかりました。ホームに移動します");
                 tab.ViewModel.NavigateToPathCommand.Execute(string.Empty);
             }
             else
             {
                 // タブが見つからない場合は、NavigateToHomeInActivePaneCommandを使用（フォールバック）
-                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] タブが見つからないため、NavigateToHomeInActivePaneCommandを使用します");
                 if (ViewModel.NavigateToHomeInActivePaneCommand?.CanExecute(null) == true)
                 {
                     ViewModel.NavigateToHomeInActivePaneCommand.Execute(null);
