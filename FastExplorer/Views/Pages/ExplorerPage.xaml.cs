@@ -2403,19 +2403,19 @@ namespace FastExplorer.Views.Pages
                 path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             }
 
-            if (!string.IsNullOrEmpty(path) && (System.IO.Directory.Exists(path) || System.IO.File.Exists(path)))
+            if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
             {
-                // 画面上の座標をスクリーン座標に変換
-                var point = e.GetPosition(this);
-                var screenPoint = PointToScreen(point);
+                // カスタムコンテキストメニューを表示
+                var contextMenu = new FastExplorer.ShellContextMenu.ListViewEmptyAreaContextMenu(
+                    refreshCommand: targetTab.ViewModel?.RefreshCommand,
+                    addToFavoritesCommand: ViewModel.AddCurrentPathToFavoritesCommand,
+                    currentPath: path
+                );
 
-                // ウィンドウハンドルを取得
-                var window = Window.GetWindow(this);
-                var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
-
-                // ShellContextMenuでOS標準メニューを表示
-                var scm = new FastExplorer.ShellContextMenu.ShellContextMenuService();
-                scm.ShowContextMenu(new[] { path }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
+                // メニューを表示
+                contextMenu.PlacementTarget = sender as System.Windows.Controls.ListView;
+                contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+                contextMenu.IsOpen = true;
             }
         }
 
