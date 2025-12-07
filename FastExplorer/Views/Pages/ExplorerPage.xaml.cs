@@ -2865,19 +2865,75 @@ namespace FastExplorer.Views.Pages
         private void HomeButton_Click(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] ホームボタンがクリックされました");
-            System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] ViewModel: {(ViewModel != null ? "存在" : "null")}");
-            System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] NavigateToHomeInActivePaneCommand: {(ViewModel?.NavigateToHomeInActivePaneCommand != null ? "存在" : "null")}");
-            System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] Command.CanExecute: {(ViewModel?.NavigateToHomeInActivePaneCommand?.CanExecute(null) == true ? "true" : "false")}");
             
-            // コマンドが存在する場合は実行
-            if (ViewModel?.NavigateToHomeInActivePaneCommand != null && ViewModel.NavigateToHomeInActivePaneCommand.CanExecute(null))
+            // ボタンのDataContextから直接タブを取得（最適化：親要素を辿る前にボタン自体のDataContextを確認）
+            Models.ExplorerTab? tab = null;
+
+            if (sender is FrameworkElement buttonElement)
             {
-                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] NavigateToHomeInActivePaneCommand.Execute()を呼び出します");
-                ViewModel.NavigateToHomeInActivePaneCommand.Execute(null);
+                // まずボタン自体のDataContextを確認
+                tab = buttonElement.DataContext as Models.ExplorerTab;
+
+                // DataContextが見つからない場合、親要素を辿ってExplorerTabのDataContextを取得（最大5階層まで）
+                if (tab == null)
+                {
+                    var current = VisualTreeHelper.GetParent(buttonElement);
+                    int depth = 0;
+                    const int maxDepth = 5; // 最大深度を制限してパフォーマンス向上
+                    while (current != null && depth < maxDepth)
+                    {
+                        if (current is FrameworkElement element && element.DataContext is Models.ExplorerTab explorerTab)
+                        {
+                            tab = explorerTab;
+                            break;
+                        }
+                        current = VisualTreeHelper.GetParent(current);
+                        depth++;
+                    }
+                }
+            }
+
+            if (ViewModel == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] エラー: ViewModelがnullです");
+                return;
+            }
+
+            // 分割ペインモードの場合、クリックされたボタンが属するペインをアクティブにする
+            if (ViewModel.IsSplitPaneEnabled && tab != null)
+            {
+                // タブが左ペインか右ペインかを判定
+                var leftPaneTabs = ViewModel.LeftPaneTabs;
+                var rightPaneTabs = ViewModel.RightPaneTabs;
+                
+                if (leftPaneTabs.Contains(tab))
+                {
+                    // 左ペインのタブの場合、左ペインをアクティブにする
+                    ViewModel.ActivePane = 0; // ActivePaneLeft
+                    System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] 左ペインをアクティブにしました");
+                }
+                else if (rightPaneTabs.Contains(tab))
+                {
+                    // 右ペインのタブの場合、右ペインをアクティブにする
+                    ViewModel.ActivePane = 2; // ActivePaneRight
+                    System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] 右ペインをアクティブにしました");
+                }
+            }
+
+            // タブが見つかった場合は、そのタブに直接ホームに移動
+            if (tab?.ViewModel != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] タブが見つかりました。ホームに移動します");
+                tab.ViewModel.NavigateToPathCommand.Execute(string.Empty);
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] エラー: コマンドが存在しないか、実行できません");
+                // タブが見つからない場合は、NavigateToHomeInActivePaneCommandを使用（フォールバック）
+                System.Diagnostics.Debug.WriteLine($"[HomeButton_Click] タブが見つからないため、NavigateToHomeInActivePaneCommandを使用します");
+                if (ViewModel.NavigateToHomeInActivePaneCommand?.CanExecute(null) == true)
+                {
+                    ViewModel.NavigateToHomeInActivePaneCommand.Execute(null);
+                }
             }
         }
 
