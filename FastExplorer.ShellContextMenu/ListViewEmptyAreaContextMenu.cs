@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -18,6 +19,9 @@ namespace FastExplorer.ShellContextMenu
     {
         private readonly Action<string>? _sortByColumnAction;
         private readonly Action<string>? _setLayoutAction;
+        private readonly System.Windows.Media.Brush _backgroundBrush;
+        private readonly System.Windows.Media.Brush _borderBrush;
+        private readonly System.Windows.Media.Brush _foregroundBrush;
 
         /// <summary>
         /// コンテキストメニューを構築します
@@ -38,20 +42,20 @@ namespace FastExplorer.ShellContextMenu
             _setLayoutAction = setLayoutAction;
 
             // テーマカラーを取得（Application.Currentから取得）
-            var backgroundBrush = Application.Current.TryFindResource("ApplicationBackgroundBrush") as System.Windows.Media.Brush
+            _backgroundBrush = Application.Current.TryFindResource("ApplicationBackgroundBrush") as System.Windows.Media.Brush
                 ?? Application.Current.TryFindResource("ControlFillColorDefaultBrush") as System.Windows.Media.Brush
                 ?? System.Windows.Media.Brushes.White;
-            var borderBrush = Application.Current.TryFindResource("ControlStrokeColorDefaultBrush") as System.Windows.Media.Brush
+            _borderBrush = Application.Current.TryFindResource("ControlStrokeColorDefaultBrush") as System.Windows.Media.Brush
                 ?? System.Windows.Media.Brushes.LightGray;
-            var foregroundBrush = Application.Current.TryFindResource("TextFillColorPrimaryBrush") as System.Windows.Media.Brush
+            _foregroundBrush = Application.Current.TryFindResource("TextFillColorPrimaryBrush") as System.Windows.Media.Brush
                 ?? System.Windows.Media.Brushes.Black;
 
             // Filesアプリのような見た目にするためのスタイル設定（テーマカラーを使用）
-            Background = backgroundBrush;
-            BorderBrush = borderBrush;
+            Background = _backgroundBrush;
+            BorderBrush = _borderBrush;
             BorderThickness = new Thickness(1);
             Padding = new Thickness(4);
-            MinWidth = 200;
+            MinWidth = 200
 
             // レイアウト（サブメニュー）
             var layoutMenuItem = new MenuItem
@@ -61,8 +65,8 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.Grid24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "レイアウト", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush }
+                        new SymbolIcon { Symbol = SymbolRegular.Grid24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "レイアウト", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush }
                     }
                 },
                 Padding = new Thickness(-8, 6, 8, 6),
@@ -84,13 +88,14 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.ArrowSort24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "並べ替え", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush }
+                        new SymbolIcon { Symbol = SymbolRegular.ArrowSort24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "並べ替え", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush }
                     }
                 },
                 Padding = new Thickness(-8, 6, 8, 6),
                 MinHeight = 32
             };
+            sortMenuItem.Background = _backgroundBrush;
             sortMenuItem.Items.Add(CreateSortSubItem("名前", "Name"));
             sortMenuItem.Items.Add(CreateSortSubItem("変更日時", "DateModified"));
             sortMenuItem.Items.Add(CreateSortSubItem("作成日時", "DateCreated"));
@@ -109,8 +114,8 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.GroupList24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "グループで表示", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush }
+                        new SymbolIcon { Symbol = SymbolRegular.GroupList24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "グループで表示", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush }
                     }
                 },
                 Padding = new Thickness(-8, 6, 8, 6),
@@ -130,8 +135,8 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.ArrowClockwise24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "最新の情報に更新", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush },
+                        new SymbolIcon { Symbol = SymbolRegular.ArrowClockwise24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "最新の情報に更新", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush },
                         new TextBlock { Text = "Ctrl+R", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 0, 0), Foreground = System.Windows.Media.Brushes.Gray, FontSize = 12 }
                     }
                 },
@@ -151,8 +156,8 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.AddCircle24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "新規作成", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush }
+                        new SymbolIcon { Symbol = SymbolRegular.AddCircle24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "新規作成", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush }
                     }
                 },
                 Padding = new Thickness(-8, 6, 8, 6),
@@ -171,8 +176,8 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.Document24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "ショートカットを貼り付け", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush }
+                        new SymbolIcon { Symbol = SymbolRegular.Document24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "ショートカットを貼り付け", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush }
                     }
                 },
                 Padding = new Thickness(-8, 6, 8, 6),
@@ -188,8 +193,8 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.Star24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "サイドバーにピン留めする", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush }
+                        new SymbolIcon { Symbol = SymbolRegular.Star24 , Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "サイドバーにピン留めする", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush }
                     }
                 },
                 Command = addToFavoritesCommand,
@@ -206,8 +211,8 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.Star24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "スタートメニューにピン留めする", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush }
+                        new SymbolIcon { Symbol = SymbolRegular.Star24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "スタートメニューにピン留めする", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush }
                     }
                 },
                 Padding = new Thickness(-8, 6, 8, 6),
@@ -225,8 +230,8 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.Window24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "ターミナルで開く", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush },
+                        new SymbolIcon { Symbol = SymbolRegular.Window24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "ターミナルで開く", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush },
                         new TextBlock { Text = "Ctrl+@", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 0, 0), Foreground = System.Windows.Media.Brushes.Gray, FontSize = 12 }
                     }
                 },
@@ -243,8 +248,8 @@ namespace FastExplorer.ShellContextMenu
                     Orientation = Orientation.Horizontal,
                     Children =
                     {
-                        new SymbolIcon { Symbol = SymbolRegular.MoreHorizontal24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = foregroundBrush },
-                        new TextBlock { Text = "読み込み中...", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = foregroundBrush }
+                        new SymbolIcon { Symbol = SymbolRegular.MoreHorizontal24, Width = 16, Height = 16, Margin = new Thickness(-8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = _foregroundBrush },
+                        new TextBlock { Text = "読み込み中...", VerticalAlignment = VerticalAlignment.Center, FontSize = 14, Foreground = _foregroundBrush }
                     }
                 },
                 Visibility = Visibility.Collapsed // デフォルトでは非表示
@@ -254,14 +259,14 @@ namespace FastExplorer.ShellContextMenu
 
         private MenuItem CreateLayoutSubItem(string text, string layoutName)
         {
-            var item = new MenuItem { Header = text };
+            var item = new MenuItem { Header = text, Background = _backgroundBrush, Foreground = _foregroundBrush };
             item.Click += (s, e) => _setLayoutAction?.Invoke(layoutName);
             return item;
         }
 
         private MenuItem CreateSortSubItem(string text, string columnName)
         {
-            var item = new MenuItem { Header = text };
+            var item = new MenuItem { Header = text, Background = _backgroundBrush, Foreground = _foregroundBrush };
             item.Click += (s, e) => _sortByColumnAction?.Invoke(columnName);
             return item;
         }
