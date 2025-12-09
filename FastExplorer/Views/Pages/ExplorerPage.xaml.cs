@@ -2303,22 +2303,25 @@ namespace FastExplorer.Views.Pages
         #region コンテキストメニュー
 
         /// <summary>
-        /// ListViewItemでマウス右ボタンが離されたときに呼び出されます（右クリックメニュー表示）
+        /// ListViewItemでマウス右ボタンが押されたときに呼び出されます（右クリックメニュー表示）
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">マウスボタンイベント引数</param>
-        private void ListViewItem_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        private void ListViewItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine("ListViewItem_PreviewMouseRightButtonDown called");
 
             // DataContextからファイルパスを取得
             if (sender is ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem fileItem)
             {
                 var filePath = fileItem.FullPath;
+                System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: File path = {filePath}");
 
                 if (!string.IsNullOrEmpty(filePath) && (System.IO.Directory.Exists(filePath) || System.IO.File.Exists(filePath)))
                 {
-                    // イベントを処理済みとしてマーク
+                    // イベントを処理済みとしてマーク（重要：これによりListView_MouseRightButtonUpが呼ばれないようにする）
                     e.Handled = true;
+                    System.Diagnostics.Debug.WriteLine("ListViewItem_PreviewMouseRightButtonDown: Event handled, showing context menu");
 
                     // 画面上の座標をスクリーン座標に変換
                     var point = e.GetPosition(this);
@@ -2328,10 +2331,84 @@ namespace FastExplorer.Views.Pages
                     var window = Window.GetWindow(this);
                     var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
 
-                    // ShellContextMenuでOS標準メニューを表示
-                    var scm = new FastExplorer.ShellContextMenu.ShellContextMenuService();
-                    scm.ShowContextMenu(new[] { filePath }, hWnd, (int)screenPoint.X, (int)screenPoint.Y);
+                    // FilesContextMenuでOS標準メニューを表示
+                    if (window != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: Calling ShowContextMenu at ({screenPoint.X}, {screenPoint.Y})");
+                        FastExplorer.ShellContextMenu.FilesContextMenuWrapper.ShowContextMenu(
+                            new[] { filePath }, 
+                            window, 
+                            (int)screenPoint.X, 
+                            (int)screenPoint.Y);
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("ListViewItem_PreviewMouseRightButtonDown: Window is null");
+                    }
                 }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: File path is invalid or doesn't exist: {filePath}");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("ListViewItem_PreviewMouseRightButtonDown: DataContext is not FileSystemItem");
+            }
+        }
+
+        /// <summary>
+        /// ListViewItemでマウス右ボタンが離されたときに呼び出されます（右クリックメニュー表示）
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">マウスボタンイベント引数</param>
+        private void ListViewItem_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("ListViewItem_MouseRightButtonUp called");
+
+            // DataContextからファイルパスを取得
+            if (sender is ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem fileItem)
+            {
+                var filePath = fileItem.FullPath;
+                System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: File path = {filePath}");
+
+                if (!string.IsNullOrEmpty(filePath) && (System.IO.Directory.Exists(filePath) || System.IO.File.Exists(filePath)))
+                {
+                    // イベントを処理済みとしてマーク（重要：これによりListView_MouseRightButtonUpが呼ばれないようにする）
+                    e.Handled = true;
+                    System.Diagnostics.Debug.WriteLine("ListViewItem_MouseRightButtonUp: Event handled, showing context menu");
+
+                    // 画面上の座標をスクリーン座標に変換
+                    var point = e.GetPosition(this);
+                    var screenPoint = PointToScreen(point);
+
+                    // ウィンドウハンドルを取得
+                    var window = Window.GetWindow(this);
+                    var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
+
+                    // FilesContextMenuでOS標準メニューを表示
+                    if (window != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: Calling ShowContextMenu at ({screenPoint.X}, {screenPoint.Y})");
+                        FastExplorer.ShellContextMenu.FilesContextMenuWrapper.ShowContextMenu(
+                            new[] { filePath }, 
+                            window, 
+                            (int)screenPoint.X, 
+                            (int)screenPoint.Y);
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("ListViewItem_MouseRightButtonUp: Window is null");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: File path is invalid or doesn't exist: {filePath}");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("ListViewItem_MouseRightButtonUp: DataContext is not FileSystemItem");
             }
         }
 
@@ -2409,7 +2486,16 @@ namespace FastExplorer.Views.Pages
                 var contextMenu = new FastExplorer.ShellContextMenu.ListViewEmptyAreaContextMenu(
                     refreshCommand: targetTab.ViewModel?.RefreshCommand,
                     addToFavoritesCommand: ViewModel.AddCurrentPathToFavoritesCommand,
-                    currentPath: path
+                    currentPath: path,
+                    sortByColumnAction: (columnName) =>
+                    {
+                        targetTab.ViewModel?.SortByColumn(columnName);
+                    },
+                    setLayoutAction: (layoutName) =>
+                    {
+                        // レイアウト設定は後で実装
+                        System.Diagnostics.Debug.WriteLine($"Layout changed to: {layoutName}");
+                    }
                 );
 
                 // メニューを表示
