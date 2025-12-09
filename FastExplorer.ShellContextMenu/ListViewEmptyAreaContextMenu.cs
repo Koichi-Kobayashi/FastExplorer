@@ -55,7 +55,7 @@ namespace FastExplorer.ShellContextMenu
             BorderBrush = _borderBrush;
             BorderThickness = new Thickness(1);
             Padding = new Thickness(4);
-            MinWidth = 200
+            MinWidth = 200;
 
             // レイアウト（サブメニュー）
             var layoutMenuItem = new MenuItem
@@ -79,6 +79,41 @@ namespace FastExplorer.ShellContextMenu
             layoutMenuItem.Items.Add(CreateLayoutSubItem("列", "Columns"));
             layoutMenuItem.Items.Add(CreateLayoutSubItem("適応", "Adaptive"));
             Items.Add(layoutMenuItem);
+
+            // ★ ContextMenu を角丸にする ControlTemplate を C# で適用
+            var template = new ControlTemplate(typeof(ContextMenu));
+
+#pragma warning disable 618
+            var border = new FrameworkElementFactory(typeof(Border));
+            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));               // ← 角丸
+            border.SetValue(Border.BackgroundProperty, _backgroundBrush);
+            border.SetValue(Border.BorderBrushProperty, _borderBrush);
+            border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+            border.SetValue(Border.PaddingProperty, new Thickness(4));
+            border.SetValue(Border.SnapsToDevicePixelsProperty, true);
+
+            // 影（Windows 11 らしさUP）
+            border.SetValue(Border.EffectProperty, new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = System.Windows.Media.Color.FromArgb(80, 0, 0, 0),
+                BlurRadius = 16,
+                ShadowDepth = 0,
+                Opacity = 0.6
+            });
+
+            // メニュー内部
+            var scrollViewer = new FrameworkElementFactory(typeof(ScrollViewer));
+            scrollViewer.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
+            scrollViewer.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Disabled);
+
+            var itemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));
+            scrollViewer.AppendChild(itemsPresenter);
+
+            border.AppendChild(scrollViewer);
+            template.VisualTree = border;
+#pragma warning restore 618
+
+            this.Template = template;
 
             // 並べ替え（サブメニュー）
             var sortMenuItem = new MenuItem
