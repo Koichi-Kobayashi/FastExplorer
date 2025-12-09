@@ -1,10 +1,9 @@
-using System;
-using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Markup;
+using System.Xml;
 using Wpf.Ui.Controls;
 using MenuItem = Wpf.Ui.Controls.MenuItem;
 using TextBlock = System.Windows.Controls.TextBlock;
@@ -290,6 +289,42 @@ namespace FastExplorer.ShellContextMenu
                 Visibility = Visibility.Collapsed // デフォルトでは非表示
             };
             Items.Add(loadingMenuItem);
+
+            // ここまでで Items.Add(loadingMenuItem); まで終わっている想定
+
+            // ---- ここから Template 差し替え ----
+            const string templateXaml = @"
+<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+                 xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'
+                 TargetType='ContextMenu'>
+    <Border x:Name='BackgroundBorder'
+            Background='{TemplateBinding Background}'
+            BorderBrush='{TemplateBinding BorderBrush}'
+            BorderThickness='{TemplateBinding BorderThickness}'
+            CornerRadius='8'
+            Padding='{TemplateBinding Padding}'
+            SnapsToDevicePixels='True'
+            Margin='4'>
+        <Border.Effect>
+            <DropShadowEffect Color='#40000000'
+                              BlurRadius='18'
+                              ShadowDepth='0'
+                              Opacity='0.8' />
+        </Border.Effect>
+        <ScrollViewer CanContentScroll='True'
+                      VerticalScrollBarVisibility='Auto'
+                      HorizontalScrollBarVisibility='Disabled'>
+            <ItemsPresenter KeyboardNavigation.DirectionalNavigation='Cycle' />
+        </ScrollViewer>
+    </Border>
+</ControlTemplate>";
+
+            using (var stringReader = new StringReader(templateXaml))
+            using (var xmlReader = XmlReader.Create(stringReader))
+            {
+                this.Template = (ControlTemplate)XamlReader.Load(xmlReader);
+            }
+
         }
 
         private MenuItem CreateLayoutSubItem(string text, string layoutName)
