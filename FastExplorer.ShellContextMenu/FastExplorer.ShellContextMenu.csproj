@@ -19,6 +19,7 @@
     <PackageReference Include="Vanara.Windows.Shell" Version="3.4.0" />
   </ItemGroup>
 
+
 	<!-- Workaround for https://github.com/dotnet/wpf/issues/11246 -->
 	<Target Name="FixWpfReferences" AfterTargets="ResolveTargetingPackAssets" Condition="'$(UseWPF)' == 'true'">
 		<ItemGroup>
