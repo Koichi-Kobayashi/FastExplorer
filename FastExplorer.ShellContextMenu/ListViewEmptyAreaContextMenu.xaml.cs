@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -17,6 +20,8 @@ namespace FastExplorer.ShellContextMenu
         private readonly System.Windows.Media.Brush _backgroundBrush;
         private readonly System.Windows.Media.Brush _borderBrush;
         private readonly System.Windows.Media.Brush _foregroundBrush;
+        private readonly string? _currentPath;
+        private readonly ICommand? _refreshCommand;
 
         /// <summary>
         /// コンテキストメニューを構築します
@@ -37,6 +42,8 @@ namespace FastExplorer.ShellContextMenu
 
             _sortByColumnAction = sortByColumnAction;
             _setLayoutAction = setLayoutAction;
+            _currentPath = currentPath;
+            _refreshCommand = refreshCommand;
 
             // テーマカラーを取得（Application.Currentから取得）
             _backgroundBrush = Application.Current.TryFindResource("ApplicationBackgroundBrush") as System.Windows.Media.Brush
@@ -95,6 +102,11 @@ namespace FastExplorer.ShellContextMenu
             // コマンドの設定
             RefreshMenuItem.Command = refreshCommand;
             PinToSidebarMenuItem.Command = addToFavoritesCommand;
+
+            // 新規作成メニューのクリックイベントを設定
+            NewFolderMenuItem.Click += NewFolderMenuItem_Click;
+            NewTextDocumentMenuItem.Click += NewTextDocumentMenuItem_Click;
+            NewShortcutMenuItem.Click += NewShortcutMenuItem_Click;
         }
 
         private MenuItem CreateLayoutSubItem(string text, string layoutName)
@@ -109,6 +121,188 @@ namespace FastExplorer.ShellContextMenu
             var item = new MenuItem { Header = text, Background = _backgroundBrush, Foreground = _foregroundBrush };
             item.Click += (s, e) => _sortByColumnAction?.Invoke(columnName);
             return item;
+        }
+
+        /// <summary>
+        /// エラーダイアログを表示します
+        /// </summary>
+        private async System.Threading.Tasks.Task ShowErrorDialogAsync(string title, string message)
+        {
+            try
+            {
+                // MainWindowからRootContentDialogを取得
+                var mainWindow = Application.Current.MainWindow;
+                if (mainWindow != null)
+                {
+                    var contentPresenter = mainWindow.FindName("RootContentDialog") as ContentPresenter;
+                    if (contentPresenter != null)
+                    {
+                        var contentDialog = new ContentDialog(contentPresenter)
+                        {
+                            Title = title,
+                            Content = message,
+                            CloseButtonText = "閉じる"
+                        };
+
+                        await contentDialog.ShowAsync();
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"エラーダイアログ表示エラー: {ex.Message}");
+                var messageBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = title,
+                    Content = message,
+                    CloseButtonText = "閉じる"
+                };
+                await messageBox.ShowDialogAsync();
+            }
+        }
+
+        /// <summary>
+        /// フォルダーを作成します
+        /// </summary>
+        private async void NewFolderMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_currentPath) || !Directory.Exists(_currentPath))
+            {
+                return;
+            }
+
+            try
+            {
+                // 新しいフォルダー名を生成（既存のフォルダー名と重複しないようにする）
+                string newFolderName = "新しいフォルダー";
+                string newFolderPath = Path.Combine(_currentPath, newFolderName);
+                int counter = 1;
+
+                while (Directory.Exists(newFolderPath))
+                {
+                    newFolderName = $"新しいフォルダー ({counter})";
+                    newFolderPath = Path.Combine(_currentPath, newFolderName);
+                    counter++;
+                }
+
+                // フォルダーを作成
+                Directory.CreateDirectory(newFolderPath);
+
+                // リストを更新
+                _refreshCommand?.Execute(null);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"フォルダー作成エラー: {ex.Message}");
+                await ShowErrorDialogAsync("エラー", $"フォルダーの作成に失敗しました。\n{ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// テキストファイルを作成します
+        /// </summary>
+        private async void NewTextDocumentMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_currentPath) || !Directory.Exists(_currentPath))
+            {
+                return;
+            }
+
+            try
+            {
+                // 新しいテキストファイル名を生成（既存のファイル名と重複しないようにする）
+                string newFileName = "新しいテキスト ドキュメント.txt";
+                string newFilePath = Path.Combine(_currentPath, newFileName);
+                int counter = 1;
+
+                while (File.Exists(newFilePath))
+                {
+                    newFileName = $"新しいテキスト ドキュメント ({counter}).txt";
+                    newFilePath = Path.Combine(_currentPath, newFileName);
+                    counter++;
+                }
+
+                // テキストファイルを作成（空のファイル）
+                File.Create(newFilePath).Dispose();
+
+                // リストを更新
+                _refreshCommand?.Execute(null);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"テキストファイル作成エラー: {ex.Message}");
+                await ShowErrorDialogAsync("エラー", $"テキストファイルの作成に失敗しました。\n{ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// ショートカットを作成します
+        /// </summary>
+        private async void NewShortcutMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_currentPath) || !Directory.Exists(_currentPath))
+            {
+                return;
+            }
+
+            try
+            {
+                // ショートカットの作成先を選択するダイアログを表示
+                var dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "ショートカットの作成先を選択",
+                    Filter = "すべてのファイル (*.*)|*.*",
+                    CheckFileExists = true
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    string targetPath = dialog.FileName;
+                    string shortcutName = Path.GetFileNameWithoutExtension(targetPath) + ".lnk";
+                    string shortcutPath = Path.Combine(_currentPath, shortcutName);
+                    int counter = 1;
+
+                    // 既存のショートカット名と重複しないようにする
+                    while (File.Exists(shortcutPath))
+                    {
+                        shortcutName = $"{Path.GetFileNameWithoutExtension(targetPath)} ({counter}).lnk";
+                        shortcutPath = Path.Combine(_currentPath, shortcutName);
+                        counter++;
+                    }
+
+                    // ショートカットを作成
+                    CreateShortcut(shortcutPath, targetPath);
+
+                    // リストを更新
+                    _refreshCommand?.Execute(null);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ショートカット作成エラー: {ex.Message}");
+                await ShowErrorDialogAsync("エラー", $"ショートカットの作成に失敗しました。\n{ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// ショートカット（.lnkファイル）を作成します
+        /// </summary>
+        private void CreateShortcut(string shortcutPath, string targetPath)
+        {
+            // WScript.Shell COMオブジェクトを使用してショートカットを作成
+            var shellLinkType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellLinkType == null)
+            {
+                throw new InvalidOperationException("WScript.Shell COMオブジェクトを作成できませんでした。");
+            }
+
+            dynamic shell = Activator.CreateInstance(shellLinkType);
+            dynamic shortcut = shell.CreateShortcut(shortcutPath);
+            shortcut.TargetPath = targetPath;
+            shortcut.Description = $"ショートカット: {targetPath}";
+            shortcut.WorkingDirectory = Path.GetDirectoryName(targetPath) ?? "";
+            shortcut.Save();
         }
     }
 }
