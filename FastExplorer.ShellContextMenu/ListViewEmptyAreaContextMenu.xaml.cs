@@ -482,12 +482,12 @@ namespace FastExplorer.ShellContextMenu
                 throw new InvalidOperationException("WScript.Shell COMオブジェクトを作成できませんでした。");
             }
 
-            dynamic shell = Activator.CreateInstance(shellLinkType);
-            dynamic shortcut = shell.CreateShortcut(shortcutPath);
-            shortcut.TargetPath = targetPath;
-            shortcut.Description = $"ショートカット: {targetPath}";
-            shortcut.WorkingDirectory = Path.GetDirectoryName(targetPath) ?? "";
-            shortcut.Save();
+            dynamic? shell = Activator.CreateInstance(shellLinkType);
+            dynamic? shortcut = shell?.CreateShortcut(shortcutPath);
+            shortcut?.TargetPath = targetPath;
+            shortcut?.Description = $"ショートカット: {targetPath}";
+            shortcut?.WorkingDirectory = Path.GetDirectoryName(targetPath) ?? "";
+            shortcut?.Save();
         }
     }
 }
