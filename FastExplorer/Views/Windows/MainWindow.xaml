@@ -18,6 +18,7 @@
     AllowDrop="True"
     ExtendsContentIntoTitleBar="True"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    Icon="pack://application:,,,/Assets/wpfui-icon-256.png"
     KeyDown="MainWindow_KeyDown"
     PreviewKeyDown="MainWindow_PreviewKeyDown"
     RenderOptions.ClearTypeHint="Enabled"
