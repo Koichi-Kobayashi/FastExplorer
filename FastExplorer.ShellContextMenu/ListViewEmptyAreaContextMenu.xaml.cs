@@ -17,11 +17,13 @@ namespace FastExplorer.ShellContextMenu
     {
         private readonly Action<string>? _sortByColumnAction;
         private readonly Action<string>? _setLayoutAction;
+        private readonly Action<string, System.Windows.Controls.ListView>? _startRenameAction;
         private readonly System.Windows.Media.Brush _backgroundBrush;
         private readonly System.Windows.Media.Brush _borderBrush;
         private readonly System.Windows.Media.Brush _foregroundBrush;
         private readonly string? _currentPath;
         private readonly ICommand? _refreshCommand;
+        private System.Windows.Controls.ListView? _listView;
 
         /// <summary>
         /// コンテキストメニューを構築します
@@ -31,17 +33,20 @@ namespace FastExplorer.ShellContextMenu
         /// <param name="currentPath">現在のパス</param>
         /// <param name="sortByColumnAction">並べ替えアクション（列名を指定）</param>
         /// <param name="setLayoutAction">レイアウト設定アクション（レイアウト名を指定）</param>
+        /// <param name="startRenameAction">新規作成後の名前変更開始アクション（作成したアイテムのパスとListViewを指定）</param>
         public ListViewEmptyAreaContextMenu(
             ICommand? refreshCommand = null,
             ICommand? addToFavoritesCommand = null,
             string? currentPath = null,
             Action<string>? sortByColumnAction = null,
-            Action<string>? setLayoutAction = null)
+            Action<string>? setLayoutAction = null,
+            Action<string, System.Windows.Controls.ListView>? startRenameAction = null)
         {
             InitializeComponent();
 
             _sortByColumnAction = sortByColumnAction;
             _setLayoutAction = setLayoutAction;
+            _startRenameAction = startRenameAction;
             _currentPath = currentPath;
             _refreshCommand = refreshCommand;
 
@@ -107,6 +112,15 @@ namespace FastExplorer.ShellContextMenu
             NewFolderMenuItem.Click += NewFolderMenuItem_Click;
             NewTextDocumentMenuItem.Click += NewTextDocumentMenuItem_Click;
             NewShortcutMenuItem.Click += NewShortcutMenuItem_Click;
+
+            // OpenedイベントでListViewを保存
+            this.Opened += (s, e) =>
+            {
+                if (PlacementTarget is System.Windows.Controls.ListView listView)
+                {
+                    _listView = listView;
+                }
+            };
         }
 
         private MenuItem CreateLayoutSubItem(string text, string layoutName)
@@ -191,6 +205,18 @@ namespace FastExplorer.ShellContextMenu
 
                 // リストを更新
                 _refreshCommand?.Execute(null);
+
+                // 名前変更モードを開始
+                if (_listView != null && _startRenameAction != null)
+                {
+                    // リスト更新後に名前変更を開始するため、少し遅延させる
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                        System.Windows.Threading.DispatcherPriority.Loaded,
+                        new Action(() =>
+                        {
+                            _startRenameAction(newFolderPath, _listView);
+                        }));
+                }
             }
             catch (Exception ex)
             {
@@ -228,6 +254,18 @@ namespace FastExplorer.ShellContextMenu
 
                 // リストを更新
                 _refreshCommand?.Execute(null);
+
+                // 名前変更モードを開始
+                if (_listView != null && _startRenameAction != null)
+                {
+                    // リスト更新後に名前変更を開始するため、少し遅延させる
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                        System.Windows.Threading.DispatcherPriority.Loaded,
+                        new Action(() =>
+                        {
+                            _startRenameAction(newFilePath, _listView);
+                        }));
+                }
             }
             catch (Exception ex)
             {

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -2483,6 +2485,7 @@ namespace FastExplorer.Views.Pages
             if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
             {
                 // カスタムコンテキストメニューを表示
+                var listView = sender as System.Windows.Controls.ListView;
                 var contextMenu = new FastExplorer.ShellContextMenu.ListViewEmptyAreaContextMenu(
                     refreshCommand: targetTab.ViewModel?.RefreshCommand,
                     addToFavoritesCommand: ViewModel.AddCurrentPathToFavoritesCommand,
@@ -2495,6 +2498,10 @@ namespace FastExplorer.Views.Pages
                     {
                         // レイアウト設定は後で実装
                         System.Diagnostics.Debug.WriteLine($"Layout changed to: {layoutName}");
+                    },
+                    startRenameAction: (itemPath, lv) =>
+                    {
+                        StartRenameForNewItem(itemPath, lv, targetTab);
                     }
                 );
 
@@ -4247,6 +4254,63 @@ namespace FastExplorer.Views.Pages
                 return;
 
             StartRenameForItem(listViewItem, selectedItem, targetTab);
+        }
+
+        /// <summary>
+        /// 新規作成したアイテムの名前変更モードを開始します
+        /// </summary>
+        /// <param name="itemPath">作成したアイテムのパス</param>
+        /// <param name="listView">対象のListView</param>
+        /// <param name="tab">対象のタブ</param>
+        private void StartRenameForNewItem(string itemPath, System.Windows.Controls.ListView listView, Models.ExplorerTab? tab)
+        {
+            if (tab?.ViewModel == null || listView == null)
+                return;
+
+            // パスからアイテムを検索
+            var item = tab.ViewModel.Items.FirstOrDefault(i => 
+                string.Equals(i.FullPath, itemPath, StringComparison.OrdinalIgnoreCase));
+
+            if (item == null)
+            {
+                // アイテムが見つからない場合、少し待ってから再試行
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                    System.Windows.Threading.DispatcherPriority.Loaded,
+                    new Action(() =>
+                    {
+                        StartRenameForNewItem(itemPath, listView, tab);
+                    }));
+                return;
+            }
+
+            // アイテムを選択
+            tab.ViewModel.SelectedItem = item;
+
+            // ListViewItemを取得（選択後に少し待つ必要がある場合がある）
+            System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Loaded,
+                new Action(() =>
+                {
+                    var listViewItem = listView.ItemContainerGenerator.ContainerFromItem(item) as System.Windows.Controls.ListViewItem;
+                    if (listViewItem != null)
+                    {
+                        StartRenameForItem(listViewItem, item, tab);
+                    }
+                    else
+                    {
+                        // ListViewItemが見つからない場合、もう一度試行
+                        System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                            System.Windows.Threading.DispatcherPriority.Loaded,
+                            new Action(() =>
+                            {
+                                listViewItem = listView.ItemContainerGenerator.ContainerFromItem(item) as System.Windows.Controls.ListViewItem;
+                                if (listViewItem != null)
+                                {
+                                    StartRenameForItem(listViewItem, item, tab);
+                                }
+                            }));
+                    }
+                }));
         }
 
         /// <summary>
