@@ -137,17 +137,6 @@
                         Style="{StaticResource NavigationButtonStyle}"
                         Tag="Layout" />
                     <ui:Button
-                        x:Name="OperationButton"
-                        Margin="0,4,0,0"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left"
-                        Appearance="Secondary"
-                        Click="NavigationButton_Click"
-                        Content="{localization:LocalizationHelperExtension Operation}"
-                        Icon="{ui:SymbolIcon Options24}"
-                        Style="{StaticResource NavigationButtonStyle}"
-                        Tag="Operation" />
-                    <ui:Button
                         x:Name="AboutButton"
                         Margin="0,4,0,0"
                         HorizontalAlignment="Stretch"

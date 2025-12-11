@@ -96,7 +96,6 @@ namespace FastExplorer.Views.Windows
             GeneralButton.Appearance = ControlAppearance.Secondary;
             AppearanceButton.Appearance = ControlAppearance.Secondary;
             LayoutButton.Appearance = ControlAppearance.Secondary;
-            OperationButton.Appearance = ControlAppearance.Secondary;
             AboutButton.Appearance = ControlAppearance.Secondary;
 
             // クリックされたボタンをPrimaryに設定

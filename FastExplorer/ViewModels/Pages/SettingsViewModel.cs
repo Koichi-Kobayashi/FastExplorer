@@ -951,7 +951,6 @@ namespace FastExplorer.ViewModels.Pages
                 UpdateButtonContent(settingsWindow, "GeneralButton", "General", "全般");
                 UpdateButtonContent(settingsWindow, "AppearanceButton", "Appearance", "外観");
                 UpdateButtonContent(settingsWindow, "LayoutButton", "Layout", "レイアウト");
-                UpdateButtonContent(settingsWindow, "OperationButton", "Operation", "操作");
                 UpdateButtonContent(settingsWindow, "AboutButton", "AboutApplication", "FastExplorer について");
 
                 // 設定画面のすべてのTextBlockとComboBoxItemを更新
