@@ -78,6 +78,14 @@
                     Text="並べ替え" />
             </StackPanel>
         </ui:MenuItem.Header>
+        <ui:MenuItem x:Name="SortByNameMenuItem" Header="名前" />
+        <ui:MenuItem x:Name="SortByDateModifiedMenuItem" Header="変更日時" />
+        <ui:MenuItem x:Name="SortByDateCreatedMenuItem" Header="作成日時" />
+        <ui:MenuItem x:Name="SortByTypeMenuItem" Header="種類" />
+        <ui:MenuItem x:Name="SortBySizeMenuItem" Header="サイズ" />
+        <Separator />
+        <ui:MenuItem x:Name="SortAscendingMenuItem" Header="昇順" />
+        <ui:MenuItem x:Name="SortDescendingMenuItem" Header="降順" />
     </ui:MenuItem>
 
     <!--  グループで表示（サブメニュー）  -->

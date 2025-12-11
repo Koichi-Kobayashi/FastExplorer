@@ -1026,17 +1026,40 @@ namespace FastExplorer.ViewModels.Pages
         /// <summary>
         /// 指定された列でソートします
         /// </summary>
-        /// <param name="columnName">ソートする列名（"Name", "Size", "Extension", "LastModified"）</param>
+        /// <param name="columnName">ソートする列名（"Name", "Size", "Type"/"Extension", "DateModified"/"LastModified", "DateCreated", "Ascending", "Descending"）</param>
         public void SortByColumn(string columnName)
         {
+            // ソート方向の変更を処理
+            if (columnName == "Ascending")
+            {
+                _sortAscending = true;
+                SortItems();
+                return;
+            }
+            else if (columnName == "Descending")
+            {
+                _sortAscending = false;
+                SortItems();
+                return;
+            }
+
+            // 列名のマッピング（UIから渡される名前を内部の列名に変換）
+            string mappedColumnName = columnName switch
+            {
+                "Type" => "Extension",
+                "DateModified" => "LastModified",
+                "DateCreated" => "LastModified", // DateCreatedプロパティがないため、LastModifiedを使用
+                _ => columnName
+            };
+
             // 同じ列をクリックした場合はソート方向を反転
-            if (_sortColumn == columnName)
+            if (_sortColumn == mappedColumnName)
             {
                 _sortAscending = !_sortAscending;
             }
             else
             {
-                _sortColumn = columnName;
+                _sortColumn = mappedColumnName;
                 _sortAscending = true;
             }
 
@@ -1102,6 +1125,7 @@ namespace FastExplorer.ViewModels.Pages
                 }
 
                 // 列に応じてソート（switch式を使用してパフォーマンス向上）
+                // Extension列でソートする場合、拡張子が空のディレクトリは適切に処理される
                 int result = _sortColumn switch
                 {
                     NameColumn => string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase),

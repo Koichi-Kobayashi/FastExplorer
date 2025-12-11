@@ -95,15 +95,30 @@ namespace FastExplorer.ShellContextMenu
             LayoutMenuItem.Items.Add(CreateLayoutSubItem("列", "Columns"));
             LayoutMenuItem.Items.Add(CreateLayoutSubItem("適応", "Adaptive"));
 
-            // 並べ替え（サブメニュー）の子項目を追加
-            SortMenuItem.Items.Add(CreateSortSubItem("名前", "Name"));
-            SortMenuItem.Items.Add(CreateSortSubItem("変更日時", "DateModified"));
-            SortMenuItem.Items.Add(CreateSortSubItem("作成日時", "DateCreated"));
-            SortMenuItem.Items.Add(CreateSortSubItem("種類", "Type"));
-            SortMenuItem.Items.Add(CreateSortSubItem("サイズ", "Size"));
-            SortMenuItem.Items.Add(new Separator());
-            SortMenuItem.Items.Add(CreateSortSubItem("昇順", "Ascending"));
-            SortMenuItem.Items.Add(CreateSortSubItem("降順", "Descending"));
+            // 並べ替え（サブメニュー）の子項目にイベントハンドラーを設定
+            SortByNameMenuItem.Click += (s, e) => _sortByColumnAction?.Invoke("Name");
+            SortByDateModifiedMenuItem.Click += (s, e) => _sortByColumnAction?.Invoke("DateModified");
+            SortByDateCreatedMenuItem.Click += (s, e) => _sortByColumnAction?.Invoke("DateCreated");
+            SortByTypeMenuItem.Click += (s, e) => _sortByColumnAction?.Invoke("Type");
+            SortBySizeMenuItem.Click += (s, e) => _sortByColumnAction?.Invoke("Size");
+            SortAscendingMenuItem.Click += (s, e) => _sortByColumnAction?.Invoke("Ascending");
+            SortDescendingMenuItem.Click += (s, e) => _sortByColumnAction?.Invoke("Descending");
+            
+            // 並び替えメニュー項目のスタイルを設定
+            SortByNameMenuItem.Background = _backgroundBrush;
+            SortByNameMenuItem.Foreground = _foregroundBrush;
+            SortByDateModifiedMenuItem.Background = _backgroundBrush;
+            SortByDateModifiedMenuItem.Foreground = _foregroundBrush;
+            SortByDateCreatedMenuItem.Background = _backgroundBrush;
+            SortByDateCreatedMenuItem.Foreground = _foregroundBrush;
+            SortByTypeMenuItem.Background = _backgroundBrush;
+            SortByTypeMenuItem.Foreground = _foregroundBrush;
+            SortBySizeMenuItem.Background = _backgroundBrush;
+            SortBySizeMenuItem.Foreground = _foregroundBrush;
+            SortAscendingMenuItem.Background = _backgroundBrush;
+            SortAscendingMenuItem.Foreground = _foregroundBrush;
+            SortDescendingMenuItem.Background = _backgroundBrush;
+            SortDescendingMenuItem.Foreground = _foregroundBrush;
 
             // コマンドの設定
             RefreshMenuItem.Command = refreshCommand;
