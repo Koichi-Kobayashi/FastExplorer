@@ -1,7 +1,10 @@
 // Copyright (c) Files Community
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FastExplorer.ShellContextMenu
 {
@@ -11,28 +14,66 @@ namespace FastExplorer.ShellContextMenu
 
 		private readonly Thread thread;
 
+		private readonly CancellationTokenSource cts = new();
+
+		private bool disposed;
+
 		protected override void Dispose(bool disposing)
 		{
 			if (disposing)
 			{
-				messageQueue.CompleteAdding();
-				thread.Join();
-				messageQueue.Dispose();
+				if (disposed)
+					return;
+				disposed = true;
+
+				// Stop producers and request the worker to stop promptly.
+				try { messageQueue.CompleteAdding(); } catch { }
+				try { cts.Cancel(); } catch { }
+
+				// Wait a bounded time for the worker to finish.
+				if (!thread.Join(TimeSpan.FromSeconds(5)))
+				{
+					// Worker didn't stop in time; avoid disposing the collection while it may still be enumerating.
+					return;
+				}
+
+				try { messageQueue.Dispose(); } catch { }
+				try { cts.Dispose(); } catch { }
 			}
 		}
 
 		public async Task<V> PostMethod<V>(Func<object> payload)
 		{
+			if (disposed || messageQueue.IsAddingCompleted)
+			{
+				var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+				tcs.SetException(new InvalidOperationException("Queue closed"));
+				return (V)await tcs.Task;
+			}
+
 			var message = new Internal(payload);
-			messageQueue.TryAdd(message);
+			if (!messageQueue.TryAdd(message))
+			{
+				message.tcs.SetException(new InvalidOperationException("Queue closed"));
+			}
 
 			return (V)await message.tcs.Task;
 		}
 
 		public Task PostMethod(Action payload)
 		{
+			if (disposed || messageQueue.IsAddingCompleted)
+			{
+				var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+				tcs.SetException(new InvalidOperationException("Queue closed"));
+				return tcs.Task;
+			}
+
 			var message = new Internal(payload);
-			messageQueue.TryAdd(message);
+			if (!messageQueue.TryAdd(message))
+			{
+				message.tcs.SetException(new InvalidOperationException("Queue closed"));
+			}
 
 			return message.tcs.Task;
 		}
@@ -43,10 +84,41 @@ namespace FastExplorer.ShellContextMenu
 
 			thread = new Thread(new ThreadStart(() =>
 			{
-				foreach (var message in messageQueue.GetConsumingEnumerable())
+				try
 				{
-					var res = message.payload();
-					message.tcs.SetResult(res);
+					// Use cancellation-enabled enumerator so we can reliably unblock the waiting consumer.
+					foreach (var message in messageQueue.GetConsumingEnumerable(cts.Token))
+					{
+						try
+						{
+							var res = message.payload();
+							message.tcs.SetResult(res);
+						}
+						catch (Exception ex)
+						{
+							message.tcs.SetException(ex);
+						}
+					}
+				}
+				catch (OperationCanceledException)
+				{
+					// Normal shutdown due to cts.Cancel()
+				}
+				catch (ObjectDisposedException)
+				{
+					// Normal shutdown if collection was disposed unexpectedly
+				}
+				catch (Exception ex)
+				{
+					// Best effort: drain remaining items and propagate exception to callers.
+					try
+					{
+						while (messageQueue.TryTake(out var m))
+						{
+							try { m.tcs.SetException(ex); } catch { }
+						}
+					}
+					catch { }
 				}
 			}));
 

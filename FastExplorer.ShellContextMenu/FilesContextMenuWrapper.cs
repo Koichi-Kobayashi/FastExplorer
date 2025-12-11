@@ -1,15 +1,17 @@
 // Copyright (c) Files Community
 // Licensed under the MIT License.
 
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.IO;
 using Wpf.Ui.Controls;
 using MenuItem = Wpf.Ui.Controls.MenuItem;
 using TextBlock = System.Windows.Controls.TextBlock;
-using System.Windows.Media;
 
 namespace FastExplorer.ShellContextMenu
 {
@@ -32,7 +34,8 @@ namespace FastExplorer.ShellContextMenu
 		/// <param name="ownerWindow">Owner window (オーナーウィンドウ)</param>
 		/// <param name="x">X coordinate in screen coordinates (スクリーン座標のX座標)</param>
 		/// <param name="y">Y coordinate in screen coordinates (スクリーン座標のY座標)</param>
-		public static void ShowContextMenu(string[] filePaths, Window ownerWindow, int x, int y)
+		/// <param name="onClosed">Optional callback when the menu is closed (メニューが閉じられたときのコールバック)</param>
+		public static void ShowContextMenu(string[] filePaths, Window ownerWindow, int x, int y, Action? onClosed = null)
 		{
 			if (filePaths == null || filePaths.Length == 0)
 				return;
@@ -52,10 +55,10 @@ namespace FastExplorer.ShellContextMenu
 			}
 
 			// UIスレッドで非同期処理を実行
-			_ = ShowContextMenuAsync(filePaths, ownerWindow, x, y);
+			_ = ShowContextMenuAsync(filePaths, ownerWindow, x, y, onClosed);
 		}
 
-		private static async Task ShowContextMenuAsync(string[] filePaths, Window ownerWindow, int x, int y)
+		private static async Task ShowContextMenuAsync(string[] filePaths, Window ownerWindow, int x, int y, Action? onClosed = null)
 		{
 			FilesContextMenu? contextMenu = null;
 			try
@@ -72,6 +75,7 @@ namespace FastExplorer.ShellContextMenu
 					{
 						_isShowingMenu = false;
 					}
+					onClosed?.Invoke();
 					return;
 				}
 
@@ -113,14 +117,14 @@ namespace FastExplorer.ShellContextMenu
 
 					if (s is ContextMenu menu && menu.Tag is FilesContextMenu cm)
 					{
-						// メニュー項目の実行が完了するまで少し待ってから破棄する（非同期）
+						// メニュー項目の実行が完了するまで待ってから破棄する（非同期）
+						// FilesContextMenu.Dispose()内で実行中のタスクを待つため、ここでは即座にDisposeを呼び出せる
 						_ = Task.Run(async () =>
 						{
-							// メニュー項目の実行が完了するまで少し待つ（500ms）
-							await Task.Delay(500);
-
 							try
 							{
+								// Dispose()内で実行中のタスクを待つため、即座に呼び出しても安全
+								// ただし、UIスレッドをブロックしないように非同期で実行
 								cm.Dispose();
 							}
 							catch (Exception ex)
@@ -137,6 +141,9 @@ namespace FastExplorer.ShellContextMenu
 							}
 						});
 					}
+
+					// コールバックを呼び出す
+					onClosed?.Invoke();
 				};
 
 				// メニューが開かれたことを確認（エラー時のフラグリセット用）
@@ -158,6 +165,7 @@ namespace FastExplorer.ShellContextMenu
 				{
 					_isShowingMenu = false;
 				}
+				onClosed?.Invoke();
 			}
 			catch (Exception ex)
 			{
@@ -178,6 +186,7 @@ namespace FastExplorer.ShellContextMenu
 						// 破棄時のエラーは無視
 					}
 				}
+				onClosed?.Invoke();
 			}
 		}
 
@@ -258,27 +267,43 @@ namespace FastExplorer.ShellContextMenu
 						var menuItemCopy = menuItem; // Capture for closure
 						wpfMenuItem.Click += async (s, e) =>
 						{
-							// メニューをすぐに閉じる
-							if (s is MenuItem item)
+							try
 							{
-								var contextMenu = item.Parent as ContextMenu ?? 
-									(item.Parent as MenuItem)?.Parent as ContextMenu;
-								if (contextMenu != null)
+								// メニューをすぐに閉じる
+								if (s is MenuItem item)
 								{
-									contextMenu.IsOpen = false;
+									var contextMenu = item.Parent as ContextMenu ?? 
+										(item.Parent as MenuItem)?.Parent as ContextMenu;
+									if (contextMenu != null)
+									{
+										contextMenu.IsOpen = false;
+									}
 								}
-							}
 
-							if (s is MenuItem menuItem && menuItem.Tag is FilesContextMenu cm)
-							{
-								try
+								if (s is MenuItem menuItem && menuItem.Tag is FilesContextMenu cm)
 								{
 									await InvokeShellMenuItemAsync(cm, menuItemCopy);
 								}
-								catch (Exception ex)
-								{
-									System.Diagnostics.Debug.WriteLine($"Error invoking menu item: {ex}");
-								}
+							}
+							catch (ObjectDisposedException)
+							{
+								// contextMenuが既に破棄されている場合は無視
+								System.Diagnostics.Debug.WriteLine("MenuItem Click: ContextMenu was disposed");
+							}
+							catch (OperationCanceledException)
+							{
+								// 操作がキャンセルされた場合は無視
+								System.Diagnostics.Debug.WriteLine("MenuItem Click: Operation was canceled");
+							}
+							catch (Exception ex) when (ex is COMException or UnauthorizedAccessException)
+							{
+								// COM例外やアクセス権限例外は無視
+								System.Diagnostics.Debug.WriteLine($"MenuItem Click: COM/Access exception: {ex}");
+							}
+							catch (Exception ex)
+							{
+								// その他の予期しない例外も無視してアプリケーションをクラッシュさせない
+								System.Diagnostics.Debug.WriteLine($"MenuItem Click: Error invoking menu item: {ex}");
 							}
 						};
 					}
@@ -383,27 +408,43 @@ namespace FastExplorer.ShellContextMenu
 							var subItemCopy = subItem; // Capture for closure
 							wpfSubMenuItem.Click += async (s, e) =>
 							{
-								// メニューをすぐに閉じる
-								if (s is MenuItem item)
+								try
 								{
-									var contextMenu = item.Parent as ContextMenu ?? 
-										(item.Parent as MenuItem)?.Parent as ContextMenu;
-									if (contextMenu != null)
+									// メニューをすぐに閉じる
+									if (s is MenuItem item)
 									{
-										contextMenu.IsOpen = false;
+										var contextMenu = item.Parent as ContextMenu ?? 
+											(item.Parent as MenuItem)?.Parent as ContextMenu;
+										if (contextMenu != null)
+										{
+											contextMenu.IsOpen = false;
+										}
 									}
-								}
 
-								if (s is MenuItem menuItem && menuItem.Tag is FilesContextMenu cm)
-								{
-									try
+									if (s is MenuItem menuItem && menuItem.Tag is FilesContextMenu cm)
 									{
 										await InvokeShellMenuItemAsync(cm, subItemCopy);
 									}
-									catch (Exception ex)
-									{
-										System.Diagnostics.Debug.WriteLine($"Error invoking submenu item: {ex}");
-									}
+								}
+								catch (ObjectDisposedException)
+								{
+									// contextMenuが既に破棄されている場合は無視
+									System.Diagnostics.Debug.WriteLine("SubMenuItem Click: ContextMenu was disposed");
+								}
+								catch (OperationCanceledException)
+								{
+									// 操作がキャンセルされた場合は無視
+									System.Diagnostics.Debug.WriteLine("SubMenuItem Click: Operation was canceled");
+								}
+								catch (Exception ex) when (ex is COMException or UnauthorizedAccessException)
+								{
+									// COM例外やアクセス権限例外は無視
+									System.Diagnostics.Debug.WriteLine($"SubMenuItem Click: COM/Access exception: {ex}");
+								}
+								catch (Exception ex)
+								{
+									// その他の予期しない例外も無視してアプリケーションをクラッシュさせない
+									System.Diagnostics.Debug.WriteLine($"SubMenuItem Click: Error invoking submenu item: {ex}");
 								}
 							};
 						}
@@ -443,7 +484,7 @@ namespace FastExplorer.ShellContextMenu
 					return;
 
 				var verb = menuItem.CommandString;
-				var firstPath = contextMenu.ItemsPath.FirstOrDefault();
+				var firstPath = contextMenu.ItemsPath?.FirstOrDefault();
 
 				// Filesアプリと同じ特別なケースの処理
 				switch (verb)
@@ -492,8 +533,14 @@ namespace FastExplorer.ShellContextMenu
 				// 操作がキャンセルされた場合は無視（contextMenuが破棄された場合など）
 				System.Diagnostics.Debug.WriteLine("InvokeShellMenuItemAsync: Operation was canceled (contextMenu may have been disposed)");
 			}
+			catch (Exception ex) when (ex is COMException or UnauthorizedAccessException)
+			{
+				// COM例外やアクセス権限例外は無視
+				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: COM/Access exception: {ex}");
+			}
 			catch (Exception ex)
 			{
+				// その他の予期しない例外も無視してアプリケーションをクラッシュさせない
 				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: Error invoking menu item: {ex}");
 			}
 		}

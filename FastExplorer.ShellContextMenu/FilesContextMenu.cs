@@ -35,6 +35,10 @@ namespace FastExplorer.ShellContextMenu
 		// To detect redundant calls
 		private bool disposedValue = false;
 
+		// 実行中のタスクを追跡（Dispose時に完了を待つため）
+		private readonly List<Task> _pendingTasks = new List<Task>();
+		private readonly object _pendingTasksLock = new object();
+
 		public List<string> ItemsPath { get; }
 
 		public User32.SafeHMENU MenuHandle => _hMenu;
@@ -105,6 +109,14 @@ namespace FastExplorer.ShellContextMenu
 				return false;
 			}
 
+			// _cMenuがnullの場合は処理しない
+			if (_cMenu == null)
+			{
+				System.Diagnostics.Debug.WriteLine("InvokeItem: _cMenu is null");
+				return false;
+			}
+
+			Task<bool>? task = null;
 			try
 			{
 				var currentWindows = Win32Helper.GetDesktopWindows();
@@ -118,18 +130,20 @@ namespace FastExplorer.ShellContextMenu
 				if (workingDirectory is not null)
 					pici.lpDirectoryW = workingDirectory;
 
-				await _owningThread.PostMethod(() =>
-				{
-					// 実行中に破棄された場合は例外をスロー
-					if (disposedValue || _cMenu == null)
-					{
-						throw new ObjectDisposedException(nameof(FilesContextMenu));
-					}
-					_cMenu.InvokeCommand(pici);
-				});
-				Win32Helper.BringToForeground(currentWindows);
+				// タスクを作成して追跡リストに追加
+				task = InvokeItemInternal(pici, currentWindows);
 
-				return true;
+				// タスクを追跡リストに追加
+				lock (_pendingTasksLock)
+				{
+					if (!disposedValue)
+					{
+						_pendingTasks.Add(task);
+					}
+				}
+
+				var result = await task;
+				return result;
 			}
 			catch (OperationCanceledException)
 			{
@@ -151,8 +165,59 @@ namespace FastExplorer.ShellContextMenu
 			{
 				System.Diagnostics.Debug.WriteLine($"InvokeItem: Unexpected error: {ex}");
 			}
+			finally
+			{
+				// タスクを追跡リストから削除
+				if (task != null)
+				{
+					lock (_pendingTasksLock)
+					{
+						_pendingTasks.Remove(task);
+					}
+				}
+			}
 
 			return false;
+		}
+
+		private async Task<bool> InvokeItemInternal(Shell32.CMINVOKECOMMANDINFOEX pici, List<Vanara.PInvoke.HWND> currentWindows)
+		{
+			try
+			{
+				await _owningThread.PostMethod(() =>
+				{
+					// 実行中に破棄された場合は例外をスロー
+					if (disposedValue || _cMenu == null)
+					{
+						throw new ObjectDisposedException(nameof(FilesContextMenu));
+					}
+					_cMenu.InvokeCommand(pici);
+				});
+				Win32Helper.BringToForeground(currentWindows);
+				return true;
+			}
+			catch (OperationCanceledException)
+			{
+				// 操作がキャンセルされた場合は無視
+				System.Diagnostics.Debug.WriteLine("InvokeItemInternal: Operation was canceled");
+				return false;
+			}
+			catch (ObjectDisposedException)
+			{
+				// 既に破棄されている場合は無視
+				System.Diagnostics.Debug.WriteLine("InvokeItemInternal: FilesContextMenu was disposed");
+				return false;
+			}
+			catch (Exception ex) when (ex is COMException or UnauthorizedAccessException)
+			{
+				System.Diagnostics.Debug.WriteLine($"InvokeItemInternal: {ex}");
+				return false;
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine($"InvokeItemInternal: Unexpected error: {ex}");
+				return false;
+			}
 		}
 
 		/// <summary>
@@ -167,10 +232,31 @@ namespace FastExplorer.ShellContextMenu
 			if (_hMenu == null || _hMenu.IsInvalid)
 				return 0;
 
+			// 既に破棄されている場合は処理しない
+			if (disposedValue)
+			{
+				System.Diagnostics.Debug.WriteLine("ShowNativeMenu: FilesContextMenu is already disposed");
+				return 0;
+			}
+
+			// _cMenuがnullの場合は処理しない
+			if (_cMenu == null)
+			{
+				System.Diagnostics.Debug.WriteLine("ShowNativeMenu: _cMenu is null");
+				return 0;
+			}
+
 			return await _owningThread.PostMethod<uint>(() =>
 			{
 				try
 				{
+					// 実行中に破棄された場合は処理しない
+					if (disposedValue || _cMenu == null)
+					{
+						System.Diagnostics.Debug.WriteLine("ShowNativeMenu: FilesContextMenu was disposed during execution");
+						return 0;
+					}
+
 					const uint idCmdFirst = 1;
 
 					// Show native Windows context menu
@@ -184,6 +270,13 @@ namespace FastExplorer.ShellContextMenu
 
 					if (selected != 0)
 					{
+						// 実行中に破棄された場合は処理しない
+						if (disposedValue || _cMenu == null)
+						{
+							System.Diagnostics.Debug.WriteLine("ShowNativeMenu: FilesContextMenu was disposed after menu selection");
+							return 0;
+						}
+
 						// Invoke the selected command
 						var itemID = (int)(selected - idCmdFirst);
 						var pici = new Shell32.CMINVOKECOMMANDINFOEX
@@ -196,6 +289,17 @@ namespace FastExplorer.ShellContextMenu
 					}
 
 					return selected;
+				}
+				catch (ObjectDisposedException)
+				{
+					// 既に破棄されている場合は無視
+					System.Diagnostics.Debug.WriteLine("ShowNativeMenu: FilesContextMenu was disposed");
+					return 0;
+				}
+				catch (Exception ex) when (ex is COMException or UnauthorizedAccessException)
+				{
+					System.Diagnostics.Debug.WriteLine($"ShowNativeMenu: {ex}");
+					return 0;
 				}
 				catch (Exception ex)
 				{
@@ -478,8 +582,39 @@ namespace FastExplorer.ShellContextMenu
 		{
 			if (!disposedValue)
 			{
+				// 破棄フラグを設定（新しいタスクの開始を防ぐ）
+				disposedValue = true;
+
 				if (disposing)
 				{
+					// 実行中のタスクが完了するまで待つ（最大10秒）
+					Task[] pendingTasks;
+					lock (_pendingTasksLock)
+					{
+						pendingTasks = _pendingTasks.ToArray();
+					}
+
+					if (pendingTasks.Length > 0)
+					{
+						System.Diagnostics.Debug.WriteLine($"FilesContextMenu.Dispose: Waiting for {pendingTasks.Length} pending task(s) to complete...");
+						try
+						{
+							// 最大10秒待つ
+							Task.WaitAll(pendingTasks, TimeSpan.FromSeconds(10));
+							System.Diagnostics.Debug.WriteLine("FilesContextMenu.Dispose: All pending tasks completed");
+						}
+						catch (AggregateException ex)
+						{
+							// 一部のタスクが失敗しても続行
+							System.Diagnostics.Debug.WriteLine($"FilesContextMenu.Dispose: Some tasks failed: {ex}");
+						}
+						catch (TimeoutException)
+						{
+							// タイムアウトしても続行
+							System.Diagnostics.Debug.WriteLine("FilesContextMenu.Dispose: Timeout waiting for pending tasks");
+						}
+					}
+
 					// TODO: Dispose managed state (managed objects)
 					if (Items is not null)
 					{
@@ -505,8 +640,6 @@ namespace FastExplorer.ShellContextMenu
 				}
 
 				_owningThread.Dispose();
-
-				disposedValue = true;
 			}
 		}
 
