@@ -1013,6 +1013,179 @@ namespace FastExplorer.Views.Pages
             }
         }
 
+        /// <summary>
+        /// パス編集ボタンがクリックされたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ルーティングイベント引数</param>
+        private void EditPathButton_Click(object sender, System.Windows.RoutedEventArgs e)
+        {
+            // 分割ペインモードの場合
+            if (ViewModel.IsSplitPaneEnabled)
+            {
+                var activeTab = ViewModel.ActivePane == 0 ? ViewModel.SelectedLeftPaneTab : ViewModel.SelectedRightPaneTab;
+                if (activeTab == null)
+                    return;
+
+                // ビジュアルツリーを走査して、該当するScrollViewerとテキストボックスを探す
+                var button = sender as System.Windows.Controls.Button;
+                if (button == null)
+                    return;
+
+                var parentGrid = button.Parent as System.Windows.Controls.Grid;
+                if (parentGrid == null)
+                    return;
+
+                // ScrollViewerとテキストボックスを探す
+                System.Windows.Controls.ScrollViewer? scrollViewer = null;
+                System.Windows.Controls.TextBox? pathTextBox = null;
+
+                foreach (System.Windows.UIElement child in parentGrid.Children)
+                {
+                    if (child is System.Windows.Controls.ScrollViewer viewer)
+                    {
+                        scrollViewer = viewer;
+                    }
+                    else if (child is System.Windows.Controls.TextBox textBox && textBox.Name == "PathTextBox")
+                    {
+                        pathTextBox = textBox;
+                    }
+                }
+
+                if (scrollViewer != null && pathTextBox != null)
+                {
+                    scrollViewer.Visibility = System.Windows.Visibility.Collapsed;
+                    pathTextBox.Visibility = System.Windows.Visibility.Visible;
+                    pathTextBox.Text = activeTab.ViewModel.CurrentPath;
+                    pathTextBox.SelectAll();
+                    pathTextBox.Focus();
+                }
+            }
+            else
+            {
+                // 通常モードの場合
+                if (ViewModel.SelectedTab == null)
+                    return;
+
+                // ビジュアルツリーを走査して、該当するScrollViewerとテキストボックスを探す
+                var button = sender as System.Windows.Controls.Button;
+                if (button == null)
+                    return;
+
+                var parentGrid = button.Parent as System.Windows.Controls.Grid;
+                if (parentGrid == null)
+                    return;
+
+                // ScrollViewerとテキストボックスを探す
+                System.Windows.Controls.ScrollViewer? scrollViewer = null;
+                System.Windows.Controls.TextBox? pathTextBox = null;
+
+                foreach (System.Windows.UIElement child in parentGrid.Children)
+                {
+                    if (child is System.Windows.Controls.ScrollViewer viewer)
+                    {
+                        scrollViewer = viewer;
+                    }
+                    else if (child is System.Windows.Controls.TextBox textBox && textBox.Name == "PathTextBoxNormal")
+                    {
+                        pathTextBox = textBox;
+                    }
+                }
+
+                if (scrollViewer != null && pathTextBox != null)
+                {
+                    scrollViewer.Visibility = System.Windows.Visibility.Collapsed;
+                    pathTextBox.Visibility = System.Windows.Visibility.Visible;
+                    pathTextBox.Text = ViewModel.SelectedTab.ViewModel.CurrentPath;
+                    pathTextBox.SelectAll();
+                    pathTextBox.Focus();
+                }
+            }
+        }
+
+        /// <summary>
+        /// パステキストボックスでキーが押されたときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">キーイベント引数</param>
+        private void PathTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            var textBox = sender as System.Windows.Controls.TextBox;
+            if (textBox == null)
+                return;
+
+            if (e.Key == Key.Enter)
+            {
+                // Enterキーでパスを変更
+                Models.ExplorerTab? targetTab = null;
+
+                if (ViewModel.IsSplitPaneEnabled)
+                {
+                    targetTab = ViewModel.ActivePane == 0 ? ViewModel.SelectedLeftPaneTab : ViewModel.SelectedRightPaneTab;
+                }
+                else
+                {
+                    targetTab = ViewModel.SelectedTab;
+                }
+
+                if (targetTab != null)
+                {
+                    targetTab.ViewModel.NavigateToPathCommand.Execute(textBox.Text);
+                }
+
+                // テキストボックスを非表示にして、パンくずリストを表示
+                HidePathTextBox(textBox);
+            }
+            else if (e.Key == Key.Escape)
+            {
+                // Escapeキーでキャンセル
+                HidePathTextBox(textBox);
+            }
+        }
+
+        /// <summary>
+        /// パステキストボックスがフォーカスを失ったときに呼び出されます
+        /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">ルーティングイベント引数</param>
+        private void PathTextBox_LostFocus(object sender, System.Windows.RoutedEventArgs e)
+        {
+            var textBox = sender as System.Windows.Controls.TextBox;
+            if (textBox != null)
+            {
+                HidePathTextBox(textBox);
+            }
+        }
+
+        /// <summary>
+        /// パステキストボックスを非表示にして、パンくずリストを表示します
+        /// </summary>
+        /// <param name="textBox">テキストボックス</param>
+        private void HidePathTextBox(System.Windows.Controls.TextBox textBox)
+        {
+            var parentGrid = textBox.Parent as System.Windows.Controls.Grid;
+            if (parentGrid == null)
+                return;
+
+            // ScrollViewerを探す
+            System.Windows.Controls.ScrollViewer? scrollViewer = null;
+
+            foreach (System.Windows.UIElement child in parentGrid.Children)
+            {
+                if (child is System.Windows.Controls.ScrollViewer viewer)
+                {
+                    scrollViewer = viewer;
+                    break;
+                }
+            }
+
+            if (scrollViewer != null)
+            {
+                textBox.Visibility = System.Windows.Visibility.Collapsed;
+                scrollViewer.Visibility = System.Windows.Visibility.Visible;
+            }
+        }
+
         #endregion
 
         #region ListViewイベントハンドラー

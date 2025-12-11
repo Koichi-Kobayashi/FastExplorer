@@ -57,7 +57,6 @@ namespace FastExplorer.Helpers
                     var currentPath = string.Empty;
                     foreach (var part in parts)
                     {
-                        // 文字列結合を最適化（ZString.Concatを使用）
                         if (string.IsNullOrEmpty(currentPath))
                         {
                             currentPath = part;
@@ -65,6 +64,18 @@ namespace FastExplorer.Helpers
                         else
                         {
                             currentPath = Path.Combine(currentPath, part);
+                        }
+                        // パスを正規化して、完全なパスを取得
+                        if (!string.IsNullOrEmpty(currentPath))
+                        {
+                            try
+                            {
+                                currentPath = Path.GetFullPath(currentPath);
+                            }
+                            catch
+                            {
+                                // パスが無効な場合は、そのまま使用
+                            }
                         }
                         items.Add(new BreadcrumbItem { Name = part, Path = currentPath });
                     }
@@ -88,21 +99,14 @@ namespace FastExplorer.Helpers
                     items.Capacity = items.Count + parts.Length;
                     
                     var currentPath = root;
-                    var rootLength = root.Length;
-                    var isRootEndsWithSeparator = rootLength > 0 && (root[rootLength - 1] == DirectorySeparator || root[rootLength - 1] == AltDirectorySeparator);
                     
                     foreach (var part in parts)
                     {
-                        // ルートディレクトリの場合は、Path.Combineが正しく動作しないため、手動で結合
-                        // 文字列結合を最適化（ZString.Concatを使用）
-                        if (isRootEndsWithSeparator)
-                        {
-                            currentPath = ZString.Concat(currentPath, part);
-                        }
-                        else
-                        {
-                            currentPath = Path.Combine(currentPath, part);
-                        }
+                        // Path.Combineを使用してパスを正しく結合
+                        // Path.Combineはルートディレクトリの場合でも正しく動作する
+                        currentPath = Path.Combine(currentPath, part);
+                        // パスを正規化して、完全なパスを取得
+                        currentPath = Path.GetFullPath(currentPath);
                         items.Add(new BreadcrumbItem { Name = part, Path = currentPath });
                     }
                 }
@@ -129,6 +133,18 @@ namespace FastExplorer.Helpers
                     else
                     {
                         currentPath = Path.Combine(currentPath, part);
+                    }
+                    // パスを正規化して、完全なパスを取得
+                    if (!string.IsNullOrEmpty(currentPath))
+                    {
+                        try
+                        {
+                            currentPath = Path.GetFullPath(currentPath);
+                        }
+                        catch
+                        {
+                            // パスが無効な場合は、そのまま使用
+                        }
                     }
                     items.Add(new BreadcrumbItem { Name = part, Path = currentPath });
                 }

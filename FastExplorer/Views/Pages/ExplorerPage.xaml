@@ -338,51 +338,89 @@
                     BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                     BorderThickness="0,0,0,1">
                     <Grid Margin="12,8">
-                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                            <ui:Button
-                                Margin="0,0,4,0"
-                                Padding="8,4"
-                                Appearance="Secondary"
-                                Click="HomeButton_Click"
-                                Style="{StaticResource HoverableButtonStyle}"
-                                ToolTip="ホーム">
-                                <ui:Button.Icon>
-                                    <ui:SymbolIcon Symbol="Home24" />
-                                </ui:Button.Icon>
-                            </ui:Button>
-                            <ItemsControl VerticalAlignment="Center" ItemsSource="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type helpers:BreadcrumbItem}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock
-                                                Margin="4,0"
-                                                VerticalAlignment="Center"
-                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                Text="&gt;" />
-                                            <Button
-                                                Margin="2,0"
-                                                Padding="4,2"
-                                                Command="{Binding DataContext.ViewModel.NavigateToPathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding Path}"
-                                                Cursor="Hand"
-                                                Style="{StaticResource BreadcrumbButtonStyle}"
-                                                ToolTip="{Binding Path}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <!--  パンくずリスト（スクロール可能）  -->
+                        <ScrollViewer
+                            Grid.Column="0"
+                            VerticalAlignment="Center"
+                            HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Disabled">
+                            <StackPanel
+                                x:Name="BreadcrumbPanel"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal">
+                                <ui:Button
+                                    Margin="0,0,4,0"
+                                    Padding="8,4"
+                                    Appearance="Secondary"
+                                    Click="HomeButton_Click"
+                                    Style="{StaticResource HoverableButtonStyle}"
+                                    ToolTip="ホーム">
+                                    <ui:Button.Icon>
+                                        <ui:SymbolIcon Symbol="Home24" />
+                                    </ui:Button.Icon>
+                                </ui:Button>
+                                <ItemsControl
+                                    VerticalAlignment="Center"
+                                    DataContext="{Binding ViewModel}"
+                                    ItemsSource="{Binding CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type helpers:BreadcrumbItem}">
+                                            <StackPanel Orientation="Horizontal">
                                                 <TextBlock
+                                                    Margin="4,0"
                                                     VerticalAlignment="Center"
-                                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                                    Text="{Binding Name}"
-                                                    TextTrimming="CharacterEllipsis" />
-                                            </Button>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
+                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                    Text="&gt;" />
+                                                <Button
+                                                    Margin="2,0"
+                                                    Padding="4,2"
+                                                    Command="{Binding DataContext.NavigateToPathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding Path}"
+                                                    Cursor="Hand"
+                                                    Style="{StaticResource BreadcrumbButtonStyle}"
+                                                    ToolTip="{Binding Path}">
+                                                    <TextBlock
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                        Text="{Binding Name}"
+                                                        TextTrimming="CharacterEllipsis" />
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                        <!--  パス編集ボタン（右端固定）  -->
+                        <ui:Button
+                            Grid.Column="1"
+                            Margin="4,0,0,0"
+                            Padding="4,2"
+                            Appearance="Secondary"
+                            Click="EditPathButton_Click"
+                            Style="{StaticResource HoverableButtonStyle}"
+                            ToolTip="パスを編集">
+                            <ui:SymbolIcon Symbol="Edit24" />
+                        </ui:Button>
+                        <!--  テキストボックス（通常は非表示）  -->
+                        <TextBox
+                            x:Name="PathTextBox"
+                            Grid.Column="0"
+                            Grid.ColumnSpan="2"
+                            VerticalAlignment="Center"
+                            Visibility="Collapsed"
+                            KeyDown="PathTextBox_KeyDown"
+                            LostFocus="PathTextBox_LostFocus"
+                            Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" />
                     </Grid>
                 </Border>
 
@@ -886,72 +924,110 @@
                             BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                             BorderThickness="0,0,0,1">
                             <Grid Margin="12,8">
-                                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                                    <ui:Button
-                                        Margin="0,0,4,0"
-                                        Padding="8,4"
-                                        Appearance="Secondary"
-                                        Click="HomeButton_Click"
-                                        ToolTip="ホーム">
-                                        <ui:Button.Style>
-                                            <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsPressed" Value="True">
-                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </ui:Button.Style>
-                                        <ui:Button.Icon>
-                                            <ui:SymbolIcon Symbol="Home24" />
-                                        </ui:Button.Icon>
-                                    </ui:Button>
-                                    <ItemsControl VerticalAlignment="Center" ItemsSource="{Binding ViewModel.CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type helpers:BreadcrumbItem}">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock
-                                                        Margin="4,0"
-                                                        VerticalAlignment="Center"
-                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                        Text="&gt;" />
-                                                    <Button
-                                                        Margin="2,0"
-                                                        Padding="4,2"
-                                                        Background="Transparent"
-                                                        BorderThickness="0"
-                                                        Command="{Binding DataContext.ViewModel.NavigateToPathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                        CommandParameter="{Binding Path}"
-                                                        Cursor="Hand"
-                                                        ToolTip="{Binding Path}">
-                                                        <Button.Style>
-                                                            <Style TargetType="Button">
-                                                                <Style.Triggers>
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                                                                    </Trigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Button.Style>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <!--  パンくずリスト（スクロール可能）  -->
+                                <ScrollViewer
+                                    Grid.Column="0"
+                                    VerticalAlignment="Center"
+                                    HorizontalScrollBarVisibility="Disabled"
+                                    VerticalScrollBarVisibility="Disabled">
+                                    <StackPanel
+                                        x:Name="BreadcrumbPanelNormal"
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal">
+                                        <ui:Button
+                                            Margin="0,0,4,0"
+                                            Padding="8,4"
+                                            Appearance="Secondary"
+                                            Click="HomeButton_Click"
+                                            ToolTip="ホーム">
+                                            <ui:Button.Style>
+                                                <Style BasedOn="{StaticResource {x:Type ui:Button}}" TargetType="ui:Button">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsPressed" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ui:Button.Style>
+                                            <ui:Button.Icon>
+                                                <ui:SymbolIcon Symbol="Home24" />
+                                            </ui:Button.Icon>
+                                        </ui:Button>
+                                        <ItemsControl
+                                            VerticalAlignment="Center"
+                                            DataContext="{Binding ViewModel}"
+                                            ItemsSource="{Binding CurrentPath, Mode=OneWay, Converter={StaticResource PathToBreadcrumbItemsConverter}}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type helpers:BreadcrumbItem}">
+                                                    <StackPanel Orientation="Horizontal">
                                                         <TextBlock
+                                                            Margin="4,0"
                                                             VerticalAlignment="Center"
-                                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                                            Text="{Binding Name}"
-                                                            TextTrimming="CharacterEllipsis" />
-                                                    </Button>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
+                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                            Text="&gt;" />
+                                                        <Button
+                                                            Margin="2,0"
+                                                            Padding="4,2"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Command="{Binding DataContext.NavigateToPathCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding Path}"
+                                                            Cursor="Hand"
+                                                            ToolTip="{Binding Path}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button">
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                            <TextBlock
+                                                                VerticalAlignment="Center"
+                                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                                Text="{Binding Name}"
+                                                                TextTrimming="CharacterEllipsis" />
+                                                        </Button>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                                <!--  パス編集ボタン（右端固定）  -->
+                                <ui:Button
+                                    Grid.Column="1"
+                                    Margin="4,0,0,0"
+                                    Padding="4,2"
+                                    Appearance="Secondary"
+                                    Click="EditPathButton_Click"
+                                    Style="{StaticResource HoverableButtonStyle}"
+                                    ToolTip="パスを編集">
+                                    <ui:SymbolIcon Symbol="Edit24" />
+                                </ui:Button>
+                                <!--  テキストボックス（通常は非表示）  -->
+                                <TextBox
+                                    x:Name="PathTextBoxNormal"
+                                    Grid.Column="0"
+                                    Grid.ColumnSpan="2"
+                                    VerticalAlignment="Center"
+                                    Visibility="Collapsed"
+                                    KeyDown="PathTextBox_KeyDown"
+                                    LostFocus="PathTextBox_LostFocus"
+                                    Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" />
                             </Grid>
                         </Border>
 
