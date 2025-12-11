@@ -4,6 +4,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Wpf.Ui.Controls;
 using MenuItem = Wpf.Ui.Controls.MenuItem;
 
@@ -138,6 +139,21 @@ namespace FastExplorer.ShellContextMenu
         }
 
         /// <summary>
+        /// 新規作成したアイテムの名前変更モードを開始します
+        /// </summary>
+        /// <param name="itemPath">作成したアイテムのパス</param>
+        private void StartRenameForNewItem(string itemPath)
+        {
+            if (_listView == null || _startRenameAction == null)
+                return;
+
+            // リスト更新後に名前変更を開始するため、少し遅延させる
+            Dispatcher.CurrentDispatcher.BeginInvoke(
+                DispatcherPriority.Loaded,
+                () => _startRenameAction(itemPath, _listView));
+        }
+
+        /// <summary>
         /// エラーダイアログを表示します
         /// </summary>
         private async System.Threading.Tasks.Task ShowErrorDialogAsync(string title, string message)
@@ -207,16 +223,7 @@ namespace FastExplorer.ShellContextMenu
                 _refreshCommand?.Execute(null);
 
                 // 名前変更モードを開始
-                if (_listView != null && _startRenameAction != null)
-                {
-                    // リスト更新後に名前変更を開始するため、少し遅延させる
-                    System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
-                        System.Windows.Threading.DispatcherPriority.Loaded,
-                        new Action(() =>
-                        {
-                            _startRenameAction(newFolderPath, _listView);
-                        }));
-                }
+                StartRenameForNewItem(newFolderPath);
             }
             catch (Exception ex)
             {
@@ -256,16 +263,7 @@ namespace FastExplorer.ShellContextMenu
                 _refreshCommand?.Execute(null);
 
                 // 名前変更モードを開始
-                if (_listView != null && _startRenameAction != null)
-                {
-                    // リスト更新後に名前変更を開始するため、少し遅延させる
-                    System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
-                        System.Windows.Threading.DispatcherPriority.Loaded,
-                        new Action(() =>
-                        {
-                            _startRenameAction(newFilePath, _listView);
-                        }));
-                }
+                StartRenameForNewItem(newFilePath);
             }
             catch (Exception ex)
             {

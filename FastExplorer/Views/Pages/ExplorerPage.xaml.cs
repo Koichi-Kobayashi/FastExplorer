@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -4267,50 +4268,58 @@ namespace FastExplorer.Views.Pages
             if (tab?.ViewModel == null || listView == null)
                 return;
 
-            // パスからアイテムを検索
-            var item = tab.ViewModel.Items.FirstOrDefault(i => 
-                string.Equals(i.FullPath, itemPath, StringComparison.OrdinalIgnoreCase));
+            const int maxRetries = 10;
+            int retryCount = 0;
 
-            if (item == null)
+            Action tryStartRename = null;
+            tryStartRename = () =>
             {
-                // アイテムが見つからない場合、少し待ってから再試行
-                System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
-                    System.Windows.Threading.DispatcherPriority.Loaded,
-                    new Action(() =>
-                    {
-                        StartRenameForNewItem(itemPath, listView, tab);
-                    }));
-                return;
-            }
-
-            // アイテムを選択
-            tab.ViewModel.SelectedItem = item;
-
-            // ListViewItemを取得（選択後に少し待つ必要がある場合がある）
-            System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
-                System.Windows.Threading.DispatcherPriority.Loaded,
-                new Action(() =>
+                if (retryCount >= maxRetries)
                 {
-                    var listViewItem = listView.ItemContainerGenerator.ContainerFromItem(item) as System.Windows.Controls.ListViewItem;
-                    if (listViewItem != null)
+                    System.Diagnostics.Debug.WriteLine($"名前変更モード開始失敗: 最大再試行回数に達しました ({itemPath})");
+                    return;
+                }
+
+                retryCount++;
+
+                // パスからアイテムを検索
+                var item = tab.ViewModel.Items.FirstOrDefault(i =>
+                    string.Equals(i.FullPath, itemPath, StringComparison.OrdinalIgnoreCase));
+
+                if (item == null)
+                {
+                    // アイテムが見つからない場合、再試行
+                    Dispatcher.CurrentDispatcher.BeginInvoke(
+                        DispatcherPriority.Loaded,
+                        tryStartRename);
+                    return;
+                }
+
+                // アイテムを選択
+                tab.ViewModel.SelectedItem = item;
+
+                // ListViewItemを取得（選択後に少し待つ必要がある場合がある）
+                Dispatcher.CurrentDispatcher.BeginInvoke(
+                    DispatcherPriority.Loaded,
+                    () =>
                     {
-                        StartRenameForItem(listViewItem, item, tab);
-                    }
-                    else
-                    {
-                        // ListViewItemが見つからない場合、もう一度試行
-                        System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
-                            System.Windows.Threading.DispatcherPriority.Loaded,
-                            new Action(() =>
-                            {
-                                listViewItem = listView.ItemContainerGenerator.ContainerFromItem(item) as System.Windows.Controls.ListViewItem;
-                                if (listViewItem != null)
-                                {
-                                    StartRenameForItem(listViewItem, item, tab);
-                                }
-                            }));
-                    }
-                }));
+                        var listViewItem = listView.ItemContainerGenerator.ContainerFromItem(item) as System.Windows.Controls.ListViewItem;
+                        if (listViewItem != null)
+                        {
+                            StartRenameForItem(listViewItem, item, tab);
+                        }
+                        else if (retryCount < maxRetries)
+                        {
+                            // ListViewItemが見つからない場合、再試行
+                            Dispatcher.CurrentDispatcher.BeginInvoke(
+                                DispatcherPriority.Loaded,
+                                tryStartRename);
+                        }
+                    });
+            };
+
+            // 初回実行
+            tryStartRename();
         }
 
         /// <summary>
