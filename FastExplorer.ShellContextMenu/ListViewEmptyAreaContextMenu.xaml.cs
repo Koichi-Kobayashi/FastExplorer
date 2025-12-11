@@ -128,6 +128,12 @@ namespace FastExplorer.ShellContextMenu
             SetupSubmenuMouseEnter(SortMenuItem);
             SetupSubmenuMouseEnter(GroupMenuItem);
             SetupSubmenuMouseEnter(NewMenuItem);
+
+            // サブメニューのスタイルを設定
+            SetupSubmenuStyle(LayoutMenuItem);
+            SetupSubmenuStyle(SortMenuItem);
+            SetupSubmenuStyle(GroupMenuItem);
+            SetupSubmenuStyle(NewMenuItem);
         }
 
         /// <summary>
@@ -180,6 +186,76 @@ namespace FastExplorer.ShellContextMenu
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// サブメニューのスタイルを設定します（メインメニューと同じ見た目にする）
+        /// </summary>
+        /// <param name="menuItem">対象のMenuItem</param>
+        private void SetupSubmenuStyle(MenuItem menuItem)
+        {
+            if (menuItem == null || menuItem.Items.Count == 0)
+                return;
+
+            menuItem.SubmenuOpened += (s, e) =>
+            {
+                // サブメニューが開いた後にスタイルを適用（少し遅延させる）
+                Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+                {
+                    ApplySubmenuStyle(menuItem);
+                }));
+            };
+        }
+
+        /// <summary>
+        /// サブメニューのスタイルを適用します
+        /// </summary>
+        /// <param name="menuItem">対象のMenuItem</param>
+        private void ApplySubmenuStyle(MenuItem menuItem)
+        {
+            // サブメニューのPopupを取得
+            var popup = FindVisualChild<System.Windows.Controls.Primitives.Popup>(menuItem);
+            if (popup != null && popup.Child is System.Windows.FrameworkElement popupChild)
+            {
+                // Popup内のBorderを探してスタイルを適用
+                var border = FindVisualChild<System.Windows.Controls.Border>(popupChild);
+                if (border != null)
+                {
+                    border.Background = _backgroundBrush;
+                    border.BorderBrush = _borderBrush;
+                    border.BorderThickness = new Thickness(1);
+                    border.CornerRadius = new CornerRadius(8);
+                    border.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                    {
+                        BlurRadius = 18,
+                        Opacity = 0.8,
+                        ShadowDepth = 0,
+                        Color = System.Windows.Media.Color.FromArgb(0x40, 0x00, 0x00, 0x00)
+                    };
+                }
+            }
+        }
+
+        /// <summary>
+        /// ビジュアルツリーから指定された型の子要素を検索します
+        /// </summary>
+        private T? FindVisualChild<T>(System.Windows.DependencyObject parent) where T : System.Windows.DependencyObject
+        {
+            if (parent == null)
+                return null;
+
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T result)
+                    return result;
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                    return childOfChild;
+            }
+
+            return null;
         }
 
         private MenuItem CreateLayoutSubItem(string text, string layoutName)
