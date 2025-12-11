@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Text;
+using FastExplorer.Helpers;
 using FastExplorer.Models;
 using FastExplorer.Services;
 using Wpf.Ui.Abstractions.Controls;
@@ -111,7 +112,7 @@ namespace FastExplorer.ViewModels.Pages
         /// ステータスバーに表示するテキスト
         /// </summary>
         [ObservableProperty]
-        private string _statusBarText = "準備完了";
+        private string _statusBarText = LocalizationHelper.GetString("Ready", "準備完了");
 
         /// <summary>
         /// 現在のソート列（"Name", "Size", "Extension", "LastModified"）

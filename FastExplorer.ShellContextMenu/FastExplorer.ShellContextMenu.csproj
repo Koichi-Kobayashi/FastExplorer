@@ -19,6 +19,16 @@
     <PackageReference Include="Vanara.Windows.Shell" Version="3.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="lang\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="lang\*.json" />
+  </ItemGroup>
+
 
 	<!-- Workaround for https://github.com/dotnet/wpf/issues/11246 -->
 	<Target Name="FixWpfReferences" AfterTargets="ResolveTargetingPackAssets" Condition="'$(UseWPF)' == 'true'">

@@ -197,6 +197,11 @@ namespace FastExplorer.Services
         /// </summary>
         public string BackgroundImageHorizontalAlignment { get; set; } = "Center";
 
+        /// <summary>
+        /// 選択された言語コードを取得または設定します（"ja", "en"など）
+        /// </summary>
+        public string LanguageCode { get; set; } = "ja";
+
         #endregion
     }
 }

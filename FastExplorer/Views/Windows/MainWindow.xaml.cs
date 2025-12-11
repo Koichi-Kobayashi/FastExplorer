@@ -200,6 +200,20 @@ namespace FastExplorer.Views.Windows
             
             try
             {
+                // 既に開いている設定ウィンドウをチェック
+                foreach (Window window in Application.Current.Windows)
+                {
+                    if (window is Views.Windows.SettingsWindow existingSettingsWindow)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Settings window already exists, activating it");
+                        // 既に開いている場合はアクティブにする
+                        existingSettingsWindow.Activate();
+                        existingSettingsWindow.WindowState = WindowState.Normal;
+                        existingSettingsWindow.Focus();
+                        return;
+                    }
+                }
+
                 // SettingsViewModelを取得
                 var settingsViewModel = App.Services.GetService<ViewModels.Pages.SettingsViewModel>();
                 if (settingsViewModel == null)
@@ -224,6 +238,11 @@ namespace FastExplorer.Views.Windows
                 try
                 {
                     settingsWindow.ShowDialog();
+                }
+                catch (Exception dialogEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error showing settings dialog: {dialogEx.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Stack trace: {dialogEx.StackTrace}");
                 }
                 finally
                 {
@@ -823,6 +842,20 @@ namespace FastExplorer.Views.Windows
                 System.Diagnostics.Debug.WriteLine("SETTINGS tag matched, opening settings window");
                 try
                 {
+                    // 既に開いている設定ウィンドウをチェック
+                    foreach (Window window in Application.Current.Windows)
+                    {
+                        if (window is Views.Windows.SettingsWindow existingSettingsWindow)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Settings window already exists, activating it");
+                            // 既に開いている場合はアクティブにする
+                            existingSettingsWindow.Activate();
+                            existingSettingsWindow.WindowState = WindowState.Normal;
+                            existingSettingsWindow.Focus();
+                            return;
+                        }
+                    }
+
                     // SettingsViewModelを取得（拡張メソッドを使用）
                     var settingsViewModel = App.Services.GetService<ViewModels.Pages.SettingsViewModel>();
                     if (settingsViewModel == null)
@@ -847,6 +880,11 @@ namespace FastExplorer.Views.Windows
                     try
                     {
                         settingsWindow.ShowDialog();
+                    }
+                    catch (Exception dialogEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error showing settings dialog: {dialogEx.Message}");
+                        System.Diagnostics.Debug.WriteLine($"Stack trace: {dialogEx.StackTrace}");
                     }
                     finally
                     {

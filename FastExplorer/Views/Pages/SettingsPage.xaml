@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:FastExplorer.Helpers"
+    xmlns:localization="clr-namespace:FastExplorer.Helpers"
     xmlns:local="clr-namespace:FastExplorer.Views.Pages"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:FastExplorer.Models"
@@ -24,6 +25,19 @@
 
     <StackPanel Margin="24,24,24,0">
         <TextBlock
+            FontSize="20"
+            FontWeight="Medium"
+            Text="{localization:LocalizationHelperExtension General}" />
+        <TextBlock Margin="0,12,0,0" Text="{localization:LocalizationHelperExtension Language}" />
+        <ComboBox
+            Margin="0,8,0,0"
+            DisplayMemberPath="Name"
+            ItemsSource="{Binding ViewModel.AvailableLanguages, Mode=OneWay}"
+            SelectedItem="{Binding ViewModel.SelectedLanguage, Mode=TwoWay}"
+            SelectedValuePath="Code" />
+
+        <TextBlock
+            Margin="0,24,0,0"
             FontSize="20"
             FontWeight="Medium"
             Text="Personalization" />

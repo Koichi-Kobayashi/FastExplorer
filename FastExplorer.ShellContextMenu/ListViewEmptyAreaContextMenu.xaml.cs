@@ -51,6 +51,9 @@ namespace FastExplorer.ShellContextMenu
             _currentPath = currentPath;
             _refreshCommand = refreshCommand;
 
+            // 多言語化テキストを設定
+            SetLocalizedTexts();
+
             // テーマカラーを取得（Application.Currentから取得）
             _backgroundBrush = Application.Current.TryFindResource("ApplicationBackgroundBrush") as System.Windows.Media.Brush
                 ?? Application.Current.TryFindResource("ControlFillColorDefaultBrush") as System.Windows.Media.Brush
@@ -88,12 +91,12 @@ namespace FastExplorer.ShellContextMenu
             LoadingText.Foreground = _foregroundBrush;
 
             // レイアウト（サブメニュー）の子項目を追加
-            LayoutMenuItem.Items.Add(CreateLayoutSubItem("詳細", "Details"));
-            LayoutMenuItem.Items.Add(CreateLayoutSubItem("カード", "Cards"));
-            LayoutMenuItem.Items.Add(CreateLayoutSubItem("リスト", "List"));
-            LayoutMenuItem.Items.Add(CreateLayoutSubItem("グリッド", "Grid"));
-            LayoutMenuItem.Items.Add(CreateLayoutSubItem("列", "Columns"));
-            LayoutMenuItem.Items.Add(CreateLayoutSubItem("適応", "Adaptive"));
+            LayoutMenuItem.Items.Add(CreateLayoutSubItem(LocalizationHelper.GetString("Details"), "Details"));
+            LayoutMenuItem.Items.Add(CreateLayoutSubItem(LocalizationHelper.GetString("Cards"), "Cards"));
+            LayoutMenuItem.Items.Add(CreateLayoutSubItem(LocalizationHelper.GetString("List"), "List"));
+            LayoutMenuItem.Items.Add(CreateLayoutSubItem(LocalizationHelper.GetString("Grid"), "Grid"));
+            LayoutMenuItem.Items.Add(CreateLayoutSubItem(LocalizationHelper.GetString("Columns"), "Columns"));
+            LayoutMenuItem.Items.Add(CreateLayoutSubItem(LocalizationHelper.GetString("Adaptive"), "Adaptive"));
 
             // 並べ替え（サブメニュー）の子項目にイベントハンドラーを設定
             SortByNameMenuItem.Click += (s, e) => _sortByColumnAction?.Invoke("Name");
@@ -119,6 +122,22 @@ namespace FastExplorer.ShellContextMenu
             SortAscendingMenuItem.Foreground = _foregroundBrush;
             SortDescendingMenuItem.Background = _backgroundBrush;
             SortDescendingMenuItem.Foreground = _foregroundBrush;
+
+            // グループメニューのイベントハンドラーを設定
+            GroupNoneMenuItem.Click += (s, e) => { /* グループなしの処理 */ };
+            GroupByNameMenuItem.Click += (s, e) => { /* 名前でグループ化の処理 */ };
+            GroupByTypeMenuItem.Click += (s, e) => { /* 種類でグループ化の処理 */ };
+            GroupByDateModifiedMenuItem.Click += (s, e) => { /* 変更日時でグループ化の処理 */ };
+            
+            // グループメニュー項目のスタイルを設定
+            GroupNoneMenuItem.Background = _backgroundBrush;
+            GroupNoneMenuItem.Foreground = _foregroundBrush;
+            GroupByNameMenuItem.Background = _backgroundBrush;
+            GroupByNameMenuItem.Foreground = _foregroundBrush;
+            GroupByTypeMenuItem.Background = _backgroundBrush;
+            GroupByTypeMenuItem.Foreground = _foregroundBrush;
+            GroupByDateModifiedMenuItem.Background = _backgroundBrush;
+            GroupByDateModifiedMenuItem.Foreground = _foregroundBrush;
 
             // コマンドの設定
             RefreshMenuItem.Command = refreshCommand;
@@ -149,6 +168,44 @@ namespace FastExplorer.ShellContextMenu
             SetupSubmenuStyle(SortMenuItem);
             SetupSubmenuStyle(GroupMenuItem);
             SetupSubmenuStyle(NewMenuItem);
+        }
+
+        /// <summary>
+        /// 多言語化テキストを設定します
+        /// </summary>
+        private void SetLocalizedTexts()
+        {
+            // メインメニューのテキストを設定
+            LayoutText.Text = LocalizationHelper.GetString("Layout");
+            SortText.Text = LocalizationHelper.GetString("Sort");
+            GroupText.Text = LocalizationHelper.GetString("Group");
+            RefreshText.Text = LocalizationHelper.GetString("Refresh");
+            NewText.Text = LocalizationHelper.GetString("New");
+            PasteShortcutText.Text = LocalizationHelper.GetString("PasteShortcut");
+            PinToSidebarText.Text = LocalizationHelper.GetString("PinToSidebar");
+            PinToStartText.Text = LocalizationHelper.GetString("PinToStart");
+            OpenTerminalText.Text = LocalizationHelper.GetString("OpenTerminal");
+            LoadingText.Text = LocalizationHelper.GetString("Loading");
+
+            // 並べ替えサブメニューのテキストを設定
+            SortByNameMenuItem.Header = LocalizationHelper.GetString("Name");
+            SortByDateModifiedMenuItem.Header = LocalizationHelper.GetString("DateModified");
+            SortByDateCreatedMenuItem.Header = LocalizationHelper.GetString("DateCreated");
+            SortByTypeMenuItem.Header = LocalizationHelper.GetString("Type");
+            SortBySizeMenuItem.Header = LocalizationHelper.GetString("Size");
+            SortAscendingMenuItem.Header = LocalizationHelper.GetString("Ascending");
+            SortDescendingMenuItem.Header = LocalizationHelper.GetString("Descending");
+
+            // グループサブメニューのテキストを設定
+            GroupNoneMenuItem.Header = LocalizationHelper.GetString("None");
+            GroupByNameMenuItem.Header = LocalizationHelper.GetString("Name");
+            GroupByTypeMenuItem.Header = LocalizationHelper.GetString("Type");
+            GroupByDateModifiedMenuItem.Header = LocalizationHelper.GetString("DateModified");
+
+            // 新規作成サブメニューのテキストを設定
+            NewFolderMenuItem.Header = LocalizationHelper.GetString("Folder");
+            NewTextDocumentMenuItem.Header = LocalizationHelper.GetString("TextDocument");
+            NewShortcutMenuItem.Header = LocalizationHelper.GetString("Shortcut");
         }
 
         /// <summary>
@@ -320,7 +377,7 @@ namespace FastExplorer.ShellContextMenu
                         {
                             Title = title,
                             Content = message,
-                            CloseButtonText = "閉じる"
+                            CloseButtonText = LocalizationHelper.GetString("Close")
                         };
 
                         await contentDialog.ShowAsync();
@@ -335,7 +392,7 @@ namespace FastExplorer.ShellContextMenu
                 {
                     Title = title,
                     Content = message,
-                    CloseButtonText = "閉じる"
+                    CloseButtonText = LocalizationHelper.GetString("Close")
                 };
                 await messageBox.ShowDialogAsync();
             }
@@ -354,13 +411,13 @@ namespace FastExplorer.ShellContextMenu
             try
             {
                 // 新しいフォルダー名を生成（既存のフォルダー名と重複しないようにする）
-                string newFolderName = "新しいフォルダー";
+                string newFolderName = LocalizationHelper.GetString("NewFolder");
                 string newFolderPath = Path.Combine(_currentPath, newFolderName);
                 int counter = 1;
 
                 while (Directory.Exists(newFolderPath))
                 {
-                    newFolderName = $"新しいフォルダー ({counter})";
+                    newFolderName = LocalizationHelper.GetString("NewFolderWithNumber", counter);
                     newFolderPath = Path.Combine(_currentPath, newFolderName);
                     counter++;
                 }
@@ -377,7 +434,9 @@ namespace FastExplorer.ShellContextMenu
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"フォルダー作成エラー: {ex.Message}");
-                await ShowErrorDialogAsync("エラー", $"フォルダーの作成に失敗しました。\n{ex.Message}");
+                await ShowErrorDialogAsync(
+                    LocalizationHelper.GetString("Error"),
+                    $"{LocalizationHelper.GetString("FailedToCreateFolder")}\n{ex.Message}");
             }
         }
 
@@ -394,13 +453,13 @@ namespace FastExplorer.ShellContextMenu
             try
             {
                 // 新しいテキストファイル名を生成（既存のファイル名と重複しないようにする）
-                string newFileName = "新しいテキスト ドキュメント.txt";
+                string newFileName = LocalizationHelper.GetString("NewTextDocument");
                 string newFilePath = Path.Combine(_currentPath, newFileName);
                 int counter = 1;
 
                 while (File.Exists(newFilePath))
                 {
-                    newFileName = $"新しいテキスト ドキュメント ({counter}).txt";
+                    newFileName = LocalizationHelper.GetString("NewTextDocumentWithNumber", counter);
                     newFilePath = Path.Combine(_currentPath, newFileName);
                     counter++;
                 }
@@ -417,7 +476,9 @@ namespace FastExplorer.ShellContextMenu
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"テキストファイル作成エラー: {ex.Message}");
-                await ShowErrorDialogAsync("エラー", $"テキストファイルの作成に失敗しました。\n{ex.Message}");
+                await ShowErrorDialogAsync(
+                    LocalizationHelper.GetString("Error"),
+                    $"{LocalizationHelper.GetString("FailedToCreateTextFile")}\n{ex.Message}");
             }
         }
 
@@ -436,8 +497,8 @@ namespace FastExplorer.ShellContextMenu
                 // ショートカットの作成先を選択するダイアログを表示
                 var dialog = new Microsoft.Win32.OpenFileDialog
                 {
-                    Title = "ショートカットの作成先を選択",
-                    Filter = "すべてのファイル (*.*)|*.*",
+                    Title = LocalizationHelper.GetString("SelectShortcutTarget"),
+                    Filter = LocalizationHelper.GetString("AllFiles"),
                     CheckFileExists = true
                 };
 
@@ -466,7 +527,9 @@ namespace FastExplorer.ShellContextMenu
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"ショートカット作成エラー: {ex.Message}");
-                await ShowErrorDialogAsync("エラー", $"ショートカットの作成に失敗しました。\n{ex.Message}");
+                await ShowErrorDialogAsync(
+                    LocalizationHelper.GetString("Error"),
+                    $"{LocalizationHelper.GetString("FailedToCreateShortcut")}\n{ex.Message}");
             }
         }
 
@@ -485,7 +548,7 @@ namespace FastExplorer.ShellContextMenu
             dynamic? shell = Activator.CreateInstance(shellLinkType);
             dynamic? shortcut = shell?.CreateShortcut(shortcutPath);
             shortcut?.TargetPath = targetPath;
-            shortcut?.Description = $"ショートカット: {targetPath}";
+            shortcut?.Description = LocalizationHelper.GetString("ShortcutDescription", targetPath);
             shortcut?.WorkingDirectory = Path.GetDirectoryName(targetPath) ?? "";
             shortcut?.Save();
         }

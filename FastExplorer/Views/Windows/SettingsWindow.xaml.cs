@@ -28,30 +28,58 @@ namespace FastExplorer.Views.Windows
             InitializeComponent();
             
             // TitleBarの×ボタンイベントを処理
-            TitleBar.CloseClicked += (s, e) => 
-            {
-                // 閉じる前に設定を保存（非同期処理はfire-and-forgetで実行）
-                _ = ViewModel.OnNavigatedFromAsync();
-                Close();
-            };
+            TitleBar.CloseClicked += TitleBar_CloseClicked;
             
             // ウィンドウ読み込み時にViewModelを初期化
             Loaded += async (s, e) =>
             {
-                await ViewModel.OnNavigatedToAsync();
-                // システムテーマの監視を設定
-                SystemThemeWatcher.Watch(this);
-                
-                // デフォルトで全般ボタンを選択状態にする
-                GeneralButton.Appearance = ControlAppearance.Primary;
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow Loaded event started");
+                    await ViewModel.OnNavigatedToAsync();
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow OnNavigatedToAsync completed");
+                    
+                    // システムテーマの監視を設定
+                    SystemThemeWatcher.Watch(this);
+                    
+                    // デフォルトで全般ボタンを選択状態にする
+                    GeneralButton.Appearance = ControlAppearance.Primary;
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow Loaded event completed");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error in SettingsWindow Loaded event: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                    // エラーが発生してもウィンドウは表示する
+                }
             };
             
-            // ウィンドウを閉じる時にViewModelのクリーンアップ（同期処理）
+            // ウィンドウを閉じる時にViewModelのクリーンアップ
+            // Alt+F4など、TitleBar.CloseClicked以外で閉じられた場合にも設定を保存
+            // _isNavigatingFromフラグで重複を防ぐ
             Closing += (s, e) =>
             {
                 // 非同期処理はfire-and-forgetで実行（ウィンドウを閉じる処理をブロックしない）
+                // _isNavigatingFromフラグで重複を防ぐ
                 _ = ViewModel.OnNavigatedFromAsync();
             };
+
+            // ウィンドウが閉じられた後にクリーンアップ
+            Closed += (s, e) =>
+            {
+                // イベントハンドラーを解除してメモリリークを防ぐ
+                TitleBar.CloseClicked -= TitleBar_CloseClicked;
+            };
+        }
+
+        /// <summary>
+        /// TitleBarの×ボタンがクリックされたときに呼び出されます
+        /// </summary>
+        private async void TitleBar_CloseClicked(object? sender, RoutedEventArgs e)
+        {
+            // 閉じる前に設定を保存（完了を待つ）
+            await ViewModel.OnNavigatedFromAsync();
+            Close();
         }
 
         /// <summary>
@@ -69,9 +97,6 @@ namespace FastExplorer.Views.Windows
             AppearanceButton.Appearance = ControlAppearance.Secondary;
             LayoutButton.Appearance = ControlAppearance.Secondary;
             OperationButton.Appearance = ControlAppearance.Secondary;
-            TagButton.Appearance = ControlAppearance.Secondary;
-            DevToolsButton.Appearance = ControlAppearance.Secondary;
-            AdvancedButton.Appearance = ControlAppearance.Secondary;
             AboutButton.Appearance = ControlAppearance.Secondary;
 
             // クリックされたボタンをPrimaryに設定

@@ -4444,7 +4444,7 @@ namespace FastExplorer.Views.Pages
             const int maxRetries = 10;
             int retryCount = 0;
 
-            Action tryStartRename = null;
+            Action? tryStartRename = null;
             tryStartRename = () =>
             {
                 if (retryCount >= maxRetries)

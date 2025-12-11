@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using FastExplorer.Helpers;
 using FastExplorer.Models;
 using FastExplorer.Services;
 using Wpf.Ui;
@@ -44,7 +45,7 @@ namespace FastExplorer.ViewModels.Windows
         /// アプリケーションのタイトル
         /// </summary>
         [ObservableProperty]
-        private string _applicationTitle = "FastExplorer";
+        private string _applicationTitle = LocalizationHelper.GetString("ApplicationTitle", "FastExplorer");
 
         /// <summary>
         /// ナビゲーションメニューアイテム（お気に入り）
@@ -56,7 +57,7 @@ namespace FastExplorer.ViewModels.Windows
         /// ステータスバーに表示するテキスト
         /// </summary>
         [ObservableProperty]
-        private string _statusBarText = "準備完了";
+        private string _statusBarText = LocalizationHelper.GetString("Ready", "準備完了");
 
         /// <summary>
         /// <see cref="MainWindowViewModel"/>クラスの新しいインスタンスを初期化します
@@ -117,7 +118,7 @@ namespace FastExplorer.ViewModels.Windows
             {
                 _homeMenuItem = new NavigationViewItem()
                 {
-                    Content = "ホーム",
+                    Content = LocalizationHelper.GetString("Home", "ホーム"),
                     Icon = new SymbolIcon { Symbol = SymbolRegular.Folder24 },
                     Tag = "HOME" // ホームアイテムを識別するためのTag
                 };

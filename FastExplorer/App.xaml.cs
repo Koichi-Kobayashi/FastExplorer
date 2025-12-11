@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
+using FastExplorer.Helpers;
 using FastExplorer.Services;
 using FastExplorer.ViewModels.Pages;
 using FastExplorer.ViewModels.Windows;
@@ -104,6 +105,9 @@ namespace FastExplorer
         /// <param name="e">スタートアップイベント引数</param>
         private async void OnStartup(object sender, StartupEventArgs e)
         {
+            // 設定から言語を読み込んで初期化（設定ファイルから直接読み込む）
+            LoadLanguageOnStartup();
+
             // コマンドライン引数を処理
             if (e.Args != null && e.Args.Length > 0)
             {
@@ -169,6 +173,91 @@ namespace FastExplorer
 
             // ウィンドウを表示
             await _host.StartAsync();
+        }
+
+        /// <summary>
+        /// 起動時に設定から言語を読み込んで初期化します
+        /// </summary>
+        private void LoadLanguageOnStartup()
+        {
+            try
+            {
+                // 設定ファイルから直接読み込む（WindowSettingsServiceを待たない）
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var settingsFilePath = Path.Combine(localAppData, "FastExplorer", "window_settings.json");
+
+                string languageCode = "ja"; // デフォルトは日本語
+
+                // 起動時の高速化：File.Exists()の呼び出しを削減（直接ReadAllTextを試みる）
+                try
+                {
+                    var json = File.ReadAllText(settingsFilePath);
+                    var settings = System.Text.Json.JsonSerializer.Deserialize<Services.WindowSettings>(json);
+                    
+                    if (!string.IsNullOrEmpty(settings?.LanguageCode))
+                    {
+                        languageCode = settings.LanguageCode;
+                    }
+                }
+                catch
+                {
+                    // ファイルが存在しない、またはJSONの読み込みに失敗した場合はシステム言語から初期化
+                    var culture = System.Globalization.CultureInfo.CurrentUICulture;
+                    var systemLanguageCode = culture.TwoLetterISOLanguageName.ToLowerInvariant();
+                    if (systemLanguageCode == "ja" || systemLanguageCode == "en")
+                    {
+                        languageCode = systemLanguageCode;
+                    }
+                    else
+                    {
+                        languageCode = "en"; // デフォルトは英語
+                    }
+                }
+
+                // メインアプリケーションのLocalizationHelperに言語コードを設定
+                LocalizationHelper.CurrentLanguageCode = languageCode;
+
+                // ShellContextMenuプロジェクトのLocalizationHelperにも言語コードを設定
+                try
+                {
+                    var shellContextMenuLocalizationHelperType = Type.GetType("FastExplorer.ShellContextMenu.LocalizationHelper, FastExplorer.ShellContextMenu");
+                    if (shellContextMenuLocalizationHelperType != null)
+                    {
+                        var currentLanguageCodeProperty = shellContextMenuLocalizationHelperType.GetProperty("CurrentLanguageCode");
+                        if (currentLanguageCodeProperty != null)
+                        {
+                            currentLanguageCodeProperty.SetValue(null, languageCode);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ShellContextMenuのLocalizationHelper設定エラー: {ex.Message}");
+                }
+            }
+            catch
+            {
+                // エラーが発生した場合はシステム言語から初期化
+                LocalizationHelper.InitializeFromSystemLanguage();
+                
+                // ShellContextMenuプロジェクトのLocalizationHelperにも設定
+                try
+                {
+                    var shellContextMenuLocalizationHelperType = Type.GetType("FastExplorer.ShellContextMenu.LocalizationHelper, FastExplorer.ShellContextMenu");
+                    if (shellContextMenuLocalizationHelperType != null)
+                    {
+                        var initializeFromSystemLanguageMethod = shellContextMenuLocalizationHelperType.GetMethod("InitializeFromSystemLanguage");
+                        if (initializeFromSystemLanguageMethod != null)
+                        {
+                            initializeFromSystemLanguageMethod.Invoke(null, null);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ShellContextMenuのLocalizationHelper初期化エラー: {ex.Message}");
+                }
+            }
         }
 
         /// <summary>
@@ -810,11 +899,18 @@ namespace FastExplorer
             if (element == null)
                 return;
 
-            // TextBlockの場合、Foregroundプロパティを無効化
+            // TextBlockの場合、ForegroundとTextプロパティを無効化
             if (element is System.Windows.Controls.TextBlock textBlock)
             {
                 // DynamicResourceの再評価を強制
                 textBlock.InvalidateProperty(System.Windows.Controls.TextBlock.ForegroundProperty);
+                textBlock.InvalidateProperty(System.Windows.Controls.TextBlock.TextProperty);
+            }
+            // ContentControlの場合、Contentプロパティを無効化
+            else if (element is System.Windows.Controls.ContentControl contentControl)
+            {
+                contentControl.InvalidateProperty(System.Windows.Controls.Control.ForegroundProperty);
+                contentControl.InvalidateProperty(System.Windows.Controls.ContentControl.ContentProperty);
             }
             // Controlの場合、Foregroundプロパティを無効化
             else if (element is System.Windows.Controls.Control control)

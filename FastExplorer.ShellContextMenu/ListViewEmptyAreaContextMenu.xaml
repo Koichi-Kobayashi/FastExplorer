@@ -51,8 +51,7 @@
                 <TextBlock
                     x:Name="LayoutText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="レイアウト" />
+                    FontSize="14" />
             </StackPanel>
         </ui:MenuItem.Header>
     </ui:MenuItem>
@@ -74,18 +73,17 @@
                 <TextBlock
                     x:Name="SortText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="並べ替え" />
+                    FontSize="14" />
             </StackPanel>
         </ui:MenuItem.Header>
-        <ui:MenuItem x:Name="SortByNameMenuItem" Header="名前" />
-        <ui:MenuItem x:Name="SortByDateModifiedMenuItem" Header="変更日時" />
-        <ui:MenuItem x:Name="SortByDateCreatedMenuItem" Header="作成日時" />
-        <ui:MenuItem x:Name="SortByTypeMenuItem" Header="種類" />
-        <ui:MenuItem x:Name="SortBySizeMenuItem" Header="サイズ" />
+        <ui:MenuItem x:Name="SortByNameMenuItem" />
+        <ui:MenuItem x:Name="SortByDateModifiedMenuItem" />
+        <ui:MenuItem x:Name="SortByDateCreatedMenuItem" />
+        <ui:MenuItem x:Name="SortByTypeMenuItem" />
+        <ui:MenuItem x:Name="SortBySizeMenuItem" />
         <Separator />
-        <ui:MenuItem x:Name="SortAscendingMenuItem" Header="昇順" />
-        <ui:MenuItem x:Name="SortDescendingMenuItem" Header="降順" />
+        <ui:MenuItem x:Name="SortAscendingMenuItem" />
+        <ui:MenuItem x:Name="SortDescendingMenuItem" />
     </ui:MenuItem>
 
     <!--  グループで表示（サブメニュー）  -->
@@ -105,14 +103,13 @@
                 <TextBlock
                     x:Name="GroupText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="グループで表示" />
+                    FontSize="14" />
             </StackPanel>
         </ui:MenuItem.Header>
-        <ui:MenuItem Header="なし" />
-        <ui:MenuItem Header="名前" />
-        <ui:MenuItem Header="種類" />
-        <ui:MenuItem Header="変更日時" />
+        <ui:MenuItem x:Name="GroupNoneMenuItem" />
+        <ui:MenuItem x:Name="GroupByNameMenuItem" />
+        <ui:MenuItem x:Name="GroupByTypeMenuItem" />
+        <ui:MenuItem x:Name="GroupByDateModifiedMenuItem" />
     </ui:MenuItem>
 
     <!--  最新の情報に更新  -->
@@ -132,8 +129,7 @@
                 <TextBlock
                     x:Name="RefreshText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="最新の情報に更新" />
+                    FontSize="14" />
                 <TextBlock
                     Margin="20,0,0,0"
                     VerticalAlignment="Center"
@@ -163,13 +159,12 @@
                 <TextBlock
                     x:Name="NewText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="新規作成" />
+                    FontSize="14" />
             </StackPanel>
         </ui:MenuItem.Header>
-        <ui:MenuItem x:Name="NewFolderMenuItem" Header="フォルダー" />
-        <ui:MenuItem x:Name="NewTextDocumentMenuItem" Header="テキスト ドキュメント" />
-        <ui:MenuItem x:Name="NewShortcutMenuItem" Header="ショートカット" />
+        <ui:MenuItem x:Name="NewFolderMenuItem" />
+        <ui:MenuItem x:Name="NewTextDocumentMenuItem" />
+        <ui:MenuItem x:Name="NewShortcutMenuItem" />
     </ui:MenuItem>
 
     <!--  ショートカットを貼り付け  -->
@@ -189,8 +184,7 @@
                 <TextBlock
                     x:Name="PasteShortcutText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="ショートカットを貼り付け" />
+                    FontSize="14" />
             </StackPanel>
         </ui:MenuItem.Header>
     </ui:MenuItem>
@@ -212,8 +206,7 @@
                 <TextBlock
                     x:Name="PinToSidebarText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="サイドバーにピン留めする" />
+                    FontSize="14" />
             </StackPanel>
         </ui:MenuItem.Header>
     </ui:MenuItem>
@@ -235,8 +228,7 @@
                 <TextBlock
                     x:Name="PinToStartText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="スタートメニューにピン留めする" />
+                    FontSize="14" />
             </StackPanel>
         </ui:MenuItem.Header>
     </ui:MenuItem>
@@ -260,8 +252,7 @@
                 <TextBlock
                     x:Name="OpenTerminalText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="ターミナルで開く" />
+                    FontSize="14" />
                 <TextBlock
                     Margin="20,0,0,0"
                     VerticalAlignment="Center"
@@ -286,8 +277,7 @@
                 <TextBlock
                     x:Name="LoadingText"
                     VerticalAlignment="Center"
-                    FontSize="14"
-                    Text="読み込み中..." />
+                    FontSize="14" />
             </StackPanel>
         </ui:MenuItem.Header>
     </ui:MenuItem>

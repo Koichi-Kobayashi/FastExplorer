@@ -5,9 +5,10 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:FastExplorer.Helpers"
     xmlns:local="clr-namespace:FastExplorer.Views.Windows"
+    xmlns:localization="clr-namespace:FastExplorer.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    Title="設定"
+    Title="{localization:LocalizationHelperExtension Settings}"
     Width="800"
     Height="600"
     d:DataContext="{d:DesignInstance local:SettingsWindow,
@@ -79,9 +80,9 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <ui:TitleBar
+            <ui:TitleBar
             x:Name="TitleBar"
-            Title="設定"
+            Title="{localization:LocalizationHelperExtension Settings}"
             Grid.Row="0"
             CloseWindowByDoubleClickOnIcon="True"
             ShowMaximize="True"
@@ -109,7 +110,7 @@
                         HorizontalContentAlignment="Left"
                         Appearance="Secondary"
                         Click="NavigationButton_Click"
-                        Content="全般"
+                        Content="{localization:LocalizationHelperExtension General}"
                         Icon="{ui:SymbolIcon Settings24}"
                         Style="{StaticResource NavigationButtonStyle}"
                         Tag="General" />
@@ -120,7 +121,7 @@
                         HorizontalContentAlignment="Left"
                         Appearance="Secondary"
                         Click="NavigationButton_Click"
-                        Content="外観"
+                        Content="{localization:LocalizationHelperExtension Appearance}"
                         Icon="{ui:SymbolIcon PaintBrush24}"
                         Style="{StaticResource NavigationButtonStyle}"
                         Tag="Appearance" />
@@ -131,7 +132,7 @@
                         HorizontalContentAlignment="Left"
                         Appearance="Secondary"
                         Click="NavigationButton_Click"
-                        Content="レイアウト"
+                        Content="{localization:LocalizationHelperExtension Layout}"
                         Icon="{ui:SymbolIcon LayoutColumnTwo24}"
                         Style="{StaticResource NavigationButtonStyle}"
                         Tag="Layout" />
@@ -142,43 +143,10 @@
                         HorizontalContentAlignment="Left"
                         Appearance="Secondary"
                         Click="NavigationButton_Click"
-                        Content="操作"
+                        Content="{localization:LocalizationHelperExtension Operation}"
                         Icon="{ui:SymbolIcon Options24}"
                         Style="{StaticResource NavigationButtonStyle}"
                         Tag="Operation" />
-                    <ui:Button
-                        x:Name="TagButton"
-                        Margin="0,4,0,0"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left"
-                        Appearance="Secondary"
-                        Click="NavigationButton_Click"
-                        Content="タグ"
-                        Icon="{ui:SymbolIcon Tag24}"
-                        Style="{StaticResource NavigationButtonStyle}"
-                        Tag="Tag" />
-                    <ui:Button
-                        x:Name="DevToolsButton"
-                        Margin="0,4,0,0"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left"
-                        Appearance="Secondary"
-                        Click="NavigationButton_Click"
-                        Content="開発者向けツール"
-                        Icon="{ui:SymbolIcon DeveloperBoard24}"
-                        Style="{StaticResource NavigationButtonStyle}"
-                        Tag="DevTools" />
-                    <ui:Button
-                        x:Name="AdvancedButton"
-                        Margin="0,4,0,0"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left"
-                        Appearance="Secondary"
-                        Click="NavigationButton_Click"
-                        Content="高度な設定"
-                        Icon="{ui:SymbolIcon Settings24}"
-                        Style="{StaticResource NavigationButtonStyle}"
-                        Tag="Advanced" />
                     <ui:Button
                         x:Name="AboutButton"
                         Margin="0,4,0,0"
@@ -186,7 +154,7 @@
                         HorizontalContentAlignment="Left"
                         Appearance="Secondary"
                         Click="NavigationButton_Click"
-                        Content="FastExplorer について"
+                        Content="{localization:LocalizationHelperExtension AboutApplication}"
                         Icon="{ui:SymbolIcon Info24}"
                         Style="{StaticResource NavigationButtonStyle}"
                         Tag="About" />
@@ -204,30 +172,35 @@
                         <TextBlock
                             FontSize="20"
                             FontWeight="Medium"
-                            Text="全般" />
+                            Text="{localization:LocalizationHelperExtension General}" />
 
                         <!--  言語設定  -->
                         <TextBlock
                             Margin="0,24,0,8"
                             FontSize="16"
                             FontWeight="Medium"
-                            Text="言語" />
-                        <ComboBox Width="200" HorizontalAlignment="Left">
-                            <ComboBoxItem Content="システム設定を使用" IsSelected="True" />
-                        </ComboBox>
+                            Text="{localization:LocalizationHelperExtension Language}" />
+                        <ComboBox
+                            Width="200"
+                            Margin="0,8,0,0"
+                            HorizontalAlignment="Left"
+                            DisplayMemberPath="Name"
+                            ItemsSource="{Binding ViewModel.AvailableLanguages, Mode=OneWay}"
+                            SelectedItem="{Binding ViewModel.SelectedLanguage, Mode=TwoWay}"
+                            SelectedValuePath="Code" />
 
                         <!--  日付の形式  -->
                         <TextBlock
                             Margin="0,24,0,8"
                             FontSize="16"
                             FontWeight="Medium"
-                            Text="日付の形式" />
-                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="例: 5 秒前, 2020年12月31日" />
+                            Text="{localization:LocalizationHelperExtension DateFormat}" />
+                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{localization:LocalizationHelperExtension DateFormatExample}" />
                         <ComboBox
                             Width="200"
                             Margin="0,8,0,0"
                             HorizontalAlignment="Left">
-                            <ComboBoxItem Content="アプリ" IsSelected="True" />
+                            <ComboBoxItem Content="{localization:LocalizationHelperExtension App}" IsSelected="True" />
                         </ComboBox>
 
                         <!--  起動時の設定  -->
@@ -235,9 +208,9 @@
                             Margin="0,24,0,8"
                             FontSize="16"
                             FontWeight="Medium"
-                            Text="起動時の設定" />
+                            Text="{localization:LocalizationHelperExtension StartupSettings}" />
                         <ComboBox Width="300" HorizontalAlignment="Left">
-                            <ComboBoxItem Content="最後の操作を続行" IsSelected="True" />
+                            <ComboBoxItem Content="{localization:LocalizationHelperExtension ContinueLastOperation}" IsSelected="True" />
                         </ComboBox>
                     </StackPanel>
                 </ScrollViewer>
@@ -251,26 +224,26 @@
                         <TextBlock
                             FontSize="20"
                             FontWeight="Medium"
-                            Text="外観" />
+                            Text="{localization:LocalizationHelperExtension Appearance}" />
 
                         <!--  テーマ  -->
                         <TextBlock
                             Margin="0,24,0,8"
                             FontSize="16"
                             FontWeight="Medium"
-                            Text="テーマ" />
+                            Text="{localization:LocalizationHelperExtension Theme}" />
                         <RadioButton
                             Margin="0,8,0,0"
                             Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
                             CommandParameter="theme_light"
-                            Content="Light"
+                            Content="{localization:LocalizationHelperExtension Light}"
                             GroupName="themeSelect"
                             IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Light, Mode=OneWay}" />
                         <RadioButton
                             Margin="0,8,0,0"
                             Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
                             CommandParameter="theme_dark"
-                            Content="Dark"
+                            Content="{localization:LocalizationHelperExtension Dark}"
                             GroupName="themeSelect"
                             IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
 
@@ -279,12 +252,12 @@
                             Margin="0,24,0,8"
                             FontSize="16"
                             FontWeight="Medium"
-                            Text="テーマカラー" />
+                            Text="{localization:LocalizationHelperExtension ThemeColor}" />
                         <TextBlock
                             Margin="0,0,0,12"
                             FontSize="12"
                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="ライトテーマで使用するアクセントカラーを選択してください" />
+                            Text="{localization:LocalizationHelperExtension ThemeColorDescription}" />
                         <ItemsControl ItemsSource="{Binding ViewModel.ThemeColors, Mode=OneWay}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -350,7 +323,7 @@
                         <!--  背景画像  -->
                         <Expander
                             Margin="0,24,0,0"
-                            Header="背景画像"
+                            Header="{localization:LocalizationHelperExtension BackgroundImage}"
                             IsExpanded="False">
                             <StackPanel Margin="0,12,0,0">
                                 <Grid Margin="0,0,0,0">
@@ -369,16 +342,16 @@
                                         Grid.Column="1"
                                         Margin="0,0,4,0"
                                         Command="{Binding ViewModel.BrowseBackgroundImageCommand, Mode=OneWay}"
-                                        Content="参照" />
+                                        Content="{localization:LocalizationHelperExtension Browse}" />
                                     <Button
                                         Grid.Column="2"
                                         Margin="0,0,4,0"
                                         Command="{Binding ViewModel.ClearBackgroundImageCommand, Mode=OneWay}"
                                         Content="×"
-                                        ToolTip="背景画像をクリア" />
+                                        ToolTip="{localization:LocalizationHelperExtension ClearBackgroundImage}" />
                                 </Grid>
 
-                                <TextBlock Margin="0,16,0,8" Text="不透明度" />
+                                <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension Opacity}" />
                                 <Slider
                                     Margin="0,0,0,0"
                                     IsMoveToPointEnabled="True"
@@ -387,35 +360,35 @@
                                     TickFrequency="0.1"
                                     Value="{Binding ViewModel.BackgroundImageOpacity, Mode=TwoWay}" />
 
-                                <TextBlock Margin="0,16,0,8" Text="画像の調整" />
+                                <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension Stretch}" />
                                 <ComboBox
                                     Margin="0,0,0,0"
                                     SelectedValue="{Binding ViewModel.BackgroundImageStretchString, Mode=TwoWay}"
                                     SelectedValuePath="Tag">
-                                    <ComboBoxItem Content="ウィンドウのサイズに合わせる" Tag="FitToWindow" />
-                                    <ComboBoxItem Content="ウィンドウを埋める" Tag="Fill" />
-                                    <ComboBoxItem Content="タイル状に繰り返す" Tag="Tile" />
-                                    <ComboBoxItem Content="元のサイズで表示" Tag="None" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension FitToWindowSize}" Tag="FitToWindow" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension FillWindow}" Tag="Fill" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension TileRepeat}" Tag="Tile" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension OriginalSize}" Tag="None" />
                                 </ComboBox>
 
-                                <TextBlock Margin="0,16,0,8" Text="垂直方向の配置" />
+                                <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension VerticalAlignment}" />
                                 <ComboBox
                                     Margin="0,0,0,0"
                                     SelectedValue="{Binding ViewModel.BackgroundImageVerticalAlignmentString, Mode=TwoWay}"
                                     SelectedValuePath="Tag">
-                                    <ComboBoxItem Content="上" Tag="Start" />
-                                    <ComboBoxItem Content="中央" Tag="Center" />
-                                    <ComboBoxItem Content="下" Tag="End" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Top}" Tag="Start" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Center}" Tag="Center" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Bottom}" Tag="End" />
                                 </ComboBox>
 
-                                <TextBlock Margin="0,16,0,8" Text="水平方向の配置" />
+                                <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension HorizontalAlignment}" />
                                 <ComboBox
                                     Margin="0,0,0,0"
                                     SelectedValue="{Binding ViewModel.BackgroundImageHorizontalAlignmentString, Mode=TwoWay}"
                                     SelectedValuePath="Tag">
-                                    <ComboBoxItem Content="左" Tag="Start" />
-                                    <ComboBoxItem Content="中央" Tag="Center" />
-                                    <ComboBoxItem Content="右" Tag="End" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Left}" Tag="Start" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Center}" Tag="Center" />
+                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Right}" Tag="End" />
                                 </ComboBox>
                             </StackPanel>
                         </Expander>
@@ -431,39 +404,39 @@
                         <TextBlock
                             FontSize="20"
                             FontWeight="Medium"
-                            Text="レイアウト" />
+                            Text="{localization:LocalizationHelperExtension Layout}" />
 
                         <!--  デュアルペインモード  -->
                         <TextBlock
                             Margin="0,24,0,8"
                             FontSize="16"
                             FontWeight="Medium"
-                            Text="デュアルペインモード" />
+                            Text="{localization:LocalizationHelperExtension DualPaneMode}" />
                         <ui:ToggleSwitch
                             Margin="0,8,0,0"
-                            Content="デュアル ペインでタブを開く"
+                            Content="{localization:LocalizationHelperExtension OpenTabsInDualPane}"
                             IsChecked="False" />
                         <TextBlock
                             Margin="0,8,0,0"
                             FontSize="12"
                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="タブバーを2つのペインに分割し、それぞれ独立してタブを管理できます" />
+                            Text="{localization:LocalizationHelperExtension DualPaneDescription}" />
 
                         <!--  分割ペイン  -->
                         <TextBlock
                             Margin="0,24,0,8"
                             FontSize="16"
                             FontWeight="Medium"
-                            Text="分割ペイン" />
+                            Text="{localization:LocalizationHelperExtension SplitPane}" />
                         <CheckBox
                             Margin="0,8,0,0"
-                            Content="分割ペインを有効にする（WinSCPスタイル）"
+                            Content="{localization:LocalizationHelperExtension EnableSplitPane}"
                             IsChecked="{Binding ViewModel.IsSplitPaneEnabled, Mode=TwoWay}" />
                         <TextBlock
                             Margin="0,8,0,0"
                             FontSize="12"
                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="有効にすると、左右2つのペインでそれぞれフォルダーを表示できます。アプリケーションを再起動すると反映されます。" />
+                            Text="{localization:LocalizationHelperExtension SplitPaneDescription}" />
                     </StackPanel>
                 </ScrollViewer>
 
@@ -476,7 +449,7 @@
                         <TextBlock
                             FontSize="20"
                             FontWeight="Medium"
-                            Text="FastExplorer について" />
+                            Text="{localization:LocalizationHelperExtension AboutApplication}" />
                         <TextBlock
                             Margin="0,24,0,0"
                             FontSize="14"
@@ -485,7 +458,7 @@
                             Margin="0,12,0,0"
                             FontSize="12"
                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="高速で使いやすいファイルエクスプローラー"
+                            Text="{localization:LocalizationHelperExtension ApplicationDescription}"
                             TextWrapping="Wrap" />
                     </StackPanel>
                 </ScrollViewer>

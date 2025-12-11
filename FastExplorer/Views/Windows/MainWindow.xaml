@@ -18,7 +18,7 @@
     AllowDrop="True"
     ExtendsContentIntoTitleBar="True"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-    Icon="pack://application:,,,/Assets/wpfui-icon-256.png"
+    Icon="pack://application:,,,/Assets/Icon/FastExplorer.ico"
     KeyDown="MainWindow_KeyDown"
     PreviewKeyDown="MainWindow_PreviewKeyDown"
     RenderOptions.ClearTypeHint="Enabled"
@@ -82,7 +82,7 @@
             Panel.ZIndex="3"
             CloseWindowByDoubleClickOnIcon="True">
             <ui:TitleBar.Icon>
-                <ui:ImageIcon Source="pack://application:,,,/Assets/wpfui-icon-256.png" />
+                <ui:ImageIcon Source="pack://application:,,,/Assets/Icon/FastExplorer.ico" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 
