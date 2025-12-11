@@ -11,9 +11,11 @@
     <SupportedOSPlatformVersion>10.0.20348.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Content Include="wpfui-icon.ico" />
-  </ItemGroup>
+  <!-- Ensure ApplicationIcon is always set -->
+  <PropertyGroup Condition="'$(ApplicationIcon)' == ''">
+    <ApplicationIcon>Assets\Icon\FastExplorer.ico</ApplicationIcon>
+  </PropertyGroup>
+
 
   <ItemGroup>
     <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.5" />
