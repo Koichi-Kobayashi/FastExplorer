@@ -76,6 +76,9 @@ namespace FastExplorer.Views.Pages
         // UndoRedoService
         private readonly Services.UndoRedoService? _undoRedoService;
 
+        // コンテキストメニュー表示の重複を防ぐためのフラグ
+        private bool _isShowingContextMenu = false;
+
         #endregion
 
         #region コンストラクタ
@@ -2480,6 +2483,7 @@ namespace FastExplorer.Views.Pages
 
         /// <summary>
         /// ListViewItemでマウス右ボタンが押されたときに呼び出されます（右クリックメニュー表示）
+        /// Windowsのシェルコンテキストメニューを表示します（ファイルとフォルダーで自動的に異なるメニューが表示されます）
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">マウスボタンイベント引数</param>
@@ -2487,17 +2491,51 @@ namespace FastExplorer.Views.Pages
         {
             System.Diagnostics.Debug.WriteLine("ListViewItem_PreviewMouseRightButtonDown called");
 
+            // 既にメニューを表示中の場合は処理しない（重複実行を防ぐ）
+            if (_isShowingContextMenu)
+            {
+                System.Diagnostics.Debug.WriteLine("ListViewItem_PreviewMouseRightButtonDown: Context menu is already showing, skipping");
+                e.Handled = true; // イベントを処理済みとしてマークして、ListView_MouseRightButtonUpが呼ばれないようにする
+                return;
+            }
+
+            // senderがListViewItemでない場合（子要素でイベントが発生した場合）、親のListViewItemを探す
+            System.Windows.Controls.ListViewItem? listViewItem = sender as System.Windows.Controls.ListViewItem;
+            if (listViewItem == null && sender is DependencyObject depObj)
+            {
+                listViewItem = VisualTreeHelper.GetParent(depObj) as System.Windows.Controls.ListViewItem;
+                // さらに上位を探す
+                if (listViewItem == null)
+                {
+                    DependencyObject? current = depObj;
+                    while (current != null && listViewItem == null)
+                    {
+                        current = VisualTreeHelper.GetParent(current);
+                        listViewItem = current as System.Windows.Controls.ListViewItem;
+                    }
+                }
+            }
+
             // DataContextからファイルパスを取得
-            if (sender is ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem fileItem)
+            if (listViewItem != null && listViewItem.DataContext is FileSystemItem fileItem)
             {
                 var filePath = fileItem.FullPath;
-                System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: File path = {filePath}");
+                var isDirectory = fileItem.IsDirectory;
+                System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: File path = {filePath}, IsDirectory = {isDirectory}");
 
-                if (!string.IsNullOrEmpty(filePath) && (System.IO.Directory.Exists(filePath) || System.IO.File.Exists(filePath)))
+                // ファイルまたはフォルダーが存在することを確認
+                bool exists = isDirectory 
+                    ? System.IO.Directory.Exists(filePath) 
+                    : System.IO.File.Exists(filePath);
+
+                if (!string.IsNullOrEmpty(filePath) && exists)
                 {
+                    // フラグを設定して重複実行を防ぐ
+                    _isShowingContextMenu = true;
+
                     // イベントを処理済みとしてマーク（重要：これによりListView_MouseRightButtonUpが呼ばれないようにする）
                     e.Handled = true;
-                    System.Diagnostics.Debug.WriteLine("ListViewItem_PreviewMouseRightButtonDown: Event handled, showing context menu");
+                    System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: Event handled, showing Windows shell context menu for {(isDirectory ? "folder" : "file")}");
 
                     // 画面上の座標をスクリーン座標に変換
                     var point = e.GetPosition(this);
@@ -2505,21 +2543,36 @@ namespace FastExplorer.Views.Pages
 
                     // ウィンドウハンドルを取得
                     var window = Window.GetWindow(this);
-                    var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
 
-                    // FilesContextMenuでOS標準メニューを表示
+                    // Windowsのシェルコンテキストメニューを表示
+                    // FilesContextMenuWrapperは、ファイルパスから自動的にファイル/フォルダーを判定し、
+                    // Windowsのシェルが提供する適切なコンテキストメニューを表示します
                     if (window != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: Calling ShowContextMenu at ({screenPoint.X}, {screenPoint.Y})");
+                        System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: Calling ShowContextMenu at ({screenPoint.X}, {screenPoint.Y}) for {(isDirectory ? "folder" : "file")}");
                         FastExplorer.ShellContextMenu.FilesContextMenuWrapper.ShowContextMenu(
                             new[] { filePath }, 
                             window, 
                             (int)screenPoint.X, 
                             (int)screenPoint.Y);
+                        
+                        // メニューが閉じられたときにフラグをリセットするためのタイマーを設定
+                        // メニューが表示されない場合のフォールバック（500ms後にリセット）
+                        var timer = new DispatcherTimer
+                        {
+                            Interval = TimeSpan.FromMilliseconds(500)
+                        };
+                        timer.Tick += (s, args) =>
+                        {
+                            timer.Stop();
+                            _isShowingContextMenu = false;
+                        };
+                        timer.Start();
                     }
                     else
                     {
                         System.Diagnostics.Debug.WriteLine("ListViewItem_PreviewMouseRightButtonDown: Window is null");
+                        _isShowingContextMenu = false; // エラー時はフラグをリセット
                     }
                 }
                 else
@@ -2529,12 +2582,14 @@ namespace FastExplorer.Views.Pages
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("ListViewItem_PreviewMouseRightButtonDown: DataContext is not FileSystemItem");
+                System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: DataContext is not FileSystemItem. Sender type: {sender?.GetType().Name}, ListViewItem: {listViewItem?.GetType().Name}");
             }
         }
 
         /// <summary>
         /// ListViewItemでマウス右ボタンが離されたときに呼び出されます（右クリックメニュー表示）
+        /// Windowsのシェルコンテキストメニューを表示します（ファイルとフォルダーで自動的に異なるメニューが表示されます）
+        /// PreviewMouseRightButtonDownで処理済みの場合は、このメソッドは実行されません
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">マウスボタンイベント引数</param>
@@ -2542,17 +2597,50 @@ namespace FastExplorer.Views.Pages
         {
             System.Diagnostics.Debug.WriteLine("ListViewItem_MouseRightButtonUp called");
 
+            // PreviewMouseRightButtonDownで既に処理済みの場合は処理しない
+            if (_isShowingContextMenu)
+            {
+                System.Diagnostics.Debug.WriteLine("ListViewItem_MouseRightButtonUp: Context menu is already showing (handled by PreviewMouseRightButtonDown), skipping");
+                return;
+            }
+
+            // senderがListViewItemでない場合（子要素でイベントが発生した場合）、親のListViewItemを探す
+            System.Windows.Controls.ListViewItem? listViewItem = sender as System.Windows.Controls.ListViewItem;
+            if (listViewItem == null && sender is DependencyObject depObj)
+            {
+                listViewItem = VisualTreeHelper.GetParent(depObj) as System.Windows.Controls.ListViewItem;
+                // さらに上位を探す
+                if (listViewItem == null)
+                {
+                    DependencyObject? current = depObj;
+                    while (current != null && listViewItem == null)
+                    {
+                        current = VisualTreeHelper.GetParent(current);
+                        listViewItem = current as System.Windows.Controls.ListViewItem;
+                    }
+                }
+            }
+
             // DataContextからファイルパスを取得
-            if (sender is ListViewItem listViewItem && listViewItem.DataContext is FileSystemItem fileItem)
+            if (listViewItem != null && listViewItem.DataContext is FileSystemItem fileItem)
             {
                 var filePath = fileItem.FullPath;
-                System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: File path = {filePath}");
+                var isDirectory = fileItem.IsDirectory;
+                System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: File path = {filePath}, IsDirectory = {isDirectory}");
 
-                if (!string.IsNullOrEmpty(filePath) && (System.IO.Directory.Exists(filePath) || System.IO.File.Exists(filePath)))
+                // ファイルまたはフォルダーが存在することを確認
+                bool exists = isDirectory 
+                    ? System.IO.Directory.Exists(filePath) 
+                    : System.IO.File.Exists(filePath);
+
+                if (!string.IsNullOrEmpty(filePath) && exists)
                 {
+                    // フラグを設定して重複実行を防ぐ
+                    _isShowingContextMenu = true;
+
                     // イベントを処理済みとしてマーク（重要：これによりListView_MouseRightButtonUpが呼ばれないようにする）
                     e.Handled = true;
-                    System.Diagnostics.Debug.WriteLine("ListViewItem_MouseRightButtonUp: Event handled, showing context menu");
+                    System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: Event handled, showing Windows shell context menu for {(isDirectory ? "folder" : "file")}");
 
                     // 画面上の座標をスクリーン座標に変換
                     var point = e.GetPosition(this);
@@ -2560,21 +2648,36 @@ namespace FastExplorer.Views.Pages
 
                     // ウィンドウハンドルを取得
                     var window = Window.GetWindow(this);
-                    var hWnd = window != null ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
 
-                    // FilesContextMenuでOS標準メニューを表示
+                    // Windowsのシェルコンテキストメニューを表示
+                    // FilesContextMenuWrapperは、ファイルパスから自動的にファイル/フォルダーを判定し、
+                    // Windowsのシェルが提供する適切なコンテキストメニューを表示します
                     if (window != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: Calling ShowContextMenu at ({screenPoint.X}, {screenPoint.Y})");
+                        System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: Calling ShowContextMenu at ({screenPoint.X}, {screenPoint.Y}) for {(isDirectory ? "folder" : "file")}");
                         FastExplorer.ShellContextMenu.FilesContextMenuWrapper.ShowContextMenu(
                             new[] { filePath }, 
                             window, 
                             (int)screenPoint.X, 
                             (int)screenPoint.Y);
+                        
+                        // メニューが閉じられたときにフラグをリセットするためのタイマーを設定
+                        // メニューが表示されない場合のフォールバック（500ms後にリセット）
+                        var timer = new DispatcherTimer
+                        {
+                            Interval = TimeSpan.FromMilliseconds(500)
+                        };
+                        timer.Tick += (s, args) =>
+                        {
+                            timer.Stop();
+                            _isShowingContextMenu = false;
+                        };
+                        timer.Start();
                     }
                     else
                     {
                         System.Diagnostics.Debug.WriteLine("ListViewItem_MouseRightButtonUp: Window is null");
+                        _isShowingContextMenu = false; // エラー時はフラグをリセット
                     }
                 }
                 else
@@ -2584,7 +2687,7 @@ namespace FastExplorer.Views.Pages
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("ListViewItem_MouseRightButtonUp: DataContext is not FileSystemItem");
+                System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: DataContext is not FileSystemItem. Sender type: {sender?.GetType().Name}, ListViewItem: {listViewItem?.GetType().Name}");
             }
         }
 
@@ -2595,6 +2698,12 @@ namespace FastExplorer.Views.Pages
         /// <param name="e">マウスボタンイベント引数</param>
         private void ListView_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
+            // PreviewMouseRightButtonDownまたはListViewItem_MouseRightButtonUpで既に処理済みの場合は処理しない
+            if (_isShowingContextMenu)
+            {
+                System.Diagnostics.Debug.WriteLine("ListView_MouseRightButtonUp: Context menu is already showing (handled by ListViewItem), skipping");
+                return;
+            }
 
             // ListViewItem上でクリックされた場合は処理しない
             if (e.OriginalSource is DependencyObject source)
@@ -2602,8 +2711,9 @@ namespace FastExplorer.Views.Pages
                 DependencyObject? current = source;
                 while (current != null)
                 {
-                    if (current is ListViewItem)
+                    if (current is System.Windows.Controls.ListViewItem)
                     {
+                        System.Diagnostics.Debug.WriteLine("ListView_MouseRightButtonUp: Clicked on ListViewItem, skipping");
                         return;
                     }
                     current = VisualTreeHelper.GetParent(current);

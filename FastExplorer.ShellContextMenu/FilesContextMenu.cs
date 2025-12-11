@@ -17,6 +17,8 @@ namespace FastExplorer.ShellContextMenu
 {
 	/// <summary>
 	/// Provides a helper for Win32 context menu.
+	/// Windowsのシェルコンテキストメニューを取得・表示するためのヘルパークラスです。
+	/// ファイルとフォルダーで自動的に異なるメニューが取得されます。
 	/// </summary>
 	public partial class FilesContextMenu : Win32ContextMenu, IDisposable
 	{
@@ -96,6 +98,13 @@ namespace FastExplorer.ShellContextMenu
 			if (itemID < 0)
 				return false;
 
+			// 既に破棄されている場合は処理しない
+			if (disposedValue)
+			{
+				System.Diagnostics.Debug.WriteLine("InvokeItem: FilesContextMenu is already disposed");
+				return false;
+			}
+
 			try
 			{
 				var currentWindows = Win32Helper.GetDesktopWindows();
@@ -109,14 +118,38 @@ namespace FastExplorer.ShellContextMenu
 				if (workingDirectory is not null)
 					pici.lpDirectoryW = workingDirectory;
 
-				await _owningThread.PostMethod(() => _cMenu.InvokeCommand(pici));
+				await _owningThread.PostMethod(() =>
+				{
+					// 実行中に破棄された場合は例外をスロー
+					if (disposedValue || _cMenu == null)
+					{
+						throw new ObjectDisposedException(nameof(FilesContextMenu));
+					}
+					_cMenu.InvokeCommand(pici);
+				});
 				Win32Helper.BringToForeground(currentWindows);
 
 				return true;
 			}
+			catch (OperationCanceledException)
+			{
+				// 操作がキャンセルされた場合は無視
+				System.Diagnostics.Debug.WriteLine("InvokeItem: Operation was canceled");
+				return false;
+			}
+			catch (ObjectDisposedException)
+			{
+				// 既に破棄されている場合は無視
+				System.Diagnostics.Debug.WriteLine("InvokeItem: FilesContextMenu was disposed");
+				return false;
+			}
 			catch (Exception ex) when (ex is COMException or UnauthorizedAccessException)
 			{
-				System.Diagnostics.Debug.WriteLine(ex);
+				System.Diagnostics.Debug.WriteLine($"InvokeItem: {ex}");
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine($"InvokeItem: Unexpected error: {ex}");
 			}
 
 			return false;
@@ -172,6 +205,15 @@ namespace FastExplorer.ShellContextMenu
 			});
 		}
 
+		/// <summary>
+		/// Gets the Windows shell context menu for the specified file paths.
+		/// Windowsのシェルコンテキストメニューを取得します。
+		/// ファイルとフォルダーで自動的に異なるメニューが取得されます。
+		/// </summary>
+		/// <param name="filePathList">Array of file paths (ファイルパスの配列)</param>
+		/// <param name="flags">Context menu flags (コンテキストメニューフラグ)</param>
+		/// <param name="itemFilter">Optional filter for menu items (メニュー項目のフィルター)</param>
+		/// <returns>FilesContextMenu instance or null (FilesContextMenuインスタンスまたはnull)</returns>
 		public async static Task<FilesContextMenu?> GetContextMenuForFiles(string[] filePathList, uint flags, Func<string, bool>? itemFilter = null)
 		{
 			var owningThread = new ThreadWithMessageQueue();
@@ -182,6 +224,8 @@ namespace FastExplorer.ShellContextMenu
 
 				try
 				{
+					// ShellItemはファイルパスから自動的にファイル/フォルダーを判定し、
+					// Windowsのシェルが提供する適切なコンテキストメニューを取得します
 					foreach (var filePathItem in filePathList.Where(x => !string.IsNullOrEmpty(x)))
 						shellItems.Add(new ShellItem(filePathItem));
 
@@ -347,17 +391,42 @@ namespace FastExplorer.ShellContextMenu
 
 		public Task<bool> LoadSubMenu(List<Win32ContextMenuItem> subItems)
 		{
+			// 既に破棄されている場合は処理しない
+			if (disposedValue)
+			{
+				System.Diagnostics.Debug.WriteLine("LoadSubMenu: FilesContextMenu is already disposed");
+				return Task.FromResult(false);
+			}
+
 			if (_loadSubMenuActions.Remove(subItems, out var loadSubMenuAction))
 			{
 				return _owningThread.PostMethod<bool>(() =>
 				{
 					try
 					{
+						// 実行中に破棄された場合は例外をスロー
+						if (disposedValue)
+						{
+							throw new ObjectDisposedException(nameof(FilesContextMenu));
+						}
 						loadSubMenuAction!();
 						return true;
 					}
-					catch
+					catch (OperationCanceledException)
 					{
+						// 操作がキャンセルされた場合は無視
+						System.Diagnostics.Debug.WriteLine("LoadSubMenu: Operation was canceled");
+						return false;
+					}
+					catch (ObjectDisposedException)
+					{
+						// 既に破棄されている場合は無視
+						System.Diagnostics.Debug.WriteLine("LoadSubMenu: FilesContextMenu was disposed");
+						return false;
+					}
+					catch (Exception ex)
+					{
+						System.Diagnostics.Debug.WriteLine($"LoadSubMenu: Error: {ex}");
 						return false;
 					}
 				});

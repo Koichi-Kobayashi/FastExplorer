@@ -14,17 +14,24 @@ using System.Windows.Media;
 namespace FastExplorer.ShellContextMenu
 {
 	/// <summary>
-	/// Wrapper for FilesContextMenu to display context menu in WPF applications
+	/// Wrapper for FilesContextMenu to display Windows shell context menu in WPF applications.
+	/// Windowsのシェルコンテキストメニューをラップして表示します。
+	/// ファイルとフォルダーで自動的に異なるメニューが表示されます。
 	/// </summary>
 	public class FilesContextMenuWrapper
 	{
+		private static readonly object _lockObject = new object();
+		private static bool _isShowingMenu = false;
+
 		/// <summary>
-		/// Shows the context menu for the specified file paths at the specified screen coordinates
+		/// Shows the Windows shell context menu for the specified file paths at the specified screen coordinates.
+		/// Windowsのシェルコンテキストメニューを表示します。
+		/// ファイルとフォルダーで自動的に異なるメニューが表示されます。
 		/// </summary>
-		/// <param name="filePaths">Array of file paths</param>
-		/// <param name="ownerWindow">Owner window</param>
-		/// <param name="x">X coordinate in screen coordinates</param>
-		/// <param name="y">Y coordinate in screen coordinates</param>
+		/// <param name="filePaths">Array of file paths (ファイルパスの配列)</param>
+		/// <param name="ownerWindow">Owner window (オーナーウィンドウ)</param>
+		/// <param name="x">X coordinate in screen coordinates (スクリーン座標のX座標)</param>
+		/// <param name="y">Y coordinate in screen coordinates (スクリーン座標のY座標)</param>
 		public static void ShowContextMenu(string[] filePaths, Window ownerWindow, int x, int y)
 		{
 			if (filePaths == null || filePaths.Length == 0)
@@ -33,22 +40,38 @@ namespace FastExplorer.ShellContextMenu
 			if (ownerWindow == null)
 				return;
 
+			// 既にメニューを表示中の場合は処理しない（重複実行を防ぐ）
+			lock (_lockObject)
+			{
+				if (_isShowingMenu)
+				{
+					System.Diagnostics.Debug.WriteLine("FilesContextMenuWrapper: Menu is already showing, skipping");
+					return;
+				}
+				_isShowingMenu = true;
+			}
+
 			// UIスレッドで非同期処理を実行
 			_ = ShowContextMenuAsync(filePaths, ownerWindow, x, y);
 		}
 
 		private static async Task ShowContextMenuAsync(string[] filePaths, Window ownerWindow, int x, int y)
 		{
+			FilesContextMenu? contextMenu = null;
 			try
 			{
 				System.Diagnostics.Debug.WriteLine($"FilesContextMenuWrapper: Getting context menu for: {string.Join(", ", filePaths)}");
 
 				// Get context menu from Files implementation
-				using var contextMenu = await FilesContextMenu.GetContextMenuForFiles(filePaths, 0x00000000); // CMF_NORMAL
+				contextMenu = await FilesContextMenu.GetContextMenuForFiles(filePaths, 0x00000000); // CMF_NORMAL
 
 				if (contextMenu == null)
 				{
 					System.Diagnostics.Debug.WriteLine("FilesContextMenuWrapper: Context menu is null");
+					lock (_lockObject)
+					{
+						_isShowingMenu = false;
+					}
 					return;
 				}
 
@@ -74,16 +97,87 @@ namespace FastExplorer.ShellContextMenu
 					MinWidth = 200
 				};
 
-				BuildMenuItems(wpfContextMenu.Items, contextMenu, contextMenu.Items, foregroundBrush);
+				// contextMenuをTagに保存して、メニューが閉じられるまで保持する
+				wpfContextMenu.Tag = contextMenu;
+				contextMenu = null; // 所有権をwpfContextMenuに移す
+
+				BuildMenuItems(wpfContextMenu.Items, (FilesContextMenu)wpfContextMenu.Tag, ((FilesContextMenu)wpfContextMenu.Tag).Items, foregroundBrush);
+
+				// メニューが閉じられたときにcontextMenuを破棄し、フラグをリセット
+				wpfContextMenu.Closed += (s, e) =>
+				{
+					lock (_lockObject)
+					{
+						_isShowingMenu = false;
+					}
+
+					if (s is ContextMenu menu && menu.Tag is FilesContextMenu cm)
+					{
+						// メニュー項目の実行が完了するまで少し待ってから破棄する（非同期）
+						_ = Task.Run(async () =>
+						{
+							// メニュー項目の実行が完了するまで少し待つ（500ms）
+							await Task.Delay(500);
+
+							try
+							{
+								cm.Dispose();
+							}
+							catch (Exception ex)
+							{
+								System.Diagnostics.Debug.WriteLine($"FilesContextMenuWrapper: Error disposing context menu: {ex}");
+							}
+							finally
+							{
+								// UIスレッドでTagをクリア
+								Application.Current.Dispatcher.Invoke(() =>
+								{
+									menu.Tag = null;
+								});
+							}
+						});
+					}
+				};
+
+				// メニューが開かれたことを確認（エラー時のフラグリセット用）
+				wpfContextMenu.Opened += (s, e) =>
+				{
+					System.Diagnostics.Debug.WriteLine("FilesContextMenuWrapper: Context menu opened");
+				};
 
 				// Show WPF context menu
 				wpfContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
 				wpfContextMenu.PlacementRectangle = new Rect(x, y, 0, 0);
 				wpfContextMenu.IsOpen = true;
 			}
+			catch (OperationCanceledException)
+			{
+				// 操作がキャンセルされた場合は無視
+				System.Diagnostics.Debug.WriteLine("FilesContextMenuWrapper: Operation was canceled");
+				lock (_lockObject)
+				{
+					_isShowingMenu = false;
+				}
+			}
 			catch (Exception ex)
 			{
 				System.Diagnostics.Debug.WriteLine($"FilesContextMenuWrapper: Error showing context menu: {ex}");
+				lock (_lockObject)
+				{
+					_isShowingMenu = false;
+				}
+				// エラーが発生した場合は、contextMenuを破棄
+				if (contextMenu != null)
+				{
+					try
+					{
+						contextMenu.Dispose();
+					}
+					catch
+					{
+						// 破棄時のエラーは無視
+					}
+				}
 			}
 		}
 
@@ -118,7 +212,8 @@ namespace FastExplorer.ShellContextMenu
 							}
 						},
 						Padding = new Thickness(8, 6, 8, 6),
-						MinHeight = 32
+						MinHeight = 32,
+						Tag = contextMenu // contextMenuをTagに保存して、後でアクセスできるようにする
 					};
 
 					// Add icon if available
@@ -154,7 +249,7 @@ namespace FastExplorer.ShellContextMenu
 					// Handle submenu
 					if (menuItem.SubItems != null && menuItem.SubItems.Count > 0)
 					{
-						// Load submenu asynchronously
+						// Load submenu asynchronously (fire and forget)
 						_ = LoadSubMenuAsync(wpfMenuItem, contextMenu, menuItem.SubItems, foregroundBrush);
 					}
 					else
@@ -163,7 +258,28 @@ namespace FastExplorer.ShellContextMenu
 						var menuItemCopy = menuItem; // Capture for closure
 						wpfMenuItem.Click += async (s, e) =>
 						{
-							await InvokeShellMenuItemAsync(contextMenu, menuItemCopy);
+							// メニューをすぐに閉じる
+							if (s is MenuItem item)
+							{
+								var contextMenu = item.Parent as ContextMenu ?? 
+									(item.Parent as MenuItem)?.Parent as ContextMenu;
+								if (contextMenu != null)
+								{
+									contextMenu.IsOpen = false;
+								}
+							}
+
+							if (s is MenuItem menuItem && menuItem.Tag is FilesContextMenu cm)
+							{
+								try
+								{
+									await InvokeShellMenuItemAsync(cm, menuItemCopy);
+								}
+								catch (Exception ex)
+								{
+									System.Diagnostics.Debug.WriteLine($"Error invoking menu item: {ex}");
+								}
+							}
 						};
 					}
 
@@ -177,7 +293,12 @@ namespace FastExplorer.ShellContextMenu
 			try
 			{
 				// Load submenu if needed
-				await contextMenu.LoadSubMenu(subItems);
+				var loadResult = await contextMenu.LoadSubMenu(subItems);
+				if (!loadResult)
+				{
+					System.Diagnostics.Debug.WriteLine("LoadSubMenuAsync: Failed to load submenu");
+					return;
+				}
 
 				// テーマカラーを取得（親メニューから継承）
 				if (foregroundBrush == null)
@@ -216,7 +337,8 @@ namespace FastExplorer.ShellContextMenu
 								}
 							},
 							Padding = new Thickness(8, 6, 8, 6),
-							MinHeight = 32
+							MinHeight = 32,
+							Tag = contextMenu // contextMenuをTagに保存して、後でアクセスできるようにする
 						};
 
 						// Add icon if available
@@ -252,7 +374,8 @@ namespace FastExplorer.ShellContextMenu
 						// Handle nested submenu
 						if (subItem.SubItems != null && subItem.SubItems.Count > 0)
 						{
-							await LoadSubMenuAsync(wpfSubMenuItem, contextMenu, subItem.SubItems, foregroundBrush);
+							// Load nested submenu asynchronously (fire and forget)
+							_ = LoadSubMenuAsync(wpfSubMenuItem, contextMenu, subItem.SubItems, foregroundBrush);
 						}
 						else
 						{
@@ -260,7 +383,28 @@ namespace FastExplorer.ShellContextMenu
 							var subItemCopy = subItem; // Capture for closure
 							wpfSubMenuItem.Click += async (s, e) =>
 							{
-								await InvokeShellMenuItemAsync(contextMenu, subItemCopy);
+								// メニューをすぐに閉じる
+								if (s is MenuItem item)
+								{
+									var contextMenu = item.Parent as ContextMenu ?? 
+										(item.Parent as MenuItem)?.Parent as ContextMenu;
+									if (contextMenu != null)
+									{
+										contextMenu.IsOpen = false;
+									}
+								}
+
+								if (s is MenuItem menuItem && menuItem.Tag is FilesContextMenu cm)
+								{
+									try
+									{
+										await InvokeShellMenuItemAsync(cm, subItemCopy);
+									}
+									catch (Exception ex)
+									{
+										System.Diagnostics.Debug.WriteLine($"Error invoking submenu item: {ex}");
+									}
+								}
 							};
 						}
 
@@ -268,9 +412,19 @@ namespace FastExplorer.ShellContextMenu
 					}
 				}
 			}
+			catch (OperationCanceledException)
+			{
+				// 操作がキャンセルされた場合は無視
+				System.Diagnostics.Debug.WriteLine("LoadSubMenuAsync: Operation was canceled");
+			}
+			catch (ObjectDisposedException)
+			{
+				// contextMenuが既に破棄されている場合は無視
+				System.Diagnostics.Debug.WriteLine("LoadSubMenuAsync: ContextMenu was disposed");
+			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"Error loading submenu: {ex}");
+				System.Diagnostics.Debug.WriteLine($"LoadSubMenuAsync: Error loading submenu: {ex}");
 			}
 		}
 
@@ -279,51 +433,68 @@ namespace FastExplorer.ShellContextMenu
 		/// </summary>
 		private static async Task InvokeShellMenuItemAsync(FilesContextMenu contextMenu, Win32ContextMenuItem menuItem)
 		{
-			if (menuItem == null)
+			if (menuItem == null || contextMenu == null)
 				return;
 
-			var menuId = menuItem.ID;
-			if (menuId < 0)
-				return;
-
-			var verb = menuItem.CommandString;
-			var firstPath = contextMenu.ItemsPath.FirstOrDefault();
-
-			// Filesアプリと同じ特別なケースの処理
-			switch (verb)
+			try
 			{
-				case "install":
-					// フォントのインストール（簡易実装）
-					await contextMenu.InvokeItem(menuId);
-					break;
+				var menuId = menuItem.ID;
+				if (menuId < 0)
+					return;
 
-				case "installAllUsers":
-					// 全ユーザー向けフォントのインストール（簡易実装）
-					await contextMenu.InvokeItem(menuId);
-					break;
+				var verb = menuItem.CommandString;
+				var firstPath = contextMenu.ItemsPath.FirstOrDefault();
 
-				case "mount":
-					// VHDのマウント（簡易実装）
-					await contextMenu.InvokeItem(menuId);
-					break;
+				// Filesアプリと同じ特別なケースの処理
+				switch (verb)
+				{
+					case "install":
+						// フォントのインストール（簡易実装）
+						await contextMenu.InvokeItem(menuId);
+						break;
 
-				case "format":
-					// ドライブのフォーマット（簡易実装）
-					await contextMenu.InvokeItem(menuId);
-					break;
+					case "installAllUsers":
+						// 全ユーザー向けフォントのインストール（簡易実装）
+						await contextMenu.InvokeItem(menuId);
+						break;
 
-				case "Windows.PowerShell.Run":
-					// PowerShellスクリプトの実行
-					var workingDir = !string.IsNullOrEmpty(firstPath) && firstPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase)
-						? System.IO.Path.GetDirectoryName(firstPath)
-						: null;
-					await contextMenu.InvokeItem(menuId, workingDir);
-					break;
+					case "mount":
+						// VHDのマウント（簡易実装）
+						await contextMenu.InvokeItem(menuId);
+						break;
 
-				default:
-					// 通常のメニュー項目の実行
-					await contextMenu.InvokeItem(menuId);
-					break;
+					case "format":
+						// ドライブのフォーマット（簡易実装）
+						await contextMenu.InvokeItem(menuId);
+						break;
+
+					case "Windows.PowerShell.Run":
+						// PowerShellスクリプトの実行
+						var workingDir = !string.IsNullOrEmpty(firstPath) && firstPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase)
+							? System.IO.Path.GetDirectoryName(firstPath)
+							: null;
+						await contextMenu.InvokeItem(menuId, workingDir);
+						break;
+
+					default:
+						// 通常のメニュー項目の実行
+						await contextMenu.InvokeItem(menuId);
+						break;
+				}
+			}
+			catch (ObjectDisposedException)
+			{
+				// contextMenuが既に破棄されている場合は無視
+				System.Diagnostics.Debug.WriteLine("InvokeShellMenuItemAsync: ContextMenu was disposed");
+			}
+			catch (OperationCanceledException)
+			{
+				// 操作がキャンセルされた場合は無視（contextMenuが破棄された場合など）
+				System.Diagnostics.Debug.WriteLine("InvokeShellMenuItemAsync: Operation was canceled (contextMenu may have been disposed)");
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: Error invoking menu item: {ex}");
 			}
 		}
 	}
