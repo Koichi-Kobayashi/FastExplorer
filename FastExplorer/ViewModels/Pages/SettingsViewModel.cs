@@ -690,7 +690,7 @@ namespace FastExplorer.ViewModels.Pages
                                         }
                                     }
                                 }
-                            }), System.Windows.Threading.DispatcherPriority.Render);
+                            }), System.Windows.Threading.DispatcherPriority.Background);
                         }
                     }
                 }
@@ -725,10 +725,11 @@ namespace FastExplorer.ViewModels.Pages
                 App.UpdateThemeResourcesInternal();
                 
                 // すべてのThemedSvgIconインスタンスを即座に更新（リアルタイム反映のため）
+                // 優先度をBackgroundに変更して、UIの応答性を維持
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     ThemedSvgIcon.RefreshAllInstances();
-                }), System.Windows.Threading.DispatcherPriority.Render);
+                }), System.Windows.Threading.DispatcherPriority.Background);
                 
                 // タブとListViewのスタイルを無効化してDynamicResourceの再評価を強制
                 // Backgroundに変更して確実に実行されるようにする
@@ -831,6 +832,7 @@ namespace FastExplorer.ViewModels.Pages
                 App.ApplyThemeColorFromSettings(settings2, (mainColor, secondaryColor));
 
                 // MainWindowの背景色を直接更新（SettingsWindowには適用しない）
+                // 優先度をBackgroundに変更して、UIの応答性を維持
                 Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     // MainWindowのみを対象にする
@@ -857,7 +859,7 @@ namespace FastExplorer.ViewModels.Pages
                             Views.Windows.MainWindow.InvalidateTabAndListViewStyles(mainWindow);
                         }
                     }
-                }), System.Windows.Threading.DispatcherPriority.Render);
+                }), System.Windows.Threading.DispatcherPriority.Background);
             }
             catch (Exception)
             {

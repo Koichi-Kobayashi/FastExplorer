@@ -30,7 +30,7 @@ namespace FastExplorer.Views.Windows
             // TitleBarの×ボタンイベントを処理
             TitleBar.CloseClicked += (s, e) => 
             {
-                // 閉じる前に設定を保存
+                // 閉じる前に設定を保存（非同期処理はfire-and-forgetで実行）
                 _ = ViewModel.OnNavigatedFromAsync();
                 Close();
             };
