@@ -40,7 +40,7 @@
         MinHeight="32"
         Padding="-8,6,8,6">
         <ui:MenuItem.Header>
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Background="Transparent">
                 <ui:SymbolIcon
                     x:Name="LayoutIcon"
                     Width="16"
@@ -63,7 +63,7 @@
         MinHeight="32"
         Padding="-8,6,8,6">
         <ui:MenuItem.Header>
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Background="Transparent">
                 <ui:SymbolIcon
                     x:Name="SortIcon"
                     Width="16"
@@ -86,7 +86,7 @@
         MinHeight="32"
         Padding="-8,6,8,6">
         <ui:MenuItem.Header>
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Background="Transparent">
                 <ui:SymbolIcon
                     x:Name="GroupIcon"
                     Width="16"
@@ -144,7 +144,7 @@
         MinHeight="32"
         Padding="-8,6,8,6">
         <ui:MenuItem.Header>
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" Background="Transparent">
                 <ui:SymbolIcon
                     x:Name="NewIcon"
                     Width="16"

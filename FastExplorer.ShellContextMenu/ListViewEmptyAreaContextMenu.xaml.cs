@@ -122,6 +122,64 @@ namespace FastExplorer.ShellContextMenu
                     _listView = listView;
                 }
             };
+
+            // サブメニューを持つMenuItemのMouseEnterイベントを設定
+            SetupSubmenuMouseEnter(LayoutMenuItem);
+            SetupSubmenuMouseEnter(SortMenuItem);
+            SetupSubmenuMouseEnter(GroupMenuItem);
+            SetupSubmenuMouseEnter(NewMenuItem);
+        }
+
+        /// <summary>
+        /// サブメニューを持つMenuItemのMouseEnterイベントを設定します
+        /// </summary>
+        /// <param name="menuItem">対象のMenuItem</param>
+        private void SetupSubmenuMouseEnter(MenuItem menuItem)
+        {
+            if (menuItem == null || menuItem.Items.Count == 0)
+                return;
+
+            // MenuItem全体でマウスイベントを処理するように設定
+            menuItem.MouseEnter += (s, e) =>
+            {
+                // サブメニューを開く
+                menuItem.IsSubmenuOpen = true;
+            };
+
+            // Header内の要素とその子要素にもマウスイベントを設定
+            if (menuItem.Header is System.Windows.FrameworkElement headerElement)
+            {
+                SetupMouseEnterForElement(headerElement, menuItem);
+            }
+        }
+
+        /// <summary>
+        /// 要素とその子要素にMouseEnterイベントを設定します
+        /// </summary>
+        /// <param name="element">対象の要素</param>
+        /// <param name="menuItem">MenuItem</param>
+        private void SetupMouseEnterForElement(System.Windows.FrameworkElement element, MenuItem menuItem)
+        {
+            if (element == null)
+                return;
+
+            // 要素自体にMouseEnterイベントを設定
+            element.MouseEnter += (s, e) =>
+            {
+                menuItem.IsSubmenuOpen = true;
+            };
+
+            // 子要素にも再帰的に設定
+            if (element is System.Windows.Controls.Panel panel)
+            {
+                foreach (var child in panel.Children)
+                {
+                    if (child is System.Windows.FrameworkElement childElement)
+                    {
+                        SetupMouseEnterForElement(childElement, menuItem);
+                    }
+                }
+            }
         }
 
         private MenuItem CreateLayoutSubItem(string text, string layoutName)
