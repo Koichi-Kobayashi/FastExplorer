@@ -131,10 +131,10 @@
                     VerticalAlignment="Center"
                     FontSize="14" />
                 <TextBlock
+                    x:Name="RefreshShortcutText"
                     Margin="20,0,0,0"
                     VerticalAlignment="Center"
                     FontSize="12"
-                    Foreground="Gray"
                     Text="Ctrl+R" />
             </StackPanel>
         </ui:MenuItem.Header>
@@ -254,10 +254,10 @@
                     VerticalAlignment="Center"
                     FontSize="14" />
                 <TextBlock
+                    x:Name="OpenTerminalShortcutText"
                     Margin="20,0,0,0"
                     VerticalAlignment="Center"
                     FontSize="12"
-                    Foreground="Gray"
                     Text="Ctrl+@" />
             </StackPanel>
         </ui:MenuItem.Header>

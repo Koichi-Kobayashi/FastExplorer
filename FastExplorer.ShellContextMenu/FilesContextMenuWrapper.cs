@@ -423,6 +423,7 @@ namespace FastExplorer.ShellContextMenu
 						Header = headerPanel,
 						Padding = new Thickness(8, 6, 8, 6),
 						MinHeight = 32,
+						Foreground = foregroundBrush, // ダークモード対応のためForegroundを設定
 						Tag = contextMenu // contextMenuをTagに保存して、後でアクセスできるようにする
 					};
 
@@ -618,6 +619,7 @@ namespace FastExplorer.ShellContextMenu
 						Header = subHeaderPanel,
 						Padding = new Thickness(8, 6, 8, 6),
 						MinHeight = 32,
+						Foreground = foregroundBrush, // ダークモード対応のためForegroundを設定
 						Tag = contextMenu // contextMenuをTagに保存して、後でアクセスできるようにする
 					};
 

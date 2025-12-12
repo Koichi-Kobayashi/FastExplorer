@@ -62,6 +62,8 @@ namespace FastExplorer.ShellContextMenu
                 ?? System.Windows.Media.Brushes.LightGray;
             _foregroundBrush = Application.Current.TryFindResource("TextFillColorPrimaryBrush") as System.Windows.Media.Brush
                 ?? System.Windows.Media.Brushes.Black;
+            var secondaryForegroundBrush = Application.Current.TryFindResource("TextFillColorSecondaryBrush") as System.Windows.Media.Brush
+                ?? System.Windows.Media.Brushes.Gray;
 
             // ContextMenuの背景色とボーダー色を設定
             Background = _backgroundBrush;
@@ -77,6 +79,7 @@ namespace FastExplorer.ShellContextMenu
             GroupText.Foreground = _foregroundBrush;
             RefreshIcon.Foreground = _foregroundBrush;
             RefreshText.Foreground = _foregroundBrush;
+            RefreshShortcutText.Foreground = secondaryForegroundBrush; // ショートカットキー表示用の色を設定
             NewIcon.Foreground = _foregroundBrush;
             NewText.Foreground = _foregroundBrush;
             PasteShortcutIcon.Foreground = _foregroundBrush;
@@ -87,6 +90,7 @@ namespace FastExplorer.ShellContextMenu
             PinToStartText.Foreground = _foregroundBrush;
             OpenTerminalIcon.Foreground = _foregroundBrush;
             OpenTerminalText.Foreground = _foregroundBrush;
+            OpenTerminalShortcutText.Foreground = secondaryForegroundBrush; // ショートカットキー表示用の色を設定
             LoadingIcon.Foreground = _foregroundBrush;
             LoadingText.Foreground = _foregroundBrush;
 
@@ -162,6 +166,18 @@ namespace FastExplorer.ShellContextMenu
             SetupSubmenuMouseEnter(SortMenuItem);
             SetupSubmenuMouseEnter(GroupMenuItem);
             SetupSubmenuMouseEnter(NewMenuItem);
+
+            // メインのMenuItemにもForegroundを設定
+            LayoutMenuItem.Foreground = _foregroundBrush;
+            SortMenuItem.Foreground = _foregroundBrush;
+            GroupMenuItem.Foreground = _foregroundBrush;
+            RefreshMenuItem.Foreground = _foregroundBrush;
+            NewMenuItem.Foreground = _foregroundBrush;
+            PasteShortcutMenuItem.Foreground = _foregroundBrush;
+            PinToSidebarMenuItem.Foreground = _foregroundBrush;
+            PinToStartMenuItem.Foreground = _foregroundBrush;
+            OpenTerminalMenuItem.Foreground = _foregroundBrush;
+            LoadingMenuItem.Foreground = _foregroundBrush;
 
             // サブメニューのスタイルを設定
             SetupSubmenuStyle(LayoutMenuItem);
