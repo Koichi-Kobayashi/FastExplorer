@@ -339,21 +339,15 @@ namespace FastExplorer.ShellContextMenu
                         ownerHwnd,
                         IntPtr.Zero);
 
-                    // メニュー表示終了（先にフラグをクリアして、メッセージ処理を停止）
-                    // TrackPopupMenuExが返った時点でメニューは閉じられているため、
-                    // 即座にメニュー状態をリセットする
-                    // 非クライアント領域をクリックした場合も、TrackPopupMenuExが返ってメニューが閉じられるため、
-                    // ここでリセットされる
-                    // 重要: TrackPopupMenuExが返った直後にリセットすることで、
-                    // メッセージフックが干渉しないようにする
-                    ResetMenuState();
-
-                    // 念のため、少し待機してから再度リセット（メッセージフックが呼ばれる前に確実にリセット）
-                    // ただし、これは非同期処理になるため、同期処理では使用しない
-                    // 代わりに、メッセージフックで非クライアント領域のクリックを検出してリセットする
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"[ShellContextMenu] TrackPopupMenuEx returned: {selected}");
+#endif
 
                     if (selected != 0)
                     {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"[ShellContextMenu] Invoking command: {selected - idCmdFirst}");
+#endif
                         // 選択されたコマンドを IContextMenu に伝える（構造体の初期化を最適化）
                         CMINVOKECOMMANDINFOEX ici = default;
                         ici.cbSize = s_cmiSize; // キャッシュされたサイズを使用
@@ -364,7 +358,23 @@ namespace FastExplorer.ShellContextMenu
                         ici.ptInvoke = new POINT { X = x, Y = y };
                         // その他のフィールドはdefault値（null/0）のまま
                         iContextMenu.InvokeCommand(ref ici);
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"[ShellContextMenu] InvokeCommand completed");
+#endif
                     }
+                    else
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine($"[ShellContextMenu] No command selected (selected == 0)");
+#endif
+                    }
+
+                    // メニュー表示終了（InvokeCommand実行後にメッセージ処理を停止）
+                    // TrackPopupMenuExが返った時点でメニューは閉じられているため、
+                    // InvokeCommand実行後にメニュー状態をリセットする
+                    // 重要: InvokeCommand実行後にリセットすることで、
+                    // メッセージフックが干渉しないようにする
+                    ResetMenuState();
                 }
                 finally
                 {

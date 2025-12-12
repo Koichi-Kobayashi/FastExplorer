@@ -79,6 +79,9 @@ namespace FastExplorer.Views.Pages
         // コンテキストメニュー表示の重複を防ぐためのフラグ
         private bool _isShowingContextMenu = false;
 
+        // ShellContextMenuServiceのインスタンスを共有（パフォーマンス向上）
+        private static readonly FastExplorer.ShellContextMenu.ShellContextMenuService s_shellContextMenuService = new FastExplorer.ShellContextMenu.ShellContextMenuService();
+
         #endregion
 
         #region コンストラクタ
@@ -289,6 +292,98 @@ namespace FastExplorer.Views.Pages
 
             // 初期の選択タブのViewModelのPropertyChangedイベントを購読（Loaded後に実行）
             SubscribeToSelectedTabViewModel();
+        }
+
+        /// <summary>
+        /// 右クリックメニューの設定を取得します（毎回最新の設定を読み込む）
+        /// </summary>
+        private bool GetUseFastExplorerContextMenu()
+        {
+            // WindowSettingsServiceを取得（キャッシュがあれば使用）
+            if (_cachedWindowSettingsService == null)
+            {
+                _cachedWindowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
+            }
+
+            if (_cachedWindowSettingsService != null)
+            {
+                var settings = _cachedWindowSettingsService.GetSettings();
+                return settings?.UseFastExplorerContextMenu ?? false;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// ファイルまたはフォルダーの右クリックメニューを表示します
+        /// </summary>
+        private void ShowFileContextMenu(string filePath, System.Windows.Window window, System.Windows.Point screenPoint)
+        {
+            bool useFastExplorerMenu = GetUseFastExplorerContextMenu();
+
+            if (useFastExplorerMenu)
+            {
+                // FastExplorerのカスタムメニューを表示
+                FastExplorer.ShellContextMenu.FilesContextMenuWrapper.ShowContextMenu(
+                    new[] { filePath },
+                    window,
+                    (int)screenPoint.X,
+                    (int)screenPoint.Y);
+            }
+            else
+            {
+                // OS標準のメニューを表示
+                var hwnd = new WindowInteropHelper(window).Handle;
+                s_shellContextMenuService.ShowContextMenu(
+                    new[] { filePath },
+                    hwnd,
+                    (int)screenPoint.X,
+                    (int)screenPoint.Y);
+            }
+        }
+
+        /// <summary>
+        /// フォルダーの空領域の右クリックメニューを表示します
+        /// </summary>
+        private void ShowFolderContextMenu(string folderPath, System.Windows.Window window, System.Windows.Point screenPoint, Models.ExplorerTab targetTab, System.Windows.Controls.ListView listView)
+        {
+            bool useFastExplorerMenu = GetUseFastExplorerContextMenu();
+
+            if (useFastExplorerMenu)
+            {
+                // FastExplorerのカスタムメニューを表示
+                var contextMenu = new FastExplorer.ShellContextMenu.ListViewEmptyAreaContextMenu(
+                    refreshCommand: targetTab.ViewModel?.RefreshCommand,
+                    addToFavoritesCommand: ViewModel.AddCurrentPathToFavoritesCommand,
+                    currentPath: folderPath,
+                    sortByColumnAction: (columnName) =>
+                    {
+                        targetTab.ViewModel?.SortByColumn(columnName);
+                    },
+                    setLayoutAction: (layoutName) =>
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Layout changed to: {layoutName}");
+                    },
+                    startRenameAction: (itemPath, lv) =>
+                    {
+                        StartRenameForNewItem(itemPath, lv, targetTab);
+                    }
+                );
+
+                contextMenu.PlacementTarget = listView;
+                contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+                contextMenu.IsOpen = true;
+            }
+            else
+            {
+                // OS標準のメニューを表示（フォルダーに対するメニュー）
+                var hwnd = new WindowInteropHelper(window).Handle;
+                s_shellContextMenuService.ShowContextMenu(
+                    new[] { folderPath },
+                    hwnd,
+                    (int)screenPoint.X,
+                    (int)screenPoint.Y);
+            }
         }
 
         #endregion
@@ -2544,40 +2639,10 @@ namespace FastExplorer.Views.Pages
                     // ウィンドウハンドルを取得
                     var window = Window.GetWindow(this);
 
-                    // 設定を確認してメニューを切り替え
+                    // メニューを表示
                     if (window != null)
                     {
-                        // WindowSettingsServiceを取得（キャッシュがあれば使用）
-                        if (_cachedWindowSettingsService == null)
-                        {
-                            _cachedWindowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
-                        }
-
-                        var settings = _cachedWindowSettingsService?.GetSettings();
-                        bool useFastExplorerMenu = settings?.UseFastExplorerContextMenu ?? false;
-
-                        if (useFastExplorerMenu)
-                        {
-                            // FastExplorerのカスタムメニューを表示
-                            System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: Calling FastExplorer context menu at ({screenPoint.X}, {screenPoint.Y}) for {(isDirectory ? "folder" : "file")}");
-                            FastExplorer.ShellContextMenu.FilesContextMenuWrapper.ShowContextMenu(
-                                new[] { filePath }, 
-                                window, 
-                                (int)screenPoint.X, 
-                                (int)screenPoint.Y);
-                        }
-                        else
-                        {
-                            // OS標準のメニューを表示
-                            System.Diagnostics.Debug.WriteLine($"ListViewItem_PreviewMouseRightButtonDown: Calling OS standard context menu at ({screenPoint.X}, {screenPoint.Y}) for {(isDirectory ? "folder" : "file")}");
-                            var hwnd = new WindowInteropHelper(window).Handle;
-                            var shellContextMenuService = new FastExplorer.ShellContextMenu.ShellContextMenuService();
-                            shellContextMenuService.ShowContextMenu(
-                                new[] { filePath }, 
-                                hwnd, 
-                                (int)screenPoint.X, 
-                                (int)screenPoint.Y);
-                        }
+                        ShowFileContextMenu(filePath, window, screenPoint);
                         
                         // メニューが閉じられたときにフラグをリセットするためのタイマーを設定
                         // メニューが表示されない場合のフォールバック（500ms後にリセット）
@@ -2672,40 +2737,10 @@ namespace FastExplorer.Views.Pages
                     // ウィンドウハンドルを取得
                     var window = Window.GetWindow(this);
 
-                    // 設定を確認してメニューを切り替え
+                    // メニューを表示
                     if (window != null)
                     {
-                        // WindowSettingsServiceを取得（キャッシュがあれば使用）
-                        if (_cachedWindowSettingsService == null)
-                        {
-                            _cachedWindowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
-                        }
-
-                        var settings = _cachedWindowSettingsService?.GetSettings();
-                        bool useFastExplorerMenu = settings?.UseFastExplorerContextMenu ?? false;
-
-                        if (useFastExplorerMenu)
-                        {
-                            // FastExplorerのカスタムメニューを表示
-                            System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: Calling FastExplorer context menu at ({screenPoint.X}, {screenPoint.Y}) for {(isDirectory ? "folder" : "file")}");
-                            FastExplorer.ShellContextMenu.FilesContextMenuWrapper.ShowContextMenu(
-                                new[] { filePath }, 
-                                window, 
-                                (int)screenPoint.X, 
-                                (int)screenPoint.Y);
-                        }
-                        else
-                        {
-                            // OS標準のメニューを表示
-                            System.Diagnostics.Debug.WriteLine($"ListViewItem_MouseRightButtonUp: Calling OS standard context menu at ({screenPoint.X}, {screenPoint.Y}) for {(isDirectory ? "folder" : "file")}");
-                            var hwnd = new WindowInteropHelper(window).Handle;
-                            var shellContextMenuService = new FastExplorer.ShellContextMenu.ShellContextMenuService();
-                            shellContextMenuService.ShowContextMenu(
-                                new[] { filePath }, 
-                                hwnd, 
-                                (int)screenPoint.X, 
-                                (int)screenPoint.Y);
-                        }
+                        ShowFileContextMenu(filePath, window, screenPoint);
                         
                         // メニューが閉じられたときにフラグをリセットするためのタイマーを設定
                         // メニューが表示されない場合のフォールバック（500ms後にリセット）
@@ -2814,60 +2849,13 @@ namespace FastExplorer.Views.Pages
 
             if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
             {
-                // 設定を確認してメニューを切り替え
-                // WindowSettingsServiceを取得（キャッシュがあれば使用）
-                if (_cachedWindowSettingsService == null)
+                var window = Window.GetWindow(this);
+                var listView = sender as System.Windows.Controls.ListView;
+                if (window != null && listView != null)
                 {
-                    _cachedWindowSettingsService = App.Services.GetService(typeof(Services.WindowSettingsService)) as Services.WindowSettingsService;
-                }
-
-                var settings = _cachedWindowSettingsService?.GetSettings();
-                bool useFastExplorerMenu = settings?.UseFastExplorerContextMenu ?? false;
-
-                if (useFastExplorerMenu)
-                {
-                    // FastExplorerのカスタムメニューを表示
-                    var listView = sender as System.Windows.Controls.ListView;
-                    var contextMenu = new FastExplorer.ShellContextMenu.ListViewEmptyAreaContextMenu(
-                        refreshCommand: targetTab.ViewModel?.RefreshCommand,
-                        addToFavoritesCommand: ViewModel.AddCurrentPathToFavoritesCommand,
-                        currentPath: path,
-                        sortByColumnAction: (columnName) =>
-                        {
-                            targetTab.ViewModel?.SortByColumn(columnName);
-                        },
-                        setLayoutAction: (layoutName) =>
-                        {
-                            // レイアウト設定は後で実装
-                            System.Diagnostics.Debug.WriteLine($"Layout changed to: {layoutName}");
-                        },
-                        startRenameAction: (itemPath, lv) =>
-                        {
-                            StartRenameForNewItem(itemPath, lv, targetTab);
-                        }
-                    );
-
-                    // メニューを表示
-                    contextMenu.PlacementTarget = sender as System.Windows.Controls.ListView;
-                    contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
-                    contextMenu.IsOpen = true;
-                }
-                else
-                {
-                    // OS標準のメニューを表示（フォルダーに対するメニュー）
-                    var window = Window.GetWindow(this);
-                    if (window != null)
-                    {
-                        var point = e.GetPosition(this);
-                        var screenPoint = PointToScreen(point);
-                        var hwnd = new WindowInteropHelper(window).Handle;
-                        var shellContextMenuService = new FastExplorer.ShellContextMenu.ShellContextMenuService();
-                        shellContextMenuService.ShowContextMenu(
-                            new[] { path }, 
-                            hwnd, 
-                            (int)screenPoint.X, 
-                            (int)screenPoint.Y);
-                    }
+                    var point = e.GetPosition(this);
+                    var screenPoint = PointToScreen(point);
+                    ShowFolderContextMenu(path, window, screenPoint, targetTab, listView);
                 }
             }
         }
