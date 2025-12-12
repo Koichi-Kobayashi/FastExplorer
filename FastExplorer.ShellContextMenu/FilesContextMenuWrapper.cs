@@ -2,8 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -24,6 +28,104 @@ namespace FastExplorer.ShellContextMenu
 	{
 		private static readonly object _lockObject = new object();
 		private static bool _isShowingMenu = false;
+		
+		// メニュー項目実行中のタスクを追跡するためのクラス
+		private class MenuInvocationTracker
+		{
+			private readonly List<Task> _pendingTasks = new List<Task>();
+			private readonly object _lock = new object();
+			private bool _isDisposed = false;
+
+			public void AddTask(Task task)
+			{
+				if (task == null)
+					return;
+
+				lock (_lock)
+				{
+					if (_isDisposed)
+						return;
+					_pendingTasks.Add(task);
+					
+					// タスクが完了したらリストから削除
+					task.ContinueWith(t =>
+					{
+						lock (_lock)
+						{
+							_pendingTasks.Remove(t);
+						}
+					}, TaskContinuationOptions.ExecuteSynchronously);
+				}
+			}
+
+			public async Task WaitForCompletionAsync(TimeSpan timeout)
+			{
+				Task[] tasksToWait;
+				lock (_lock)
+				{
+					if (_pendingTasks.Count == 0)
+						return;
+					tasksToWait = _pendingTasks.ToArray();
+					_isDisposed = true;
+				}
+
+				try
+				{
+					// すべてのタスクが完了するか、タイムアウトするまで待つ
+					// Task.WhenAllは、タスクがキャンセルされた場合にOperationCanceledExceptionをスローする可能性があるため、
+					// 個々のタスクを待機して、キャンセルや例外を適切に処理する
+					var delayTask = Task.Delay(timeout);
+					
+					// すべてのタスクを待機（キャンセルされたタスクも含む）
+					foreach (var task in tasksToWait)
+					{
+						var completedTask = await Task.WhenAny(task, delayTask);
+						if (completedTask == delayTask)
+						{
+							// タイムアウト
+							System.Diagnostics.Debug.WriteLine($"MenuInvocationTracker: Timeout waiting for task completion");
+							break;
+						}
+						
+						// タスクが完了した場合、例外やキャンセルを無視して継続
+						try
+						{
+							await task;
+						}
+						catch (OperationCanceledException)
+						{
+							// タスクがキャンセルされた場合は無視（メニューが閉じられたため）
+							System.Diagnostics.Debug.WriteLine($"MenuInvocationTracker: Task was canceled");
+						}
+						catch (ObjectDisposedException)
+						{
+							// オブジェクトが破棄された場合は無視
+							System.Diagnostics.Debug.WriteLine($"MenuInvocationTracker: Object was disposed");
+						}
+						catch (Exception ex)
+						{
+							// その他の例外も無視（ログは既に出力されているはず）
+							System.Diagnostics.Debug.WriteLine($"MenuInvocationTracker: Task exception: {ex.GetType().Name} - {ex.Message}");
+						}
+					}
+				}
+				catch (OperationCanceledException)
+				{
+					// タイムアウトまたはキャンセルされた場合は無視
+					System.Diagnostics.Debug.WriteLine($"MenuInvocationTracker: WaitForCompletionAsync was canceled");
+				}
+				catch (ObjectDisposedException)
+				{
+					// オブジェクトが破棄された場合は無視
+					System.Diagnostics.Debug.WriteLine($"MenuInvocationTracker: WaitForCompletionAsync - Object was disposed");
+				}
+				catch (Exception ex)
+				{
+					// その他の例外も無視
+					System.Diagnostics.Debug.WriteLine($"MenuInvocationTracker: WaitForCompletionAsync exception: {ex.GetType().Name} - {ex.Message}");
+				}
+			}
+		}
 
 		/// <summary>
 		/// Shows the Windows shell context menu for the specified file paths at the specified screen coordinates.
@@ -101,45 +203,57 @@ namespace FastExplorer.ShellContextMenu
 					MinWidth = 200
 				};
 
-				// contextMenuをTagに保存して、メニューが閉じられるまで保持する
-				wpfContextMenu.Tag = contextMenu;
+				// メニュー項目実行の追跡用オブジェクトを作成
+				var invocationTracker = new MenuInvocationTracker();
+				
+				// contextMenuとinvocationTrackerをTagに保存
+				wpfContextMenu.Tag = new Tuple<FilesContextMenu, MenuInvocationTracker>(contextMenu, invocationTracker);
 				contextMenu = null; // 所有権をwpfContextMenuに移す
 
-				BuildMenuItems(wpfContextMenu.Items, (FilesContextMenu)wpfContextMenu.Tag, ((FilesContextMenu)wpfContextMenu.Tag).Items, foregroundBrush);
+				var filesContextMenu = ((Tuple<FilesContextMenu, MenuInvocationTracker>)wpfContextMenu.Tag).Item1;
+				BuildMenuItems(wpfContextMenu.Items, filesContextMenu, filesContextMenu.Items, foregroundBrush, invocationTracker);
 
 				// メニューが閉じられたときにcontextMenuを破棄し、フラグをリセット
-				wpfContextMenu.Closed += (s, e) =>
+				wpfContextMenu.Closed += async (s, e) =>
 				{
 					lock (_lockObject)
 					{
 						_isShowingMenu = false;
 					}
 
-					if (s is ContextMenu menu && menu.Tag is FilesContextMenu cm)
+					if (s is ContextMenu menu && menu.Tag is Tuple<FilesContextMenu, MenuInvocationTracker> tag)
 					{
-						// メニュー項目の実行が完了するまで待ってから破棄する（非同期）
-						// FilesContextMenu.Dispose()内で実行中のタスクを待つため、ここでは即座にDisposeを呼び出せる
-						_ = Task.Run(async () =>
+						var cm = tag.Item1;
+						var tracker = tag.Item2;
+
+						try
 						{
-							try
+							// 実行中のタスクが完了するまで待つ（最大2秒に短縮してUIの応答性を改善）
+							// ConfigureAwait(false)を使用して、UIスレッドをブロックしない
+							await tracker.WaitForCompletionAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+						}
+						catch (Exception ex)
+						{
+							System.Diagnostics.Debug.WriteLine($"FilesContextMenuWrapper: Error waiting for task completion: {ex}");
+						}
+
+						try
+						{
+							// タスク完了後に破棄
+							cm.Dispose();
+						}
+						catch (Exception ex)
+						{
+							System.Diagnostics.Debug.WriteLine($"FilesContextMenuWrapper: Error disposing context menu: {ex}");
+						}
+						finally
+						{
+							// UIスレッドでTagをクリア
+							Application.Current.Dispatcher.Invoke(() =>
 							{
-								// Dispose()内で実行中のタスクを待つため、即座に呼び出しても安全
-								// ただし、UIスレッドをブロックしないように非同期で実行
-								cm.Dispose();
-							}
-							catch (Exception ex)
-							{
-								System.Diagnostics.Debug.WriteLine($"FilesContextMenuWrapper: Error disposing context menu: {ex}");
-							}
-							finally
-							{
-								// UIスレッドでTagをクリア
-								Application.Current.Dispatcher.Invoke(() =>
-								{
-									menu.Tag = null;
-								});
-							}
-						});
+								menu.Tag = null;
+							}, System.Windows.Threading.DispatcherPriority.Background);
+						}
 					}
 
 					// コールバックを呼び出す
@@ -153,8 +267,32 @@ namespace FastExplorer.ShellContextMenu
 				};
 
 				// Show WPF context menu
+				// 画面の下端を超えないように、画面の高さを考慮して位置を調整
+				var screenHeight = System.Windows.SystemParameters.PrimaryScreenHeight;
+				var screenWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
+				
+				// メニューの推定サイズ
+				const double estimatedMenuHeight = 400; // メニューの推定高さ
+				const double estimatedMenuWidth = 250; // メニューの推定幅
+				
+				// 位置を調整
+				double adjustedX = x;
+				double adjustedY = y;
+				
+				// メニューが画面の下端を超える場合は、上方向に表示する
+				if (y + estimatedMenuHeight > screenHeight)
+				{
+					adjustedY = Math.Max(0, y - estimatedMenuHeight);
+				}
+				
+				// メニューが画面の右端を超える場合は、左方向に表示する
+				if (x + estimatedMenuWidth > screenWidth)
+				{
+					adjustedX = Math.Max(0, x - estimatedMenuWidth);
+				}
+				
 				wpfContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
-				wpfContextMenu.PlacementRectangle = new Rect(x, y, 0, 0);
+				wpfContextMenu.PlacementRectangle = new Rect(adjustedX, adjustedY, 0, 0);
 				wpfContextMenu.IsOpen = true;
 			}
 			catch (OperationCanceledException)
@@ -190,7 +328,7 @@ namespace FastExplorer.ShellContextMenu
 			}
 		}
 
-		private static void BuildMenuItems(ItemCollection items, FilesContextMenu contextMenu, List<Win32ContextMenuItem> menuItems, System.Windows.Media.Brush? foregroundBrush = null)
+		private static void BuildMenuItems(ItemCollection items, FilesContextMenu contextMenu, List<Win32ContextMenuItem> menuItems, System.Windows.Media.Brush? foregroundBrush = null, MenuInvocationTracker? invocationTracker = null)
 		{
 			foreach (var menuItem in menuItems)
 			{
@@ -203,63 +341,96 @@ namespace FastExplorer.ShellContextMenu
 				{
 					// Filesアプリのような見た目にする
 					var labelText = menuItem.Label?.Replace("&", "") ?? "";
+					var headerPanel = new StackPanel
+					{
+						Orientation = Orientation.Horizontal,
+						Background = System.Windows.Media.Brushes.Transparent // ヒットテストを改善するために透明背景を設定
+					};
+
+					// Add spacer first to maintain alignment (icon will be loaded asynchronously)
+					var iconContainer = new System.Windows.Controls.Border
+					{
+						Width = 16,
+						Height = 16,
+						Margin = new Thickness(8, 0, 12, 0),
+						Background = System.Windows.Media.Brushes.Transparent
+					};
+					headerPanel.Children.Add(iconContainer);
+
+					// Load icon asynchronously after menu is displayed (lazy loading)
+					if (menuItem.Icon != null && menuItem.Icon.Length > 0)
+					{
+						var iconData = menuItem.Icon; // Capture for closure
+						_ = Task.Run(() =>
+						{
+							try
+							{
+								using var ms = new MemoryStream(iconData);
+								var bitmap = new BitmapImage();
+								bitmap.BeginInit();
+								bitmap.StreamSource = ms;
+								bitmap.CacheOption = BitmapCacheOption.OnLoad;
+								bitmap.EndInit();
+								bitmap.Freeze();
+
+								// UIスレッドでアイコンを設定
+								Application.Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
+								{
+									try
+									{
+										// スペーサーのMarginを取得してアイコンに適用
+										var iconMargin = iconContainer.Margin;
+										var icon = new System.Windows.Controls.Image
+										{
+											Source = bitmap,
+											Width = 16,
+											Height = 16,
+											Margin = iconMargin, // スペーサーと同じMarginを設定
+											VerticalAlignment = VerticalAlignment.Center
+										};
+
+										// スペーサーをアイコンに置き換え
+										var index = headerPanel.Children.IndexOf(iconContainer);
+										if (index >= 0)
+										{
+											headerPanel.Children.RemoveAt(index);
+											headerPanel.Children.Insert(index, icon);
+										}
+									}
+									catch (Exception ex)
+									{
+										System.Diagnostics.Debug.WriteLine($"Error setting icon on UI thread: {ex}");
+									}
+								}));
+							}
+							catch (Exception ex)
+							{
+								System.Diagnostics.Debug.WriteLine($"Error loading icon asynchronously: {ex}");
+							}
+						});
+					}
+
+					headerPanel.Children.Add(new TextBlock
+					{
+						Text = labelText,
+						VerticalAlignment = VerticalAlignment.Center,
+						FontSize = 14,
+						Foreground = foregroundBrush
+					});
+
 					var wpfMenuItem = new MenuItem
 					{
-						Header = new StackPanel
-						{
-							Orientation = Orientation.Horizontal,
-							Children =
-							{
-								new TextBlock
-								{
-									Text = labelText,
-									VerticalAlignment = VerticalAlignment.Center,
-									FontSize = 14,
-									Margin = new Thickness(8, 0, 0, 0),
-									Foreground = foregroundBrush
-								}
-							}
-						},
+						Header = headerPanel,
 						Padding = new Thickness(8, 6, 8, 6),
 						MinHeight = 32,
 						Tag = contextMenu // contextMenuをTagに保存して、後でアクセスできるようにする
 					};
 
-					// Add icon if available
-					if (menuItem.Icon != null && menuItem.Icon.Length > 0)
-					{
-						try
-						{
-							using var ms = new MemoryStream(menuItem.Icon);
-							var bitmap = new BitmapImage();
-							bitmap.BeginInit();
-							bitmap.StreamSource = ms;
-							bitmap.CacheOption = BitmapCacheOption.OnLoad;
-							bitmap.EndInit();
-							bitmap.Freeze();
-
-							var icon = new System.Windows.Controls.Image
-							{
-								Source = bitmap,
-								Width = 16,
-								Height = 16,
-								Margin = new Thickness(8, 0, 12, 0),
-								VerticalAlignment = VerticalAlignment.Center
-							};
-
-							((StackPanel)wpfMenuItem.Header).Children.Insert(0, icon);
-						}
-						catch (Exception ex)
-						{
-							System.Diagnostics.Debug.WriteLine($"Error loading icon: {ex}");
-						}
-					}
-
 					// Handle submenu
 					if (menuItem.SubItems != null && menuItem.SubItems.Count > 0)
 					{
 						// Load submenu asynchronously (fire and forget)
-						_ = LoadSubMenuAsync(wpfMenuItem, contextMenu, menuItem.SubItems, foregroundBrush);
+						_ = LoadSubMenuAsync(wpfMenuItem, contextMenu, menuItem.SubItems, foregroundBrush, invocationTracker);
 					}
 					else
 					{
@@ -269,6 +440,8 @@ namespace FastExplorer.ShellContextMenu
 						{
 							try
 							{
+								e.Handled = true;
+
 								// メニューをすぐに閉じる
 								if (s is MenuItem item)
 								{
@@ -280,9 +453,28 @@ namespace FastExplorer.ShellContextMenu
 									}
 								}
 
+								// メニュー項目の実行
 								if (s is MenuItem menuItem && menuItem.Tag is FilesContextMenu cm)
 								{
-									await InvokeShellMenuItemAsync(cm, menuItemCopy);
+									// 非同期処理をバックグラウンドで実行（UI ブロッキングを回避）
+									// Fire-and-Forgetパターンで実行し、UIスレッドに影響を与えない
+									var invokeTask = Task.Run(async () =>
+									{
+										try
+										{
+											await InvokeShellMenuItemAsync(cm, menuItemCopy).ConfigureAwait(false);
+										}
+										catch
+										{
+											// 例外はInvokeShellMenuItemAsync内で処理されるため、ここでは無視
+										}
+									});
+									
+									// 実行中のタスクを追跡
+									if (invocationTracker != null)
+									{
+										invocationTracker.AddTask(invokeTask);
+									}
 								}
 							}
 							catch (ObjectDisposedException)
@@ -313,7 +505,7 @@ namespace FastExplorer.ShellContextMenu
 			}
 		}
 
-		private static async Task LoadSubMenuAsync(MenuItem parentMenuItem, FilesContextMenu contextMenu, List<Win32ContextMenuItem> subItems, System.Windows.Media.Brush? foregroundBrush = null)
+		private static async Task LoadSubMenuAsync(MenuItem parentMenuItem, FilesContextMenu contextMenu, List<Win32ContextMenuItem> subItems, System.Windows.Media.Brush? foregroundBrush = null, MenuInvocationTracker? invocationTracker = null)
 		{
 			try
 			{
@@ -342,36 +534,33 @@ namespace FastExplorer.ShellContextMenu
 					}
 					else
 					{
-						// Filesアプリのような見た目にする
-						var subLabelText = subItem.Label?.Replace("&", "") ?? "";
-						var wpfSubMenuItem = new MenuItem
-						{
-							Header = new StackPanel
-							{
-								Orientation = Orientation.Horizontal,
-								Children =
-								{
-									new TextBlock
-									{
-										Text = subLabelText,
-										VerticalAlignment = VerticalAlignment.Center,
-										FontSize = 14,
-										Margin = new Thickness(8, 0, 0, 0),
-										Foreground = foregroundBrush
-									}
-								}
-							},
-							Padding = new Thickness(8, 6, 8, 6),
-							MinHeight = 32,
-							Tag = contextMenu // contextMenuをTagに保存して、後でアクセスできるようにする
-						};
+					// Filesアプリのような見た目にする
+					var subLabelText = subItem.Label?.Replace("&", "") ?? "";
+					var subHeaderPanel = new StackPanel
+					{
+						Orientation = Orientation.Horizontal,
+						Background = System.Windows.Media.Brushes.Transparent // ヒットテストを改善するために透明背景を設定
+					};
 
-						// Add icon if available
-						if (subItem.Icon != null && subItem.Icon.Length > 0)
+					// Add spacer first to maintain alignment (icon will be loaded asynchronously)
+					var subIconContainer = new System.Windows.Controls.Border
+					{
+						Width = 16,
+						Height = 16,
+						Margin = new Thickness(8, 0, 12, 0),
+						Background = System.Windows.Media.Brushes.Transparent
+					};
+					subHeaderPanel.Children.Add(subIconContainer);
+
+					// Load icon asynchronously after menu is displayed (lazy loading)
+					if (subItem.Icon != null && subItem.Icon.Length > 0)
+					{
+						var subIconData = subItem.Icon; // Capture for closure
+						_ = Task.Run(() =>
 						{
 							try
 							{
-								using var ms = new MemoryStream(subItem.Icon);
+								using var ms = new MemoryStream(subIconData);
 								var bitmap = new BitmapImage();
 								bitmap.BeginInit();
 								bitmap.StreamSource = ms;
@@ -379,28 +568,64 @@ namespace FastExplorer.ShellContextMenu
 								bitmap.EndInit();
 								bitmap.Freeze();
 
-								var icon = new System.Windows.Controls.Image
+								// UIスレッドでアイコンを設定
+								Application.Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
 								{
-									Source = bitmap,
-									Width = 16,
-									Height = 16,
-									Margin = new Thickness(8, 0, 12, 0),
-									VerticalAlignment = VerticalAlignment.Center
-								};
+									try
+									{
+										// スペーサーのMarginを取得してアイコンに適用
+										var subIconMargin = subIconContainer.Margin;
+										var icon = new System.Windows.Controls.Image
+										{
+											Source = bitmap,
+											Width = 16,
+											Height = 16,
+											Margin = subIconMargin, // スペーサーと同じMarginを設定
+											VerticalAlignment = VerticalAlignment.Center
+										};
 
-								((StackPanel)wpfSubMenuItem.Header).Children.Insert(0, icon);
+										// スペーサーをアイコンに置き換え
+										var index = subHeaderPanel.Children.IndexOf(subIconContainer);
+										if (index >= 0)
+										{
+											subHeaderPanel.Children.RemoveAt(index);
+											subHeaderPanel.Children.Insert(index, icon);
+										}
+									}
+									catch (Exception ex)
+									{
+										System.Diagnostics.Debug.WriteLine($"Error setting submenu icon on UI thread: {ex}");
+									}
+								}));
 							}
 							catch (Exception ex)
 							{
-								System.Diagnostics.Debug.WriteLine($"Error loading submenu icon: {ex}");
+								System.Diagnostics.Debug.WriteLine($"Error loading submenu icon asynchronously: {ex}");
 							}
-						}
+						});
+					}
+
+					subHeaderPanel.Children.Add(new TextBlock
+					{
+						Text = subLabelText,
+						VerticalAlignment = VerticalAlignment.Center,
+						FontSize = 14,
+						Foreground = foregroundBrush
+					});
+
+					var wpfSubMenuItem = new MenuItem
+					{
+						Header = subHeaderPanel,
+						Padding = new Thickness(8, 6, 8, 6),
+						MinHeight = 32,
+						Tag = contextMenu // contextMenuをTagに保存して、後でアクセスできるようにする
+					};
 
 						// Handle nested submenu
 						if (subItem.SubItems != null && subItem.SubItems.Count > 0)
 						{
 							// Load nested submenu asynchronously (fire and forget)
-							_ = LoadSubMenuAsync(wpfSubMenuItem, contextMenu, subItem.SubItems, foregroundBrush);
+							_ = LoadSubMenuAsync(wpfSubMenuItem, contextMenu, subItem.SubItems, foregroundBrush, invocationTracker);
 						}
 						else
 						{
@@ -410,6 +635,8 @@ namespace FastExplorer.ShellContextMenu
 							{
 								try
 								{
+									e.Handled = true;
+
 									// メニューをすぐに閉じる
 									if (s is MenuItem item)
 									{
@@ -421,9 +648,28 @@ namespace FastExplorer.ShellContextMenu
 										}
 									}
 
+									// メニュー項目の実行
 									if (s is MenuItem menuItem && menuItem.Tag is FilesContextMenu cm)
 									{
-										await InvokeShellMenuItemAsync(cm, subItemCopy);
+										// 非同期処理をバックグラウンドで実行（UI ブロッキングを回避）
+										// Fire-and-Forgetパターンで実行し、UIスレッドに影響を与えない
+										var invokeTask = Task.Run(async () =>
+										{
+											try
+											{
+												await InvokeShellMenuItemAsync(cm, subItemCopy).ConfigureAwait(false);
+											}
+											catch
+											{
+												// 例外はInvokeShellMenuItemAsync内で処理されるため、ここでは無視
+											}
+										});
+										
+										// 実行中のタスクを追跡
+										if (invocationTracker != null)
+										{
+											invocationTracker.AddTask(invokeTask);
+										}
 									}
 								}
 								catch (ObjectDisposedException)
@@ -475,73 +721,83 @@ namespace FastExplorer.ShellContextMenu
 		private static async Task InvokeShellMenuItemAsync(FilesContextMenu contextMenu, Win32ContextMenuItem menuItem)
 		{
 			if (menuItem == null || contextMenu == null)
+			{
+				System.Diagnostics.Debug.WriteLine("InvokeShellMenuItemAsync: menuItem or contextMenu is null");
 				return;
+			}
 
 			try
 			{
 				var menuId = menuItem.ID;
 				if (menuId < 0)
+				{
+					System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: Invalid menu ID: {menuId}");
 					return;
+				}
 
 				var verb = menuItem.CommandString;
 				var firstPath = contextMenu.ItemsPath?.FirstOrDefault();
 
-				// Filesアプリと同じ特別なケースの処理
-				switch (verb)
+				// タイムアウト付きで実行（最大30秒）
+				var invokeTask = verb switch
 				{
-					case "install":
-						// フォントのインストール（簡易実装）
-						await contextMenu.InvokeItem(menuId);
-						break;
-
-					case "installAllUsers":
-						// 全ユーザー向けフォントのインストール（簡易実装）
-						await contextMenu.InvokeItem(menuId);
-						break;
-
-					case "mount":
-						// VHDのマウント（簡易実装）
-						await contextMenu.InvokeItem(menuId);
-						break;
-
-					case "format":
-						// ドライブのフォーマット（簡易実装）
-						await contextMenu.InvokeItem(menuId);
-						break;
-
-					case "Windows.PowerShell.Run":
-						// PowerShellスクリプトの実行
-						var workingDir = !string.IsNullOrEmpty(firstPath) && firstPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase)
+					"install" => contextMenu.InvokeItem(menuId),
+					"installAllUsers" => contextMenu.InvokeItem(menuId),
+					"mount" => contextMenu.InvokeItem(menuId),
+					"format" => contextMenu.InvokeItem(menuId),
+					"Windows.PowerShell.Run" => contextMenu.InvokeItem(
+						menuId,
+						!string.IsNullOrEmpty(firstPath) && firstPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase)
 							? System.IO.Path.GetDirectoryName(firstPath)
-							: null;
-						await contextMenu.InvokeItem(menuId, workingDir);
-						break;
+							: null),
+					_ => contextMenu.InvokeItem(menuId)
+				};
 
-					default:
-						// 通常のメニュー項目の実行
-						await contextMenu.InvokeItem(menuId);
-						break;
+				try
+				{
+					// タイムアウト付きで待機（最大30秒）
+					// ConfigureAwait(false)を使用して、同期コンテキストに戻らないようにする（UIブロッキングを回避）
+					var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
+					var completedTask = await Task.WhenAny(invokeTask, timeoutTask).ConfigureAwait(false);
+
+					if (completedTask == timeoutTask)
+					{
+						System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: Operation timed out after 30 seconds (verb: {verb})");
+						return;
+					}
+
+					// 結果を取得（例外が発生している可能性があるため、awaitして例外をキャッチ）
+					// invokeTaskが既に完了している場合、awaitは即座に完了する
+					// ConfigureAwait(false)を使用して、同期コンテキストに戻らないようにする
+					await invokeTask.ConfigureAwait(false);
+				}
+				catch (OperationCanceledException)
+				{
+					// 操作がキャンセルされた場合は無視（contextMenuが破棄された場合など）
+					System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: Operation was canceled (verb: {verb})");
+					return;
 				}
 			}
-			catch (ObjectDisposedException)
+			catch (ObjectDisposedException ex)
 			{
 				// contextMenuが既に破棄されている場合は無視
-				System.Diagnostics.Debug.WriteLine("InvokeShellMenuItemAsync: ContextMenu was disposed");
+				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: ContextMenu was disposed: {ex.Message}");
 			}
-			catch (OperationCanceledException)
+			catch (OperationCanceledException ex)
 			{
 				// 操作がキャンセルされた場合は無視（contextMenuが破棄された場合など）
-				System.Diagnostics.Debug.WriteLine("InvokeShellMenuItemAsync: Operation was canceled (contextMenu may have been disposed)");
+				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: Operation was canceled: {ex.Message}");
 			}
 			catch (Exception ex) when (ex is COMException or UnauthorizedAccessException)
 			{
 				// COM例外やアクセス権限例外は無視
-				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: COM/Access exception: {ex}");
+				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: COM/Access exception: {ex.GetType().Name} - {ex.Message}");
 			}
 			catch (Exception ex)
 			{
 				// その他の予期しない例外も無視してアプリケーションをクラッシュさせない
-				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: Error invoking menu item: {ex}");
+				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: Error invoking menu item ({menuItem.Label}): {ex.GetType().Name} - {ex.Message}");
+				System.Diagnostics.Debug.WriteLine($"InvokeShellMenuItemAsync: Stack trace: {ex.StackTrace}");
 			}
 		}
 	}

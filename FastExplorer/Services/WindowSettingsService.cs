@@ -202,6 +202,12 @@ namespace FastExplorer.Services
         /// </summary>
         public string LanguageCode { get; set; } = "ja";
 
+        /// <summary>
+        /// FastExplorerの右クリックメニューを使用するかどうかを取得または設定します
+        /// falseの場合はOS標準の右クリックメニューを使用します（デフォルト）
+        /// </summary>
+        public bool UseFastExplorerContextMenu { get; set; } = false;
+
         #endregion
     }
 }

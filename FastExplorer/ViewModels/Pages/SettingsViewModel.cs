@@ -140,6 +140,13 @@ namespace FastExplorer.ViewModels.Pages
     [ObservableProperty]
     private LanguageItem? _selectedLanguage;
 
+    /// <summary>
+    /// FastExplorerの右クリックメニューを使用するかどうかを取得または設定します
+    /// falseの場合はOS標準の右クリックメニューを使用します（デフォルト）
+    /// </summary>
+    [ObservableProperty]
+    private bool _useFastExplorerContextMenu = false;
+
         #endregion
 
         #region ナビゲーション
@@ -169,6 +176,9 @@ namespace FastExplorer.ViewModels.Pages
                 try
                 {
                     var settings = _windowSettingsService.GetSettings();
+                    
+                    // 右クリックメニューの設定を読み込む
+                    UseFastExplorerContextMenu = settings.UseFastExplorerContextMenu;
                     
                     // プロパティを設定（値が同じ場合でも変更通知を発火）
                     var newPath = settings.BackgroundImagePath;
@@ -275,6 +285,9 @@ namespace FastExplorer.ViewModels.Pages
                 var settings = _windowSettingsService.GetSettings();
                 settings.IsSplitPaneEnabled = IsSplitPaneEnabled;
                 
+                // 右クリックメニューの設定を保存
+                settings.UseFastExplorerContextMenu = UseFastExplorerContextMenu;
+                
                 // 背景画像の設定を保存
                 settings.BackgroundImagePath = BackgroundImagePath;
                 settings.BackgroundImageOpacity = BackgroundImageOpacity;
@@ -318,6 +331,17 @@ namespace FastExplorer.ViewModels.Pages
             {
                 explorerPageViewModel.IsSplitPaneEnabled = value;
             }
+        }
+
+        /// <summary>
+        /// UseFastExplorerContextMenuが変更されたときに呼び出されます
+        /// </summary>
+        partial void OnUseFastExplorerContextMenuChanged(bool value)
+        {
+            // 設定を即座に保存
+            var settings = _windowSettingsService.GetSettings();
+            settings.UseFastExplorerContextMenu = value;
+            _windowSettingsService.SaveSettings(settings);
         }
 
         /// <summary>
@@ -1354,6 +1378,9 @@ namespace FastExplorer.ViewModels.Pages
             // 分割ペインの設定を読み込む
             var settings = _windowSettingsService.GetSettings();
             IsSplitPaneEnabled = settings.IsSplitPaneEnabled;
+            
+            // 右クリックメニューの設定を読み込む
+            UseFastExplorerContextMenu = settings.UseFastExplorerContextMenu;
             
             // 背景画像の設定を読み込む
             _isLoadingSettings = true; // 設定読み込み中フラグを設定

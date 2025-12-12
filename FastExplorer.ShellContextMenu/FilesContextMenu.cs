@@ -35,10 +35,6 @@ namespace FastExplorer.ShellContextMenu
 		// To detect redundant calls
 		private bool disposedValue = false;
 
-		// 実行中のタスクを追跡（Dispose時に完了を待つため）
-		private readonly List<Task> _pendingTasks = new List<Task>();
-		private readonly object _pendingTasksLock = new object();
-
 		public List<string> ItemsPath { get; }
 
 		public User32.SafeHMENU MenuHandle => _hMenu;
@@ -70,12 +66,10 @@ namespace FastExplorer.ShellContextMenu
 			var item = Items.FirstOrDefault(x => x.CommandString == verb);
 			if (item is not null && item.ID >= 0)
 				// Prefer invocation by ID
-				return await InvokeItem(item.ID);
+				return await InvokeItem(item.ID).ConfigureAwait(false);
 
 			try
 			{
-				var currentWindows = Win32Helper.GetDesktopWindows();
-
 				var pici = new Shell32.CMINVOKECOMMANDINFOEX
 				{
 					lpVerb = new SafeResourceId(verb, CharSet.Ansi),
@@ -84,8 +78,9 @@ namespace FastExplorer.ShellContextMenu
 
 				pici.cbSize = (uint)Marshal.SizeOf(pici);
 
-				await _owningThread.PostMethod(() => _cMenu.InvokeCommand(pici));
-				Win32Helper.BringToForeground(currentWindows);
+				await _owningThread.PostMethod(() => _cMenu.InvokeCommand(pici)).ConfigureAwait(false);
+				
+				// BringToForegroundは削除（不要なウィンドウが表示される問題を回避）
 
 				return true;
 			}
@@ -116,10 +111,8 @@ namespace FastExplorer.ShellContextMenu
 				return false;
 			}
 
-			Task<bool>? task = null;
 			try
 			{
-				var currentWindows = Win32Helper.GetDesktopWindows();
 				var pici = new Shell32.CMINVOKECOMMANDINFOEX
 				{
 					lpVerb = Macros.MAKEINTRESOURCE(itemID),
@@ -130,20 +123,21 @@ namespace FastExplorer.ShellContextMenu
 				if (workingDirectory is not null)
 					pici.lpDirectoryW = workingDirectory;
 
-				// タスクを作成して追跡リストに追加
-				task = InvokeItemInternal(pici, currentWindows);
-
-				// タスクを追跡リストに追加
-				lock (_pendingTasksLock)
+				// メニュー実行を実行スレッドで実行し、結果を待つ
+				// ConfigureAwait(false)を使用して、同期コンテキストに戻らないようにする（UIブロッキングを回避）
+				await _owningThread.PostMethod(() =>
 				{
-					if (!disposedValue)
+					// 実行中に破棄された場合は例外をスロー
+					if (disposedValue || _cMenu == null)
 					{
-						_pendingTasks.Add(task);
+						throw new ObjectDisposedException(nameof(FilesContextMenu));
 					}
-				}
+					_cMenu.InvokeCommand(pici);
+				}).ConfigureAwait(false);
 
-				var result = await task;
-				return result;
+				// BringToForegroundは削除（不要なウィンドウが表示される問題を回避）
+				
+				return true;
 			}
 			catch (OperationCanceledException)
 			{
@@ -160,28 +154,18 @@ namespace FastExplorer.ShellContextMenu
 			catch (Exception ex) when (ex is COMException or UnauthorizedAccessException)
 			{
 				System.Diagnostics.Debug.WriteLine($"InvokeItem: {ex}");
+				return false;
 			}
 			catch (Exception ex)
 			{
 				System.Diagnostics.Debug.WriteLine($"InvokeItem: Unexpected error: {ex}");
+				return false;
 			}
-			finally
-			{
-				// タスクを追跡リストから削除
-				if (task != null)
-				{
-					lock (_pendingTasksLock)
-					{
-						_pendingTasks.Remove(task);
-					}
-				}
-			}
-
-			return false;
 		}
 
 		private async Task<bool> InvokeItemInternal(Shell32.CMINVOKECOMMANDINFOEX pici, List<Vanara.PInvoke.HWND> currentWindows)
 		{
+			// currentWindowsパラメータは未使用（BringToForegroundを削除したため）
 			try
 			{
 				await _owningThread.PostMethod(() =>
@@ -192,8 +176,10 @@ namespace FastExplorer.ShellContextMenu
 						throw new ObjectDisposedException(nameof(FilesContextMenu));
 					}
 					_cMenu.InvokeCommand(pici);
-				});
-				Win32Helper.BringToForeground(currentWindows);
+				}).ConfigureAwait(false);
+				
+				// BringToForegroundは削除（不要なウィンドウが表示される問題を回避）
+				
 				return true;
 			}
 			catch (OperationCanceledException)
@@ -587,34 +573,6 @@ namespace FastExplorer.ShellContextMenu
 
 				if (disposing)
 				{
-					// 実行中のタスクが完了するまで待つ（最大10秒）
-					Task[] pendingTasks;
-					lock (_pendingTasksLock)
-					{
-						pendingTasks = _pendingTasks.ToArray();
-					}
-
-					if (pendingTasks.Length > 0)
-					{
-						System.Diagnostics.Debug.WriteLine($"FilesContextMenu.Dispose: Waiting for {pendingTasks.Length} pending task(s) to complete...");
-						try
-						{
-							// 最大10秒待つ
-							Task.WaitAll(pendingTasks, TimeSpan.FromSeconds(10));
-							System.Diagnostics.Debug.WriteLine("FilesContextMenu.Dispose: All pending tasks completed");
-						}
-						catch (AggregateException ex)
-						{
-							// 一部のタスクが失敗しても続行
-							System.Diagnostics.Debug.WriteLine($"FilesContextMenu.Dispose: Some tasks failed: {ex}");
-						}
-						catch (TimeoutException)
-						{
-							// タイムアウトしても続行
-							System.Diagnostics.Debug.WriteLine("FilesContextMenu.Dispose: Timeout waiting for pending tasks");
-						}
-					}
-
 					// TODO: Dispose managed state (managed objects)
 					if (Items is not null)
 					{
