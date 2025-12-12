@@ -728,8 +728,7 @@ namespace FastExplorer
                     // リソースディクショナリーを更新（必要な場合のみ）
                     bool resourceChanged = false;
                     
-                    // まず、mainDictionaryからテキスト色のリソースを削除（どちらのモードでも）
-                    // これにより、MergedDictionariesのリソースが確実に使用される
+                    // テキスト色のリソースを削除（どちらのモードでも、後で適切に設定される）
                     if (mainDictionary.Contains("TextFillColorPrimaryBrush"))
                     {
                         mainDictionary.Remove("TextFillColorPrimaryBrush");
@@ -741,24 +740,27 @@ namespace FastExplorer
                         resourceChanged = true;
                     }
                     
+                    // ダークテーマリソースの追加/削除
                     if (isDark)
                     {
                         // ダークモードの場合：既存のダークテーマリソースを削除してから追加することで、確実に優先されるようにする
-                        if (existingDarkTheme != null)
+                        if (existingDarkTheme != null && existingDarkTheme != app._darkThemeResources)
                         {
-                            // 既存のリソースを削除
+                            // 既存のリソースを削除（参照が異なる場合のみ）
                             mergedDictionaries.Remove(existingDarkTheme);
                         }
                         // ダークテーマのリソースを最後に追加（後から追加されたリソースが優先される）
-                        mergedDictionaries.Add(app._darkThemeResources);
-                        resourceChanged = true;
+                        if (existingDarkTheme != app._darkThemeResources)
+                        {
+                            mergedDictionaries.Add(app._darkThemeResources);
+                            resourceChanged = true;
+                        }
                     }
                     else
                     {
-                        // ライトモードの場合
+                        // ライトモードの場合：ダークテーマリソースを削除
                         if (existingDarkTheme != null)
                         {
-                            // リソースが存在する場合は削除
                             mergedDictionaries.Remove(existingDarkTheme);
                             resourceChanged = true;
                         }
@@ -874,19 +876,21 @@ namespace FastExplorer
                             Current.Dispatcher.BeginInvoke(new System.Action(() =>
                             {
                                 // すべてのウィンドウのリソースを更新
-                                foreach (System.Windows.Window window in Current.Windows)
+                                var windows = Current.Windows;
+                                var windowCount = windows.Count;
+                                for (int i = 0; i < windowCount; i++)
                                 {
+                                    var window = windows[i];
                                     if (window != null)
                                     {
                                         // ウィンドウのForegroundプロパティを無効化してDynamicResourceを再評価
                                         window.InvalidateProperty(Window.ForegroundProperty);
                                         
-                                        // ウィンドウのビジュアルを無効化してDynamicResourceの再評価を強制
-                                        window.InvalidateVisual();
-                                        window.UpdateLayout();
-                                        
-                                        // 再帰的にすべてのリソースを無効化
+                                        // 再帰的にすべてのリソースを無効化（InvalidateVisualは内部で呼ばれる）
                                         InvalidateResourcesRecursive(window);
+                                        
+                                        // レイアウトを更新（一度だけ）
+                                        window.UpdateLayout();
                                     }
                                 }
                             }), System.Windows.Threading.DispatcherPriority.Render);
@@ -914,28 +918,22 @@ namespace FastExplorer
             if (element == null)
                 return;
 
-            // TextBlockの場合、Foregroundプロパティを無効化
+            // 型チェックを最適化：一度だけチェックして、複数のプロパティを無効化
             if (element is System.Windows.Controls.TextBlock textBlock)
             {
-                // DynamicResourceの再評価を強制
+                // TextBlockの場合、Foregroundプロパティを無効化
                 textBlock.InvalidateProperty(System.Windows.Controls.TextBlock.ForegroundProperty);
             }
-            // Controlの場合、Foregroundプロパティを無効化
             else if (element is System.Windows.Controls.Control control)
             {
+                // Controlの場合、Foregroundプロパティを無効化
                 control.InvalidateProperty(System.Windows.Controls.Control.ForegroundProperty);
             }
-            // FrameworkElementの場合、TextElement.Foregroundプロパティを無効化（TextBlockやControl以外）
             else if (element is System.Windows.FrameworkElement fe)
             {
-                // TextElement.Foregroundプロパティが存在する場合は無効化
+                // FrameworkElementの場合、TextElement.ForegroundとStyleプロパティを無効化
                 fe.InvalidateProperty(System.Windows.Documents.TextElement.ForegroundProperty);
-            }
-
-            // FrameworkElementの場合、Styleプロパティも無効化
-            if (element is System.Windows.FrameworkElement feForStyle)
-            {
-                feForStyle.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                fe.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
             }
 
             // 子要素を再帰的に処理

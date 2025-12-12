@@ -1787,8 +1787,11 @@ namespace FastExplorer.ViewModels.Pages
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
                     // すべてのウィンドウのリソースを強制的に再評価
-                    foreach (Window window in Application.Current.Windows)
+                    var windows = Application.Current.Windows;
+                    var windowCount = windows.Count;
+                    for (int i = 0; i < windowCount; i++)
                     {
+                        var window = windows[i];
                         if (window == null)
                             continue;
                             
@@ -1798,14 +1801,13 @@ namespace FastExplorer.ViewModels.Pages
                         // ウィンドウのリソースを無効化（再帰的にすべてのコントロールを処理）
                         App.InvalidateResourcesRecursive(window);
                         
-                        // ウィンドウのビジュアルを更新
-                        window.InvalidateVisual();
+                        // レイアウトを更新（一度だけ）
                         window.UpdateLayout();
                         
                         // MainWindowのスタイルを更新
-                        if (window is Views.Windows.MainWindow)
+                        if (window is Views.Windows.MainWindow mainWindow)
                         {
-                            Views.Windows.MainWindow.InvalidateTabAndListViewStyles(window);
+                            Views.Windows.MainWindow.InvalidateTabAndListViewStyles(mainWindow);
                         }
                         // SettingsWindowの背景色をクリア
                         else if (window is Views.Windows.SettingsWindow settingsWindow)
