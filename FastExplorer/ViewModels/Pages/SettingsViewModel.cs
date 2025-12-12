@@ -1707,6 +1707,10 @@ namespace FastExplorer.ViewModels.Pages
                 // テーマ設定を保存
                 SaveTheme(theme);
                 
+                // MainWindowのSystemThemeWatcherを更新
+                // テーマが"System"の場合のみ有効化、それ以外は無効化
+                UpdateMainWindowSystemThemeWatcher(theme);
+                
                 // テーマに応じてテーマカラーを適用またはリセット
                 if (theme == ApplicationTheme.Light)
                 {
@@ -1777,32 +1781,43 @@ namespace FastExplorer.ViewModels.Pages
                 // リソースディクショナリーも即座に更新（起動時と同じ）
                 App.UpdateThemeResourcesInternal();
                 
-                // すべてのThemedSvgIconインスタンスを即座に更新（リアルタイム反映のため）
-                // 優先度をBackgroundに変更して、UIの応答性を維持
+                // UpdateThemeResourcesInternal内でリソースの無効化が実行されるが、
+                // 確実にリソースが更新されるように、追加でリソースを無効化
+                // Loaded優先度で実行して、UpdateThemeResourcesInternalの処理の後に実行されるようにする
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
                 {
-                    ThemedSvgIcon.RefreshAllInstances();
-                }), System.Windows.Threading.DispatcherPriority.Background);
-                
-                // タブとListViewのスタイルを無効化してDynamicResourceの再評価を強制
-                // Backgroundに変更して確実に実行されるようにする
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
-                {
+                    // すべてのウィンドウのリソースを強制的に再評価
                     foreach (Window window in Application.Current.Windows)
                     {
+                        if (window == null)
+                            continue;
+                            
+                        // ウィンドウのForegroundプロパティを無効化してDynamicResourceを再評価
+                        window.InvalidateProperty(Window.ForegroundProperty);
+                        
+                        // ウィンドウのリソースを無効化（再帰的にすべてのコントロールを処理）
+                        App.InvalidateResourcesRecursive(window);
+                        
+                        // ウィンドウのビジュアルを更新
+                        window.InvalidateVisual();
+                        window.UpdateLayout();
+                        
                         // MainWindowのスタイルを更新
                         if (window is Views.Windows.MainWindow)
                         {
                             Views.Windows.MainWindow.InvalidateTabAndListViewStyles(window);
                         }
-                        // SettingsWindowの背景色をクリアしてDynamicResourceを使用するように戻す
+                        // SettingsWindowの背景色をクリア
                         else if (window is Views.Windows.SettingsWindow settingsWindow)
                         {
                             // 背景色をクリアして、DynamicResourceを使用するように戻す
                             settingsWindow.ClearValue(Window.BackgroundProperty);
                         }
                     }
-                }), System.Windows.Threading.DispatcherPriority.Background);
+                    
+                    // すべてのThemedSvgIconインスタンスを更新
+                    ThemedSvgIcon.RefreshAllInstances();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
             catch
             {
@@ -1826,6 +1841,36 @@ namespace FastExplorer.ViewModels.Pages
             };
             _windowSettingsService.SaveSettings(settings);
         }
+
+        /// <summary>
+        /// MainWindowのSystemThemeWatcherを更新します
+        /// </summary>
+        /// <param name="theme">現在のテーマ</param>
+        private void UpdateMainWindowSystemThemeWatcher(ApplicationTheme theme)
+        {
+            // MainWindowを取得
+            foreach (Window window in System.Windows.Application.Current.Windows)
+            {
+                if (window is Views.Windows.MainWindow mainWindow)
+                {
+                    // テーマが"System"（Unknown）の場合のみ、SystemThemeWatcherを有効化
+                    // "Light"または"Dark"に設定されている場合は、システムテーマの変更を無視する
+                    if (theme == ApplicationTheme.Unknown)
+                    {
+                        // 既に監視されている場合は何もしない（重複を避ける）
+                        // SystemThemeWatcherは内部的に重複チェックを行うため、安全に呼び出せる
+                        SystemThemeWatcher.Watch(mainWindow);
+                    }
+                    else
+                    {
+                        // 手動でテーマを設定している場合は、SystemThemeWatcherを無効化
+                        SystemThemeWatcher.UnWatch(mainWindow);
+                    }
+                    break;
+                }
+            }
+        }
+
 
         #endregion
 

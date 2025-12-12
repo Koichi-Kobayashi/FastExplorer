@@ -39,7 +39,9 @@ namespace FastExplorer.Views.Windows
                     await ViewModel.OnNavigatedToAsync();
                     System.Diagnostics.Debug.WriteLine("SettingsWindow OnNavigatedToAsync completed");
                     
-                    // システムテーマの監視を設定
+                    // システムテーマの監視を設定（テーマが"System"の場合のみ）
+                    // SettingsWindowは設定画面なので、常にシステムテーマの変更を監視する必要はない
+                    // ただし、設定画面自体のテーマはシステムテーマに追従させる
                     SystemThemeWatcher.Watch(this);
                     
                     // デフォルトで全般ボタンを選択状態にする

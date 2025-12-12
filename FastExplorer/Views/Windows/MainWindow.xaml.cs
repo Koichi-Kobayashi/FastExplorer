@@ -144,12 +144,23 @@ namespace FastExplorer.Views.Windows
                 }
                 
                 // SystemThemeWatcherを遅延実行（起動を最速化）
+                // テーマが"System"の場合のみ有効化（手動でテーマを設定している場合は無効化）
                 // ウィンドウ位置とサイズの復元はShowWindow()で実行されるため、ここでは実行しない
                 // デリゲートのメモリアロケーションを削減
                 var window = this;
+                var windowSettingsService = _windowSettingsService;
                 _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new System.Action(() =>
                 {
-                    SystemThemeWatcher.Watch(window);
+                    // 保存されたテーマ設定を確認
+                    var settings = windowSettingsService.GetSettings();
+                    var theme = settings.Theme;
+                    
+                    // テーマが"System"の場合のみ、SystemThemeWatcherを有効化
+                    // "Light"または"Dark"に設定されている場合は、システムテーマの変更を無視する
+                    if (theme == "System" || string.IsNullOrEmpty(theme))
+                    {
+                        SystemThemeWatcher.Watch(window);
+                    }
                 }));
             }
             Loaded += InitializeHandler;

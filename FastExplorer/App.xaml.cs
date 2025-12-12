@@ -727,6 +727,20 @@ namespace FastExplorer
 
                     // リソースディクショナリーを更新（必要な場合のみ）
                     bool resourceChanged = false;
+                    
+                    // まず、mainDictionaryからテキスト色のリソースを削除（どちらのモードでも）
+                    // これにより、MergedDictionariesのリソースが確実に使用される
+                    if (mainDictionary.Contains("TextFillColorPrimaryBrush"))
+                    {
+                        mainDictionary.Remove("TextFillColorPrimaryBrush");
+                        resourceChanged = true;
+                    }
+                    if (mainDictionary.Contains("TextFillColorSecondaryBrush"))
+                    {
+                        mainDictionary.Remove("TextFillColorSecondaryBrush");
+                        resourceChanged = true;
+                    }
+                    
                     if (isDark)
                     {
                         // ダークモードの場合：既存のダークテーマリソースを削除してから追加することで、確実に優先されるようにする
@@ -765,27 +779,22 @@ namespace FastExplorer
                         // エラーが発生した場合は無視
                     }
 
-                    // テキスト色を更新（ダークモード時は白に設定）
+                    // テキスト色を更新
+                    // ダークモード時は、DarkThemeResources.xamlのリソースを使用（既にMergedDictionariesに追加済み）
+                    // ライトモード時は、mainDictionaryに直接設定する
                     try
                     {
-                        if (isDark)
+                        if (!isDark)
                         {
-                            // ダークモード時はテキスト色を白に設定
-                            var textPrimaryBrush = new SolidColorBrush(Colors.White);
-                            var textSecondaryBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)); // #CCCCCC
-                            mainDictionary["TextFillColorPrimaryBrush"] = textPrimaryBrush;
-                            mainDictionary["TextFillColorSecondaryBrush"] = textSecondaryBrush;
-                            resourceChanged = true;
-                        }
-                        else
-                        {
-                            // ライトモード時はテキスト色を黒に設定
+                            // ライトモード時はテキスト色を黒に設定（mainDictionaryに直接設定）
                             var textPrimaryBrush = new SolidColorBrush(Colors.Black);
                             var textSecondaryBrush = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)); // #666666
                             mainDictionary["TextFillColorPrimaryBrush"] = textPrimaryBrush;
                             mainDictionary["TextFillColorSecondaryBrush"] = textSecondaryBrush;
                             resourceChanged = true;
                         }
+                        // ダークモード時は、既にMergedDictionariesに追加したDarkThemeResources.xamlのリソースを使用
+                        // mainDictionaryには設定しない（リソースの削除は既に上で実行済み）
                     }
                     catch
                     {
@@ -861,6 +870,7 @@ namespace FastExplorer
                         else
                         {
                             // 起動時以外は、即座にリソースを更新
+                            // Render優先度で実行して、確実にリソースが更新されるようにする
                             Current.Dispatcher.BeginInvoke(new System.Action(() =>
                             {
                                 // すべてのウィンドウのリソースを更新
@@ -868,13 +878,18 @@ namespace FastExplorer
                                 {
                                     if (window != null)
                                     {
+                                        // ウィンドウのForegroundプロパティを無効化してDynamicResourceを再評価
+                                        window.InvalidateProperty(Window.ForegroundProperty);
+                                        
                                         // ウィンドウのビジュアルを無効化してDynamicResourceの再評価を強制
                                         window.InvalidateVisual();
                                         window.UpdateLayout();
+                                        
+                                        // 再帰的にすべてのリソースを無効化
                                         InvalidateResourcesRecursive(window);
                                     }
                                 }
-                            }), System.Windows.Threading.DispatcherPriority.Background);
+                            }), System.Windows.Threading.DispatcherPriority.Render);
                         }
                     }
                 }
@@ -899,29 +914,28 @@ namespace FastExplorer
             if (element == null)
                 return;
 
-            // TextBlockの場合、ForegroundとTextプロパティを無効化
+            // TextBlockの場合、Foregroundプロパティを無効化
             if (element is System.Windows.Controls.TextBlock textBlock)
             {
                 // DynamicResourceの再評価を強制
                 textBlock.InvalidateProperty(System.Windows.Controls.TextBlock.ForegroundProperty);
-                textBlock.InvalidateProperty(System.Windows.Controls.TextBlock.TextProperty);
-            }
-            // ContentControlの場合、Contentプロパティを無効化
-            else if (element is System.Windows.Controls.ContentControl contentControl)
-            {
-                contentControl.InvalidateProperty(System.Windows.Controls.Control.ForegroundProperty);
-                contentControl.InvalidateProperty(System.Windows.Controls.ContentControl.ContentProperty);
             }
             // Controlの場合、Foregroundプロパティを無効化
             else if (element is System.Windows.Controls.Control control)
             {
                 control.InvalidateProperty(System.Windows.Controls.Control.ForegroundProperty);
             }
+            // FrameworkElementの場合、TextElement.Foregroundプロパティを無効化（TextBlockやControl以外）
+            else if (element is System.Windows.FrameworkElement fe)
+            {
+                // TextElement.Foregroundプロパティが存在する場合は無効化
+                fe.InvalidateProperty(System.Windows.Documents.TextElement.ForegroundProperty);
+            }
 
             // FrameworkElementの場合、Styleプロパティも無効化
-            if (element is System.Windows.FrameworkElement frameworkElement)
+            if (element is System.Windows.FrameworkElement feForStyle)
             {
-                frameworkElement.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
+                feForStyle.InvalidateProperty(System.Windows.FrameworkElement.StyleProperty);
             }
 
             // 子要素を再帰的に処理
