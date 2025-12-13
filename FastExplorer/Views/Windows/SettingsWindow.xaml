@@ -164,16 +164,16 @@
                             Margin="0,24,0,8"
                             FontSize="16"
                             FontWeight="Medium"
-                            Text="右クリックメニュー" />
+                            Text="{localization:LocalizationHelperExtension ContextMenu}" />
                         <CheckBox
                             Margin="0,8,0,0"
-                            Content="FastExplorerの右クリックメニューを使用する"
+                            Content="{localization:LocalizationHelperExtension UseFastExplorerContextMenu}"
                             IsChecked="{Binding ViewModel.UseFastExplorerContextMenu, Mode=TwoWay}" />
                         <TextBlock
                             Margin="0,8,0,0"
                             FontSize="12"
                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="チェックを外すと、OS標準の右クリックメニューが表示されます。" />
+                            Text="{localization:LocalizationHelperExtension ContextMenuDescription}" />
 
                         <!--  言語設定  -->
                         <TextBlock

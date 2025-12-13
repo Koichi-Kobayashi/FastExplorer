@@ -113,6 +113,14 @@
   "CloseOtherTabs": "他のタブをすべて閉じる",
   "LastModified": "更新日時",
   "LanguageChangedTitle": "言語設定が変更されました",
-  "LanguageChangedMessage": "言語設定を変更しました。変更を反映するには、アプリケーションを再起動してください。"
+  "LanguageChangedMessage": "言語設定を変更しました。変更を反映するには、アプリケーションを再起動してください。",
+  "ContextMenu": "右クリックメニュー",
+  "UseFastExplorerContextMenu": "FastExplorerの右クリックメニューを使用する",
+  "ContextMenuDescription": "チェックを外すと、OS標準の右クリックメニューが表示されます。",
+  "Personalization": "パーソナライズ",
+  "Explorer": "エクスプローラー",
+  "ImageAdjustment": "画像の調整",
+  "EnableSplitPaneWinSCPStyle": "分割ペインを有効にする（WinSCPスタイル）",
+  "SplitPaneDescriptionTabs": "有効にすると、左右2つのペインでそれぞれタブを表示できます。アプリケーションを再起動すると反映されます。"
 }
 

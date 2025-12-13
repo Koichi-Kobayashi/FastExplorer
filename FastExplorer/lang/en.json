@@ -113,6 +113,14 @@
   "CloseOtherTabs": "Close other tabs",
   "LastModified": "Last modified",
   "LanguageChangedTitle": "Language setting changed",
-  "LanguageChangedMessage": "The language setting has been changed. Please restart the application to apply the changes."
+  "LanguageChangedMessage": "The language setting has been changed. Please restart the application to apply the changes.",
+  "ContextMenu": "Context Menu",
+  "UseFastExplorerContextMenu": "Use FastExplorer context menu",
+  "ContextMenuDescription": "Unchecking this will display the OS standard context menu.",
+  "Personalization": "Personalization",
+  "Explorer": "Explorer",
+  "ImageAdjustment": "Image Adjustment",
+  "EnableSplitPaneWinSCPStyle": "Enable split pane (WinSCP style)",
+  "SplitPaneDescriptionTabs": "When enabled, you can display tabs in two panes, left and right. Restart the application to apply changes."
 }
 

@@ -4,8 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:helpers="clr-namespace:FastExplorer.Helpers"
-    xmlns:localization="clr-namespace:FastExplorer.Helpers"
     xmlns:local="clr-namespace:FastExplorer.Views.Pages"
+    xmlns:localization="clr-namespace:FastExplorer.Helpers"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="clr-namespace:FastExplorer.Models"
     xmlns:sys="clr-namespace:System;assembly=mscorlib"
@@ -28,16 +28,6 @@
             FontSize="20"
             FontWeight="Medium"
             Text="{localization:LocalizationHelperExtension General}" />
-        <TextBlock Margin="0,12,0,0" Text="右クリックメニュー" />
-        <CheckBox
-            Margin="0,8,0,0"
-            Content="FastExplorerの右クリックメニューを使用する"
-            IsChecked="{Binding ViewModel.UseFastExplorerContextMenu, Mode=TwoWay}" />
-        <TextBlock
-            Margin="0,8,0,0"
-            FontSize="12"
-            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-            Text="チェックを外すと、OS標準の右クリックメニューが表示されます。" />
 
         <TextBlock Margin="0,24,0,0" Text="{localization:LocalizationHelperExtension Language}" />
         <ComboBox
@@ -47,28 +37,39 @@
             SelectedItem="{Binding ViewModel.SelectedLanguage, Mode=TwoWay}"
             SelectedValuePath="Code" />
 
+        <TextBlock Margin="0,12,0,0" Text="{localization:LocalizationHelperExtension ContextMenu}" />
+        <CheckBox
+            Margin="0,8,0,0"
+            Content="{localization:LocalizationHelperExtension UseFastExplorerContextMenu}"
+            IsChecked="{Binding ViewModel.UseFastExplorerContextMenu, Mode=TwoWay}" />
+        <TextBlock
+            Margin="0,8,0,0"
+            FontSize="12"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+            Text="{localization:LocalizationHelperExtension ContextMenuDescription}" />
+
         <TextBlock
             Margin="0,24,0,0"
             FontSize="20"
             FontWeight="Medium"
-            Text="Personalization" />
-        <TextBlock Margin="0,12,0,0" Text="Theme" />
+            Text="{localization:LocalizationHelperExtension Personalization}" />
+        <TextBlock Margin="0,12,0,0" Text="{localization:LocalizationHelperExtension Theme}" />
         <RadioButton
             Margin="0,12,0,0"
             Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
             CommandParameter="theme_light"
-            Content="Light"
+            Content="{localization:LocalizationHelperExtension Light}"
             GroupName="themeSelect"
             IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Light, Mode=OneWay}" />
         <RadioButton
             Margin="0,8,0,0"
             Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
             CommandParameter="theme_dark"
-            Content="Dark"
+            Content="{localization:LocalizationHelperExtension Dark}"
             GroupName="themeSelect"
             IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
 
-        <TextBlock Margin="0,24,0,12" Text="Theme Color" />
+        <TextBlock Margin="0,24,0,12" Text="{localization:LocalizationHelperExtension ThemeColor}" />
         <ItemsControl ItemsSource="{Binding ViewModel.ThemeColors, Mode=OneWay}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -111,7 +112,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Margin="0,24,0,12" Text="背景画像" />
+        <TextBlock Margin="0,24,0,12" Text="{localization:LocalizationHelperExtension BackgroundImage}" />
         <Grid Margin="0,0,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -129,16 +130,16 @@
                 Grid.Column="1"
                 Margin="0,0,4,0"
                 Command="{Binding ViewModel.BrowseBackgroundImageCommand, Mode=OneWay}"
-                Content="参照" />
+                Content="{localization:LocalizationHelperExtension Browse}" />
             <Button
                 Grid.Column="2"
                 Margin="0,0,4,0"
                 Command="{Binding ViewModel.ClearBackgroundImageCommand, Mode=OneWay}"
                 Content="×"
-                ToolTip="背景画像をクリア" />
+                ToolTip="{localization:LocalizationHelperExtension ClearBackgroundImage}" />
         </Grid>
 
-        <TextBlock Margin="0,16,0,8" Text="不透明度" />
+        <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension Opacity}" />
         <Slider
             Margin="0,0,0,0"
             Maximum="1.0"
@@ -146,57 +147,57 @@
             TickFrequency="0.1"
             Value="{Binding ViewModel.BackgroundImageOpacity, Mode=TwoWay}" />
 
-        <TextBlock Margin="0,16,0,8" Text="画像の調整" />
+        <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension ImageAdjustment}" />
         <ComboBox
             Margin="0,0,0,0"
             SelectedValue="{Binding ViewModel.BackgroundImageStretchString, Mode=TwoWay}"
             SelectedValuePath="Tag">
-            <ComboBoxItem Content="ウィンドウのサイズに合わせる" Tag="FitToWindow" />
-            <ComboBoxItem Content="ウィンドウを埋める" Tag="Fill" />
-            <ComboBoxItem Content="タイル状に繰り返す" Tag="Tile" />
-            <ComboBoxItem Content="元のサイズで表示" Tag="None" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension FitToWindowSize}" Tag="FitToWindow" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension FillWindow}" Tag="Fill" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension TileRepeat}" Tag="Tile" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension OriginalSize}" Tag="None" />
         </ComboBox>
 
-        <TextBlock Margin="0,16,0,8" Text="垂直方向の配置" />
+        <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension VerticalAlignment}" />
         <ComboBox
             Margin="0,0,0,0"
             SelectedValue="{Binding ViewModel.BackgroundImageVerticalAlignmentString, Mode=TwoWay}"
             SelectedValuePath="Tag">
-            <ComboBoxItem Content="上" Tag="Start" />
-            <ComboBoxItem Content="中央" Tag="Center" />
-            <ComboBoxItem Content="下" Tag="End" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension Top}" Tag="Start" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension Center}" Tag="Center" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension Bottom}" Tag="End" />
         </ComboBox>
 
-        <TextBlock Margin="0,16,0,8" Text="水平方向の配置" />
+        <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension HorizontalAlignment}" />
         <ComboBox
             Margin="0,0,0,0"
             SelectedValue="{Binding ViewModel.BackgroundImageHorizontalAlignmentString, Mode=TwoWay}"
             SelectedValuePath="Tag">
-            <ComboBoxItem Content="左" Tag="Start" />
-            <ComboBoxItem Content="中央" Tag="Center" />
-            <ComboBoxItem Content="右" Tag="End" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension Left}" Tag="Start" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension Center}" Tag="Center" />
+            <ComboBoxItem Content="{localization:LocalizationHelperExtension Right}" Tag="End" />
         </ComboBox>
 
         <TextBlock
             Margin="0,24,0,0"
             FontSize="20"
             FontWeight="Medium"
-            Text="Explorer" />
+            Text="{localization:LocalizationHelperExtension Explorer}" />
         <CheckBox
             Margin="0,12,0,0"
-            Content="分割ペインを有効にする（WinSCPスタイル）"
+            Content="{localization:LocalizationHelperExtension EnableSplitPaneWinSCPStyle}"
             IsChecked="{Binding ViewModel.IsSplitPaneEnabled, Mode=TwoWay}" />
         <TextBlock
             Margin="0,8,0,0"
             FontSize="12"
             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-            Text="有効にすると、左右2つのペインでそれぞれタブを表示できます。アプリケーションを再起動すると反映されます。" />
+            Text="{localization:LocalizationHelperExtension SplitPaneDescriptionTabs}" />
 
         <TextBlock
             Margin="0,24,0,0"
             FontSize="20"
             FontWeight="Medium"
-            Text="About FastExplorer" />
+            Text="{localization:LocalizationHelperExtension AboutApplication}" />
         <TextBlock Margin="0,12,0,0" Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
     </StackPanel>
 </Page>
