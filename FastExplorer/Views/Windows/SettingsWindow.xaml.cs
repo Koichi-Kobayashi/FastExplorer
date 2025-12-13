@@ -82,10 +82,13 @@ namespace FastExplorer.Views.Windows
         /// <summary>
         /// TitleBarの×ボタンがクリックされたときに呼び出されます
         /// </summary>
-        private async void TitleBar_CloseClicked(object? sender, RoutedEventArgs e)
+        private void TitleBar_CloseClicked(object? sender, RoutedEventArgs e)
         {
-            // 閉じる前に設定を保存（完了を待つ）
-            await ViewModel.OnNavigatedFromAsync();
+            // イベントを処理済みとしてマーク
+            e.Handled = true;
+            
+            // 閉じる処理はClosingイベントで行うため、ここでは単純に閉じる
+            // 非同期処理はClosingイベントでfire-and-forgetで実行される
             Close();
         }
 

@@ -137,6 +137,7 @@
             x:Name="TitleBar"
             Title="{localization:LocalizationHelperExtension Settings}"
             Grid.Row="0"
+            Panel.ZIndex="1000"
             CloseWindowByDoubleClickOnIcon="True"
             ShowMaximize="True"
             ShowMinimize="True">
