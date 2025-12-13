@@ -17,11 +17,11 @@
                                      IsDesignTimeCreatable=False}"
     d:DesignHeight="450"
     d:DesignWidth="800"
-    Focusable="True"
-    PreviewKeyDown="ExplorerPage_PreviewKeyDown"
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    Focusable="True"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    PreviewKeyDown="ExplorerPage_PreviewKeyDown"
     SnapsToDevicePixels="True"
     UseLayoutRounding="True"
     mc:Ignorable="d">
@@ -419,10 +419,10 @@
                             Grid.Column="0"
                             Grid.ColumnSpan="2"
                             VerticalAlignment="Center"
-                            Visibility="Collapsed"
                             KeyDown="PathTextBox_KeyDown"
                             LostFocus="PathTextBox_LostFocus"
-                            Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" />
+                            Text="{Binding ViewModel.CurrentPath, Mode=OneWay}"
+                            Visibility="Collapsed" />
                     </Grid>
                 </Border>
 
@@ -519,7 +519,7 @@
                                 FontSize="16"
                                 FontWeight="SemiBold"
                                 Text="{localization:LocalizationHelperExtension QuickAccess}" />
-                            
+
                             <!--  ピン留めされたフォルダー  -->
                             <ItemsControl ItemsSource="{Binding ViewModel.PinnedFolders, Mode=OneWay}">
                                 <ItemsControl.ItemsPanel>
@@ -533,9 +533,7 @@
                             </ItemsControl>
 
                             <!--  最近使用したファイル  -->
-                            <ItemsControl
-                                Margin="0,16,0,0"
-                                ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
+                            <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <StackPanel Orientation="Vertical" />
@@ -547,9 +545,7 @@
                             </ItemsControl>
 
                             <!--  最近使用したフォルダー  -->
-                            <ItemsControl
-                                Margin="0,16,0,0"
-                                ItemsSource="{Binding ViewModel.RecentFoldersList, Mode=OneWay}">
+                            <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding ViewModel.RecentFoldersList, Mode=OneWay}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <UniformGrid Columns="6" />
@@ -773,10 +769,10 @@
             <TabControl
                 Grid.Column="0"
                 Margin="0,0,0,0"
-                uiControls:TabControlExtensions.CanAddTabs="True"
-                uiControls:TabControlExtensions.CanReorderTabs="True"
                 helpers:TabControlExtensions.TabAdding="TabControl_TabAdding"
                 helpers:TabControlExtensions.TabClosing="TabControl_TabClosing"
+                uiControls:TabControlExtensions.CanAddTabs="True"
+                uiControls:TabControlExtensions.CanReorderTabs="True"
                 AllowDrop="True"
                 DragOver="TabControl_DragOver"
                 Drop="TabControl_Drop"
@@ -828,10 +824,10 @@
             <TabControl
                 Grid.Column="2"
                 Margin="0,0,0,0"
-                uiControls:TabControlExtensions.CanAddTabs="True"
-                uiControls:TabControlExtensions.CanReorderTabs="True"
                 helpers:TabControlExtensions.TabAdding="TabControl_TabAdding"
                 helpers:TabControlExtensions.TabClosing="TabControl_TabClosing"
+                uiControls:TabControlExtensions.CanAddTabs="True"
+                uiControls:TabControlExtensions.CanReorderTabs="True"
                 AllowDrop="True"
                 DragOver="TabControl_DragOver"
                 Drop="TabControl_Drop"
@@ -874,10 +870,10 @@
         <TabControl
             Grid.Row="1"
             Margin="0,0,0,4"
-            uiControls:TabControlExtensions.CanAddTabs="True"
-            uiControls:TabControlExtensions.CanReorderTabs="True"
             helpers:TabControlExtensions.TabAdding="TabControl_TabAdding"
             helpers:TabControlExtensions.TabClosing="TabControl_TabClosing"
+            uiControls:TabControlExtensions.CanAddTabs="True"
+            uiControls:TabControlExtensions.CanReorderTabs="True"
             AllowDrop="True"
             DragOver="TabControl_DragOver"
             Drop="TabControl_Drop"
@@ -1026,10 +1022,10 @@
                                     Grid.Column="0"
                                     Grid.ColumnSpan="2"
                                     VerticalAlignment="Center"
-                                    Visibility="Collapsed"
                                     KeyDown="PathTextBox_KeyDown"
                                     LostFocus="PathTextBox_LostFocus"
-                                    Text="{Binding ViewModel.CurrentPath, Mode=OneWay}" />
+                                    Text="{Binding ViewModel.CurrentPath, Mode=OneWay}"
+                                    Visibility="Collapsed" />
                             </Grid>
                         </Border>
 
@@ -1126,7 +1122,7 @@
                                         FontSize="16"
                                         FontWeight="SemiBold"
                                         Text="{localization:LocalizationHelperExtension QuickAccess}" />
-                                    
+
                                     <!--  ピン留めされたフォルダー  -->
                                     <ItemsControl ItemsSource="{Binding ViewModel.PinnedFolders, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
@@ -1140,9 +1136,7 @@
                                     </ItemsControl>
 
                                     <!--  最近使用したファイル  -->
-                                    <ItemsControl
-                                        Margin="0,16,0,0"
-                                        ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
+                                    <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding ViewModel.RecentFilesList, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <StackPanel Orientation="Vertical" />
@@ -1154,9 +1148,7 @@
                                     </ItemsControl>
 
                                     <!--  最近使用したフォルダー  -->
-                                    <ItemsControl
-                                        Margin="0,16,0,0"
-                                        ItemsSource="{Binding ViewModel.RecentFoldersList, Mode=OneWay}">
+                                    <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding ViewModel.RecentFoldersList, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <UniformGrid Columns="6" />

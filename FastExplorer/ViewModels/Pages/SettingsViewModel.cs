@@ -74,78 +74,78 @@ namespace FastExplorer.ViewModels.Pages
         [ObservableProperty]
         private ObservableCollection<ThemeColor> _themeColors = new();
 
-    /// <summary>
-    /// 現在選択されているテーマカラーを取得または設定します
-    /// </summary>
-    [ObservableProperty]
-    private ThemeColor? _selectedThemeColor;
+        /// <summary>
+        /// 現在選択されているテーマカラーを取得または設定します
+        /// </summary>
+        [ObservableProperty]
+        private ThemeColor? _selectedThemeColor;
 
-    /// <summary>
-    /// 選択中のテーマカラーのブラシを取得または設定します（設定ウィンドウのアクセント用）
-    /// </summary>
-    [ObservableProperty]
-    private System.Windows.Media.SolidColorBrush _selectedAccentBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 120, 212)); // デフォルトの青色
+        /// <summary>
+        /// 選択中のテーマカラーのブラシを取得または設定します（設定ウィンドウのアクセント用）
+        /// </summary>
+        [ObservableProperty]
+        private System.Windows.Media.SolidColorBrush _selectedAccentBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 120, 212)); // デフォルトの青色
 
-    /// <summary>
-    /// 選択中のテーマカラーの薄いブラシを取得または設定します（背景用）
-    /// </summary>
-    [ObservableProperty]
-    private System.Windows.Media.SolidColorBrush _selectedAccentLightBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 0, 120, 212)); // デフォルトの薄い青色（透明度40）
+        /// <summary>
+        /// 選択中のテーマカラーの薄いブラシを取得または設定します（背景用）
+        /// </summary>
+        [ObservableProperty]
+        private System.Windows.Media.SolidColorBrush _selectedAccentLightBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 0, 120, 212)); // デフォルトの薄い青色（透明度40）
 
-    /// <summary>
-    /// 分割ペインが有効かどうかを取得または設定します
-    /// </summary>
-    [ObservableProperty]
-    private bool _isSplitPaneEnabled;
+        /// <summary>
+        /// 分割ペインが有効かどうかを取得または設定します
+        /// </summary>
+        [ObservableProperty]
+        private bool _isSplitPaneEnabled;
 
-    /// <summary>
-    /// 背景画像のファイルパスを取得または設定します
-    /// </summary>
-    [ObservableProperty]
-    private string? _backgroundImagePath;
+        /// <summary>
+        /// 背景画像のファイルパスを取得または設定します
+        /// </summary>
+        [ObservableProperty]
+        private string? _backgroundImagePath;
 
-    /// <summary>
-    /// 背景画像の不透明度を取得または設定します（0.0～1.0）
-    /// </summary>
-    [ObservableProperty]
-    private double _backgroundImageOpacity = 1.0;
+        /// <summary>
+        /// 背景画像の不透明度を取得または設定します（0.0～1.0）
+        /// </summary>
+        [ObservableProperty]
+        private double _backgroundImageOpacity = 1.0;
 
-    /// <summary>
-    /// 背景画像の調整方法を取得または設定します
-    /// </summary>
-    [ObservableProperty]
-    private BackgroundImageStretch _backgroundImageStretch = BackgroundImageStretch.FitToWindow;
+        /// <summary>
+        /// 背景画像の調整方法を取得または設定します
+        /// </summary>
+        [ObservableProperty]
+        private BackgroundImageStretch _backgroundImageStretch = BackgroundImageStretch.FitToWindow;
 
-    /// <summary>
-    /// 背景画像の垂直方向の配置を取得または設定します
-    /// </summary>
-    [ObservableProperty]
-    private BackgroundImageAlignment _backgroundImageVerticalAlignment = BackgroundImageAlignment.Center;
+        /// <summary>
+        /// 背景画像の垂直方向の配置を取得または設定します
+        /// </summary>
+        [ObservableProperty]
+        private BackgroundImageAlignment _backgroundImageVerticalAlignment = BackgroundImageAlignment.Center;
 
-    /// <summary>
-    /// 背景画像の水平方向の配置を取得または設定します
-    /// </summary>
-    [ObservableProperty]
-    private BackgroundImageAlignment _backgroundImageHorizontalAlignment = BackgroundImageAlignment.Center;
+        /// <summary>
+        /// 背景画像の水平方向の配置を取得または設定します
+        /// </summary>
+        [ObservableProperty]
+        private BackgroundImageAlignment _backgroundImageHorizontalAlignment = BackgroundImageAlignment.Center;
 
-    /// <summary>
-    /// 利用可能な言語のコレクションを取得または設定します
-    /// </summary>
-    [ObservableProperty]
-    private ObservableCollection<LanguageItem> _availableLanguages = new();
+        /// <summary>
+        /// 利用可能な言語のコレクションを取得または設定します
+        /// </summary>
+        [ObservableProperty]
+        private ObservableCollection<LanguageItem> _availableLanguages = new();
 
-    /// <summary>
-    /// 選択された言語を取得または設定します
-    /// </summary>
-    [ObservableProperty]
-    private LanguageItem? _selectedLanguage;
+        /// <summary>
+        /// 選択された言語を取得または設定します
+        /// </summary>
+        [ObservableProperty]
+        private LanguageItem? _selectedLanguage;
 
-    /// <summary>
-    /// FastExplorerの右クリックメニューを使用するかどうかを取得または設定します
-    /// falseの場合はOS標準の右クリックメニューを使用します（デフォルト）
-    /// </summary>
-    [ObservableProperty]
-    private bool _useFastExplorerContextMenu = false;
+        /// <summary>
+        /// FastExplorerの右クリックメニューを使用するかどうかを取得または設定します
+        /// falseの場合はOS標準の右クリックメニューを使用します（デフォルト）
+        /// </summary>
+        [ObservableProperty]
+        private bool _useFastExplorerContextMenu = false;
 
         #endregion
 
@@ -475,171 +475,6 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
-        /// メインウィンドウのUIをリフレッシュします（設定ウィンドウが開いている場合に使用）
-        /// </summary>
-        private void RefreshMainWindowUI()
-        {
-            // MainWindowViewModelのプロパティを更新
-            var mainWindowViewModel = App.Services.GetService(typeof(ViewModels.Windows.MainWindowViewModel)) as ViewModels.Windows.MainWindowViewModel;
-            if (mainWindowViewModel != null)
-            {
-                mainWindowViewModel.ApplicationTitle = LocalizationHelper.GetString("ApplicationTitle", "FastExplorer");
-                mainWindowViewModel.StatusBarText = LocalizationHelper.GetString("Ready", "準備完了");
-                
-                // ホームメニューアイテムのContentを更新
-                // MainWindowViewModelの_homeMenuItemを直接更新
-                var homeMenuItemField = typeof(ViewModels.Windows.MainWindowViewModel).GetField("_homeMenuItem", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (homeMenuItemField != null)
-                {
-                    var homeMenuItem = homeMenuItemField.GetValue(mainWindowViewModel) as Wpf.Ui.Controls.NavigationViewItem;
-                    if (homeMenuItem != null)
-                    {
-                        homeMenuItem.Content = LocalizationHelper.GetString("Home", "ホーム");
-                    }
-                }
-                
-                // MenuItemsからも更新（念のため）
-                foreach (var item in mainWindowViewModel.MenuItems)
-                {
-                    if (item is Wpf.Ui.Controls.NavigationViewItem navItem && navItem.Tag is string tag && tag == "HOME")
-                    {
-                        navItem.Content = LocalizationHelper.GetString("Home", "ホーム");
-                        break;
-                    }
-                }
-                
-                // FooterMenuItemsのContentを更新
-                foreach (var item in mainWindowViewModel.FooterMenuItems)
-                {
-                    if (item is Wpf.Ui.Controls.NavigationViewItem navItem && navItem.Tag is string tag && tag == "SETTINGS")
-                    {
-                        navItem.Content = LocalizationHelper.GetString("Settings", "設定");
-                        break;
-                    }
-                }
-            }
-
-            // ExplorerViewModelのStatusBarTextを更新
-            var explorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ExplorerPageViewModel;
-            if (explorerPageViewModel != null)
-            {
-                // ExplorerViewModelのStatusBarTextを更新するメソッドを呼び出す
-                var explorerViewModelType = typeof(ViewModels.Pages.ExplorerViewModel);
-                var statusBarTextProperty = explorerViewModelType.GetProperty("StatusBarText");
-                if (statusBarTextProperty != null)
-                {
-                    // 各タブのViewModelのStatusBarTextを更新
-                    if (explorerPageViewModel.IsSplitPaneEnabled)
-                    {
-                        foreach (var tab in explorerPageViewModel.LeftPaneTabs)
-                        {
-                            if (tab.ViewModel != null)
-                            {
-                                statusBarTextProperty.SetValue(tab.ViewModel, LocalizationHelper.GetString("Ready", "準備完了"));
-                            }
-                        }
-                        foreach (var tab in explorerPageViewModel.RightPaneTabs)
-                        {
-                            if (tab.ViewModel != null)
-                            {
-                                statusBarTextProperty.SetValue(tab.ViewModel, LocalizationHelper.GetString("Ready", "準備完了"));
-                            }
-                        }
-                    }
-                    else
-                    {
-                        foreach (var tab in explorerPageViewModel.Tabs)
-                        {
-                            if (tab.ViewModel != null)
-                            {
-                                statusBarTextProperty.SetValue(tab.ViewModel, LocalizationHelper.GetString("Ready", "準備完了"));
-                            }
-                        }
-                    }
-                }
-            }
-
-            // メインウィンドウのLocalizationHelperExtensionを使用している要素を更新
-            foreach (Window window in Application.Current.Windows)
-            {
-                try
-                {
-                    // 設定ウィンドウは除外
-                    if (window is Views.Windows.SettingsWindow)
-                    {
-                        continue;
-                    }
-
-                    if (window is Views.Windows.MainWindow mainWindow && mainWindow.IsLoaded && mainWindow.IsVisible)
-                    {
-                        // ListViewの列ヘッダーを更新
-                        UpdateListViewColumnHeaders(mainWindow);
-                        
-                        // その他の要素を更新（設定ウィンドウを除外）
-                        UpdateLocalizedElements(mainWindow);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"メインウィンドウ更新エラー: {ex.Message}");
-                }
-            }
-        }
-
-        /// <summary>
-        /// ListViewの列ヘッダーとExplorerPage内の要素を更新します
-        /// </summary>
-        /// <param name="window">ウィンドウ</param>
-        private static void UpdateListViewColumnHeaders(System.Windows.Window window)
-        {
-            try
-            {
-                // ExplorerPage内のListViewを検索
-                var explorerPage = FindVisualChild<Views.Pages.ExplorerPage>(window);
-                if (explorerPage != null)
-                {
-                    // すべてのListViewを検索（分割ペインの場合、左右両方のペインにListViewがある）
-                    var listViews = FindVisualChildren<System.Windows.Controls.ListView>(explorerPage);
-                    foreach (var listView in listViews)
-                    {
-                        if (listView.View is System.Windows.Controls.GridView gridView)
-                        {
-                            // GridViewColumnのHeaderを更新
-                            foreach (var column in gridView.Columns)
-                            {
-                                if (column.Header is string headerText)
-                                {
-                                    string? key = null;
-                                    if (headerText == "名前" || headerText == "Name")
-                                        key = "Name";
-                                    else if (headerText == "サイズ" || headerText == "Size")
-                                        key = "Size";
-                                    else if (headerText == "種類" || headerText == "Type")
-                                        key = "Type";
-                                    else if (headerText == "更新日時" || headerText == "Last Modified")
-                                        key = "LastModified";
-
-                                    if (key != null)
-                                    {
-                                        column.Header = LocalizationHelper.GetString(key, headerText);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ExplorerPage内のボタンやその他の要素を更新
-                    // ListViewをスキップせずに、ListViewの親要素から更新する
-                    UpdateExplorerPageElements(explorerPage);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"ListView列ヘッダー更新エラー: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// ExplorerPage内の要素を更新します（ListView内の要素も含む）
         /// </summary>
         /// <param name="explorerPage">ExplorerPage</param>
@@ -835,181 +670,6 @@ namespace FastExplorer.ViewModels.Pages
         }
 
         /// <summary>
-        /// UIをリフレッシュします（言語変更時に呼び出される）
-        /// </summary>
-        private void RefreshUI()
-        {
-            // ナビゲーション離脱処理中はリフレッシュしない（設定ウィンドウが閉じられる前後で問題が発生するのを防ぐ）
-            if (_isNavigatingFrom)
-            {
-                System.Diagnostics.Debug.WriteLine("RefreshUI skipped: _isNavigatingFrom is true");
-                return;
-            }
-
-            // 設定ウィンドウが開いているかどうかを確認（RefreshUIを呼ぶ前にチェック）
-            bool isSettingsWindowOpen = false;
-            foreach (Window window in Application.Current.Windows)
-            {
-                if (window is Views.Windows.SettingsWindow settingsWindow && settingsWindow.IsLoaded && settingsWindow.IsVisible)
-                {
-                    isSettingsWindowOpen = true;
-                    System.Diagnostics.Debug.WriteLine($"Settings window is open: {settingsWindow.Title}");
-                    break;
-                }
-            }
-
-            // 設定ウィンドウが開いている場合は、設定ウィンドウの更新をスキップする
-            // 設定ウィンドウ内で言語を変更した場合、設定ウィンドウ自体は既に正しい言語で表示されているため
-            if (isSettingsWindowOpen)
-            {
-                System.Diagnostics.Debug.WriteLine("RefreshUI: Settings window is open, skipping settings window update");
-            }
-
-            // アプリケーションタイトルを更新
-            Application.Current.Dispatcher.BeginInvoke(new System.Action(() =>
-            {
-                // MainWindowViewModelのプロパティを更新
-                var mainWindowViewModel = App.Services.GetService(typeof(ViewModels.Windows.MainWindowViewModel)) as ViewModels.Windows.MainWindowViewModel;
-                if (mainWindowViewModel != null)
-                {
-                    mainWindowViewModel.ApplicationTitle = LocalizationHelper.GetString("ApplicationTitle", "FastExplorer");
-                    mainWindowViewModel.StatusBarText = LocalizationHelper.GetString("Ready", "準備完了");
-                    
-                    // ホームメニューアイテムのContentを更新
-                    foreach (var item in mainWindowViewModel.MenuItems)
-                    {
-                        if (item is Wpf.Ui.Controls.NavigationViewItem navItem && navItem.Tag is string tag && tag == "HOME")
-                        {
-                            navItem.Content = LocalizationHelper.GetString("Home", "ホーム");
-                            break;
-                        }
-                    }
-                    
-                    // FooterMenuItemsのContentを更新
-                    foreach (var item in mainWindowViewModel.FooterMenuItems)
-                    {
-                        if (item is Wpf.Ui.Controls.NavigationViewItem navItem && navItem.Tag is string tag && tag == "SETTINGS")
-                        {
-                            navItem.Content = LocalizationHelper.GetString("Settings", "設定");
-                            break;
-                        }
-                    }
-                }
-
-                // ExplorerViewModelのStatusBarTextを更新
-                var explorerPageViewModel = App.Services.GetService(ExplorerPageViewModelType) as ExplorerPageViewModel;
-                if (explorerPageViewModel != null)
-                {
-                    // ExplorerViewModelのStatusBarTextを更新するメソッドを呼び出す
-                    var explorerViewModelType = typeof(ViewModels.Pages.ExplorerViewModel);
-                    var statusBarTextProperty = explorerViewModelType.GetProperty("StatusBarText");
-                    if (statusBarTextProperty != null)
-                    {
-                        // 各タブのViewModelのStatusBarTextを更新
-                        if (explorerPageViewModel.IsSplitPaneEnabled)
-                        {
-                            foreach (var tab in explorerPageViewModel.LeftPaneTabs)
-                            {
-                                if (tab.ViewModel != null)
-                                {
-                                    statusBarTextProperty.SetValue(tab.ViewModel, LocalizationHelper.GetString("Ready", "準備完了"));
-                                }
-                            }
-                            foreach (var tab in explorerPageViewModel.RightPaneTabs)
-                            {
-                                if (tab.ViewModel != null)
-                                {
-                                    statusBarTextProperty.SetValue(tab.ViewModel, LocalizationHelper.GetString("Ready", "準備完了"));
-                                }
-                            }
-                        }
-                        else
-                        {
-                            foreach (var tab in explorerPageViewModel.Tabs)
-                            {
-                                if (tab.ViewModel != null)
-                                {
-                                    statusBarTextProperty.SetValue(tab.ViewModel, LocalizationHelper.GetString("Ready", "準備完了"));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 設定ウィンドウのテキストを明示的に更新（開いている場合のみ）
-                // ただし、設定ウィンドウ内で言語を変更した場合は更新をスキップする
-                // （設定ウィンドウ自体は既に正しい言語で表示されているため、更新すると問題が発生する可能性がある）
-                if (isSettingsWindowOpen)
-                {
-                    System.Diagnostics.Debug.WriteLine("RefreshUI: Skipping settings window update (language changed within settings window)");
-                    // 設定ウィンドウ内で言語を変更した場合は、設定ウィンドウの更新をスキップ
-                    // 設定ウィンドウは既に正しい言語で表示されているため
-                }
-
-                // その他のウィンドウは、LocalizationHelperExtensionを使用している要素のみを更新
-                // タブやListViewなどの重要なUI要素のスタイルは無効化しない
-                foreach (Window window in Application.Current.Windows)
-                {
-                    try
-                    {
-                        if (window != null && !(window is Views.Windows.SettingsWindow) && window.IsLoaded && window.IsVisible)
-                        {
-                            UpdateLocalizedElements(window);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"ウィンドウ更新エラー: {ex.Message}");
-                    }
-                }
-            }), System.Windows.Threading.DispatcherPriority.Normal);
-        }
-
-        /// <summary>
-        /// 設定ウィンドウのテキストを明示的に更新します
-        /// </summary>
-        /// <param name="settingsWindow">設定ウィンドウ</param>
-        private static void UpdateSettingsWindowTexts(Views.Windows.SettingsWindow settingsWindow)
-        {
-            try
-            {
-                // 設定ウィンドウが閉じられている場合は処理しない
-                if (settingsWindow == null || !settingsWindow.IsLoaded || !settingsWindow.IsVisible)
-                {
-                    System.Diagnostics.Debug.WriteLine("Settings window is not loaded or not visible, skipping update");
-                    return;
-                }
-
-                System.Diagnostics.Debug.WriteLine("Updating settings window texts");
-
-                // 設定ウィンドウのタイトルを更新
-                settingsWindow.Title = LocalizationHelper.GetString("Settings", "設定");
-
-                // TitleBarのタイトルを更新
-                if (settingsWindow.TitleBar != null)
-                {
-                    settingsWindow.TitleBar.Title = LocalizationHelper.GetString("Settings", "設定");
-                }
-
-                // ナビゲーションボタンのContentを更新
-                UpdateButtonContent(settingsWindow, "GeneralButton", "General", "全般");
-                UpdateButtonContent(settingsWindow, "AppearanceButton", "Appearance", "外観");
-                UpdateButtonContent(settingsWindow, "LayoutButton", "Layout", "レイアウト");
-                UpdateButtonContent(settingsWindow, "AboutButton", "AboutApplication", "FastExplorer について");
-
-                // 設定画面のすべてのTextBlockとComboBoxItemを更新
-                UpdateSettingsPageTexts(settingsWindow);
-                
-                System.Diagnostics.Debug.WriteLine("Settings window texts updated successfully");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"設定ウィンドウテキスト更新エラー: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-            }
-        }
-
-        /// <summary>
         /// 設定ページのテキストを更新します
         /// </summary>
         /// <param name="settingsWindow">設定ウィンドウ</param>
@@ -1173,29 +833,6 @@ namespace FastExplorer.ViewModels.Pages
             if (key != null)
             {
                 comboBoxItem.Content = LocalizationHelper.GetString(key, currentContent);
-            }
-        }
-
-        /// <summary>
-        /// ボタンのContentを更新します
-        /// </summary>
-        /// <param name="window">ウィンドウ</param>
-        /// <param name="buttonName">ボタン名</param>
-        /// <param name="key">翻訳キー</param>
-        /// <param name="defaultValue">デフォルト値</param>
-        private static void UpdateButtonContent(System.Windows.Window window, string buttonName, string key, string defaultValue)
-        {
-            try
-            {
-                var button = window.FindName(buttonName) as System.Windows.Controls.Button;
-                if (button != null)
-                {
-                    button.Content = LocalizationHelper.GetString(key, defaultValue);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"ボタンContent更新エラー ({buttonName}): {ex.Message}");
             }
         }
 
