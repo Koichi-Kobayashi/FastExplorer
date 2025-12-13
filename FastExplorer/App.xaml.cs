@@ -79,7 +79,6 @@ namespace FastExplorer
 
                 services.AddSingleton<Views.Pages.ExplorerPage>();
                 services.AddSingleton<ViewModels.Pages.ExplorerPageViewModel>();
-                services.AddSingleton<SettingsPage>();
                 services.AddSingleton<SettingsViewModel>();
             }).Build();
 

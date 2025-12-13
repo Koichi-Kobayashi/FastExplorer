@@ -23,96 +23,8 @@
     WindowStartupLocation="CenterOwner"
     mc:Ignorable="d">
     <Window.Resources>
-        <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
         <helpers:ThemeColorSelectionConverter x:Key="ThemeColorSelectionConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-
-        <!--  ナビゲーションボタンの共通スタイル  -->
-        <Style x:Key="NavigationButtonStyle" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Style.Triggers>
-                <!--  ホバー状態の場合（ダークテーマ、未選択）  -->
-                <MultiDataTrigger>
-                    <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding DataContext.ViewModel.CurrentTheme, RelativeSource={RelativeSource AncestorType=Window}}" Value="Dark" />
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=Appearance}" Value="Secondary" />
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True" />
-                    </MultiDataTrigger.Conditions>
-                    <MultiDataTrigger.Setters>
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="#2d2d2d" />
-                            </Setter.Value>
-                        </Setter>
-                    </MultiDataTrigger.Setters>
-                </MultiDataTrigger>
-                <!--  Primary状態の場合（ダークテーマ）  -->
-                <MultiDataTrigger>
-                    <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding DataContext.ViewModel.CurrentTheme, RelativeSource={RelativeSource AncestorType=Window}}" Value="Dark" />
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=Appearance}" Value="Primary" />
-                    </MultiDataTrigger.Conditions>
-                    <MultiDataTrigger.Setters>
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="#2d2d2d" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <Setter Property="BorderBrush">
-                            <Setter.Value>
-                                <SolidColorBrush Color="#2d2d2d" />
-                            </Setter.Value>
-                        </Setter>
-                    </MultiDataTrigger.Setters>
-                </MultiDataTrigger>
-                <!--  Primary + ホバー状態の場合（ダークテーマ）  -->
-                <MultiDataTrigger>
-                    <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding DataContext.ViewModel.CurrentTheme, RelativeSource={RelativeSource AncestorType=Window}}" Value="Dark" />
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=Appearance}" Value="Primary" />
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True" />
-                    </MultiDataTrigger.Conditions>
-                    <MultiDataTrigger.Setters>
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="#2d2d2d" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                    </MultiDataTrigger.Setters>
-                </MultiDataTrigger>
-                <!--  Primary状態の場合（ライトテーマ）  -->
-                <MultiDataTrigger>
-                    <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding DataContext.ViewModel.CurrentTheme, RelativeSource={RelativeSource AncestorType=Window}}" Value="Light" />
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=Appearance}" Value="Primary" />
-                    </MultiDataTrigger.Conditions>
-                    <MultiDataTrigger.Setters>
-                        <Setter Property="Background" Value="{Binding DataContext.ViewModel.SelectedAccentBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
-                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <Setter Property="BorderBrush" Value="{Binding DataContext.ViewModel.SelectedAccentBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
-                    </MultiDataTrigger.Setters>
-                </MultiDataTrigger>
-                <!--  Primary + ホバー状態の場合（ライトテーマ）  -->
-                <MultiDataTrigger>
-                    <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding DataContext.ViewModel.CurrentTheme, RelativeSource={RelativeSource AncestorType=Window}}" Value="Light" />
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=Appearance}" Value="Primary" />
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True" />
-                    </MultiDataTrigger.Conditions>
-                    <MultiDataTrigger.Setters>
-                        <Setter Property="Background" Value="{Binding DataContext.ViewModel.SelectedAccentBrush, RelativeSource={RelativeSource AncestorType=Window}}" />
-                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                    </MultiDataTrigger.Setters>
-                </MultiDataTrigger>
-            </Style.Triggers>
-        </Style>
     </Window.Resources>
 
     <Grid>
@@ -148,252 +60,50 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!--  左側のナビゲーションメニュー  -->
-            <Border
+            <ui:NavigationView
+                x:Name="SettingsNavigationView"
                 Grid.Column="0"
-                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                BorderThickness="0,0,1,0">
-                <StackPanel Margin="12">
-                    <ui:Button
-                        x:Name="GeneralButton"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left"
-                        Appearance="Secondary"
-                        Click="NavigationButton_Click"
-                        Content="{localization:LocalizationHelperExtension General}"
-                        Icon="{ui:SymbolIcon Settings24}"
-                        Style="{StaticResource NavigationButtonStyle}"
-                        Tag="General" />
-                    <ui:Button
-                        x:Name="AppearanceButton"
-                        Margin="0,4,0,0"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left"
-                        Appearance="Secondary"
-                        Click="NavigationButton_Click"
-                        Content="{localization:LocalizationHelperExtension Appearance}"
-                        Icon="{ui:SymbolIcon PaintBrush24}"
-                        Style="{StaticResource NavigationButtonStyle}"
-                        Tag="Appearance" />
-                    <ui:Button
-                        x:Name="AboutButton"
-                        Margin="0,4,0,0"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left"
-                        Appearance="Secondary"
-                        Click="NavigationButton_Click"
-                        Content="{localization:LocalizationHelperExtension AboutApplication}"
-                        Icon="{ui:SymbolIcon Info24}"
-                        Style="{StaticResource NavigationButtonStyle}"
-                        Tag="About" />
-                </StackPanel>
-            </Border>
+                PaneDisplayMode="Left"
+                IsBackButtonVisible="Collapsed"
+                IsPaneToggleVisible="False"
+                ItemInvoked="NavigationView_ItemInvoked">
+                <ui:NavigationView.MenuItems>
+                    <ui:NavigationViewItem
+                        x:Name="GeneralNavItem"
+                        Tag="General"
+                        Content="{localization:LocalizationHelperExtension General}">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:SymbolIcon Symbol="Settings24" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem
+                        x:Name="AppearanceNavItem"
+                        Tag="Appearance"
+                        Content="{localization:LocalizationHelperExtension Appearance}">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:SymbolIcon Symbol="PaintBrush24" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem
+                        x:Name="AboutNavItem"
+                        Tag="About"
+                        Content="{localization:LocalizationHelperExtension AboutApplication}">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:SymbolIcon Symbol="Info24" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                </ui:NavigationView.MenuItems>
+            </ui:NavigationView>
 
-            <!--  右側のコンテンツエリア  -->
-            <Grid Grid.Column="1">
-                <!--  全般ページ  -->
-                <ScrollViewer
-                    x:Name="GeneralPage"
-                    VerticalScrollBarVisibility="Auto"
-                    Visibility="Visible">
-                    <StackPanel Margin="24,24,24,0">
-                        <TextBlock
-                            FontSize="20"
-                            FontWeight="Medium"
-                            Text="{localization:LocalizationHelperExtension General}" />
-
-                        <!--  右クリックメニュー  -->
-                        <TextBlock
-                            Margin="0,24,0,8"
-                            FontSize="16"
-                            FontWeight="Medium"
-                            Text="{localization:LocalizationHelperExtension ContextMenu}" />
-                        <CheckBox
-                            Margin="0,8,0,0"
-                            Content="{localization:LocalizationHelperExtension UseFastExplorerContextMenu}"
-                            IsChecked="{Binding ViewModel.UseFastExplorerContextMenu, Mode=TwoWay}" />
-                        <TextBlock
-                            Margin="40,8,0,0"
-                            FontSize="12"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="{localization:LocalizationHelperExtension ContextMenuDescription}" />
-
-                        <!--  言語設定  -->
-                        <TextBlock
-                            Margin="0,24,0,8"
-                            FontSize="16"
-                            FontWeight="Medium"
-                            Text="{localization:LocalizationHelperExtension Language}" />
-                        <ComboBox
-                            Width="200"
-                            Margin="0,8,0,0"
-                            HorizontalAlignment="Left"
-                            DisplayMemberPath="Name"
-                            ItemsSource="{Binding ViewModel.AvailableLanguages, Mode=OneWay}"
-                            SelectedItem="{Binding ViewModel.SelectedLanguage, Mode=TwoWay}"
-                            SelectedValuePath="Code" />
-
-                        <!--  日付の形式  -->
-                        <TextBlock
-                            Margin="0,24,0,8"
-                            FontSize="16"
-                            FontWeight="Medium"
-                            Text="{localization:LocalizationHelperExtension DateFormat}" />
-                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{localization:LocalizationHelperExtension DateFormatExample}" />
-                        <ComboBox
-                            Width="200"
-                            Margin="0,8,0,0"
-                            HorizontalAlignment="Left">
-                            <ComboBoxItem Content="{localization:LocalizationHelperExtension App}" IsSelected="True" />
-                        </ComboBox>
-
-                        <!--  起動時の設定  -->
-                        <TextBlock
-                            Margin="0,24,0,8"
-                            FontSize="16"
-                            FontWeight="Medium"
-                            Text="{localization:LocalizationHelperExtension StartupSettings}" />
-                        <ComboBox Width="300" HorizontalAlignment="Left">
-                            <ComboBoxItem Content="{localization:LocalizationHelperExtension ContinueLastOperation}" IsSelected="True" />
-                        </ComboBox>
-                    </StackPanel>
-                </ScrollViewer>
-
-                <!--  外観ページ  -->
-                <ScrollViewer
-                    x:Name="AppearancePage"
-                    VerticalScrollBarVisibility="Auto"
-                    Visibility="Collapsed">
-                    <StackPanel Margin="24,24,24,0">
-                        <TextBlock
-                            FontSize="20"
-                            FontWeight="Medium"
-                            Text="{localization:LocalizationHelperExtension Appearance}" />
-
-                        <!--  テーマ  -->
-                        <TextBlock
-                            Margin="0,24,0,8"
-                            FontSize="16"
-                            FontWeight="Medium"
-                            Text="{localization:LocalizationHelperExtension Theme}" />
-                        <RadioButton
-                            Margin="0,8,0,0"
-                            Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
-                            CommandParameter="theme_light"
-                            Content="{localization:LocalizationHelperExtension Light}"
-                            GroupName="themeSelect"
-                            IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Light, Mode=OneWay}" />
-                        <RadioButton
-                            Margin="0,8,0,0"
-                            Command="{Binding ViewModel.ChangeThemeCommand, Mode=OneWay}"
-                            CommandParameter="theme_dark"
-                            Content="{localization:LocalizationHelperExtension Dark}"
-                            GroupName="themeSelect"
-                            IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
-
-
-                        <!--  背景画像  -->
-                        <Expander
-                            Margin="0,24,0,0"
-                            Header="{localization:LocalizationHelperExtension BackgroundImage}"
-                            IsExpanded="False">
-                            <StackPanel Margin="0,12,0,0">
-                                <Grid Margin="0,0,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox
-                                        Grid.Column="0"
-                                        Margin="0,0,8,0"
-                                        IsReadOnly="True"
-                                        Text="{Binding ViewModel.BackgroundImagePath, Mode=OneWay}"
-                                        ToolTip="{Binding ViewModel.BackgroundImagePath, Mode=OneWay}" />
-                                    <Button
-                                        Grid.Column="1"
-                                        Margin="0,0,4,0"
-                                        Command="{Binding ViewModel.BrowseBackgroundImageCommand, Mode=OneWay}"
-                                        Content="{localization:LocalizationHelperExtension Browse}" />
-                                    <Button
-                                        Grid.Column="2"
-                                        Margin="0,0,4,0"
-                                        Command="{Binding ViewModel.ClearBackgroundImageCommand, Mode=OneWay}"
-                                        Content="×"
-                                        ToolTip="{localization:LocalizationHelperExtension ClearBackgroundImage}" />
-                                </Grid>
-
-                                <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension Opacity}" />
-                                <Slider
-                                    Margin="0,0,0,0"
-                                    IsMoveToPointEnabled="True"
-                                    Maximum="1.0"
-                                    Minimum="0.0"
-                                    TickFrequency="0.1"
-                                    Value="{Binding ViewModel.BackgroundImageOpacity, Mode=TwoWay}" />
-
-                                <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension Stretch}" />
-                                <ComboBox
-                                    Margin="0,0,0,0"
-                                    SelectedValue="{Binding ViewModel.BackgroundImageStretchString, Mode=TwoWay}"
-                                    SelectedValuePath="Tag">
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension FitToWindowSize}" Tag="FitToWindow" />
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension FillWindow}" Tag="Fill" />
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension TileRepeat}" Tag="Tile" />
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension OriginalSize}" Tag="None" />
-                                </ComboBox>
-
-                                <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension VerticalAlignment}" />
-                                <ComboBox
-                                    Margin="0,0,0,0"
-                                    SelectedValue="{Binding ViewModel.BackgroundImageVerticalAlignmentString, Mode=TwoWay}"
-                                    SelectedValuePath="Tag">
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Top}" Tag="Start" />
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Center}" Tag="Center" />
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Bottom}" Tag="End" />
-                                </ComboBox>
-
-                                <TextBlock Margin="0,16,0,8" Text="{localization:LocalizationHelperExtension HorizontalAlignment}" />
-                                <ComboBox
-                                    Margin="0,0,0,0"
-                                    SelectedValue="{Binding ViewModel.BackgroundImageHorizontalAlignmentString, Mode=TwoWay}"
-                                    SelectedValuePath="Tag">
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Left}" Tag="Start" />
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Center}" Tag="Center" />
-                                    <ComboBoxItem Content="{localization:LocalizationHelperExtension Right}" Tag="End" />
-                                </ComboBox>
-                            </StackPanel>
-                        </Expander>
-                    </StackPanel>
-                </ScrollViewer>
-
-                <!--  Aboutページ  -->
-                <ScrollViewer
-                    x:Name="AboutPage"
-                    VerticalScrollBarVisibility="Auto"
-                    Visibility="Collapsed">
-                    <StackPanel Margin="24,24,24,0">
-                        <TextBlock
-                            FontSize="20"
-                            FontWeight="Medium"
-                            Text="{localization:LocalizationHelperExtension AboutApplication}" />
-                        <TextBlock
-                            Margin="0,24,0,0"
-                            FontSize="14"
-                            Text="{Binding ViewModel.AppVersion, Mode=OneWay}" />
-                        <TextBlock
-                            Margin="0,12,0,0"
-                            FontSize="12"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Text="{localization:LocalizationHelperExtension ApplicationDescription}"
-                            TextWrapping="Wrap" />
-                    </StackPanel>
-                </ScrollViewer>
-            </Grid>
+            <!--  コンテンツエリア  -->
+            <Frame
+                x:Name="SettingsContentFrame"
+                Grid.Column="1"
+                NavigationUIVisibility="Hidden" />
         </Grid>
     </Grid>
 </ui:FluentWindow>

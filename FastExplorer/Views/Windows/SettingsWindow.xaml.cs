@@ -1,7 +1,9 @@
+using System.ComponentModel;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Threading;
 using FastExplorer.ViewModels.Pages;
+using FastExplorer.Views.Pages.SettingsPage;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -16,6 +18,9 @@ namespace FastExplorer.Views.Windows
         /// 設定ページのViewModelを取得します
         /// </summary>
         public SettingsViewModel ViewModel { get; }
+
+        private Type? _cachedArgsType;
+        private PropertyInfo? _cachedInvokedItemContainerProperty;
 
         /// <summary>
         /// <see cref="SettingsWindow"/>クラスの新しいインスタンスを初期化します
@@ -45,11 +50,33 @@ namespace FastExplorer.Views.Windows
                     // ただし、設定画面自体のテーマはシステムテーマに追従させる
                     SystemThemeWatcher.Watch(this);
                     
-                    // デフォルトで全般ボタンを選択状態にする
-                    GeneralButton.Appearance = ControlAppearance.Primary;
+                    // NavigationViewのイベントを明示的に接続（コードビハインドで再接続）
+                    SettingsNavigationView.ItemInvoked += NavigationView_ItemInvoked;
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow: NavigationView ItemInvoked event handler connected");
                     
-                    // ナビゲーションボタンのホバーイベントを設定
-                    SetupNavigationButtonHover();
+                    // NavigationViewItemにPreviewMouseLeftButtonDownイベントを追加（フォールバック）
+                    // これにより、NavigationViewのイベントが発生しない場合でもページを切り替えられる
+                    GeneralNavItem.PreviewMouseLeftButtonDown += (s, e) =>
+                    {
+                        System.Diagnostics.Debug.WriteLine("GeneralNavItem PreviewMouseLeftButtonDown");
+                        NavigateToPage(typeof(GeneralSettingsPage));
+                        e.Handled = true; // NavigationViewのイベントを阻止
+                    };
+                    AppearanceNavItem.PreviewMouseLeftButtonDown += (s, e) =>
+                    {
+                        System.Diagnostics.Debug.WriteLine("AppearanceNavItem PreviewMouseLeftButtonDown");
+                        NavigateToPage(typeof(AppearanceSettingsPage));
+                        e.Handled = true;
+                    };
+                    AboutNavItem.PreviewMouseLeftButtonDown += (s, e) =>
+                    {
+                        System.Diagnostics.Debug.WriteLine("AboutNavItem PreviewMouseLeftButtonDown");
+                        NavigateToPage(typeof(AboutSettingsPage));
+                        e.Handled = true;
+                    };
+                    
+                    // デフォルトで全般ページを表示
+                    NavigateToPage(typeof(GeneralSettingsPage));
                     
                     System.Diagnostics.Debug.WriteLine("SettingsWindow Loaded event completed");
                 }
@@ -93,114 +120,100 @@ namespace FastExplorer.Views.Windows
         }
 
         /// <summary>
-        /// ナビゲーションボタンのホバーイベントを設定します
+        /// NavigationViewのアイテムが選択されたときに呼び出されます
         /// </summary>
-        private void SetupNavigationButtonHover()
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="args">ナビゲーション選択変更イベント引数</param>
+        private void NavigationView_ItemInvoked(object sender, object args)
         {
-            var buttons = new[] { GeneralButton, AppearanceButton, AboutButton };
-            var darkThemeBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2d, 0x2d, 0x2d)); // #2d2d2d
+            // デバッグ: メソッドが呼び出されたことを確認
+            System.Diagnostics.Debug.WriteLine("SettingsWindow NavigationView_ItemInvoked called");
             
-            foreach (var button in buttons)
+            // リフレクションを使用してInvokedItemContainerプロパティにアクセス
+            var argsType = args.GetType();
+            
+            // キャッシュされた型と一致しない場合は、プロパティを再取得
+            if (!ReferenceEquals(_cachedArgsType, argsType))
             {
-                // IsMouseOverプロパティの変更を監視
-                var descriptor = System.ComponentModel.DependencyPropertyDescriptor.FromProperty(
-                    System.Windows.UIElement.IsMouseOverProperty, 
-                    typeof(System.Windows.UIElement));
-                
-                if (descriptor != null)
-                {
-                    descriptor.AddValueChanged(button, (s, e) =>
-                    {
-                        if (ViewModel.CurrentTheme == Wpf.Ui.Appearance.ApplicationTheme.Dark)
-                        {
-                            if (button.Appearance == ControlAppearance.Secondary)
-                            {
-                                // 複数回試行して確実に適用
-                                Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
-                                {
-                                    if (button.IsMouseOver && button.Appearance == ControlAppearance.Secondary)
-                                    {
-                                        button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, darkThemeBrush);
-                                    }
-                                }));
-                                
-                                Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
-                                {
-                                    if (button.IsMouseOver && button.Appearance == ControlAppearance.Secondary)
-                                    {
-                                        button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, darkThemeBrush);
-                                    }
-                                    else if (!button.IsMouseOver && button.Appearance == ControlAppearance.Secondary)
-                                    {
-                                        button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, System.Windows.Media.Brushes.Transparent);
-                                    }
-                                }));
-                            }
-                        }
-                    });
-                }
-                
-                // MouseEnter/MouseLeaveも設定（二重に設定）
-                button.MouseEnter += (s, e) =>
-                {
-                    if (ViewModel.CurrentTheme == Wpf.Ui.Appearance.ApplicationTheme.Dark)
-                    {
-                        if (button.Appearance == ControlAppearance.Secondary)
-                        {
-                            button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, darkThemeBrush);
-                        }
-                    }
-                };
-                
-                button.MouseLeave += (s, e) =>
-                {
-                    if (button.Appearance == ControlAppearance.Secondary)
-                    {
-                        button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, System.Windows.Media.Brushes.Transparent);
-                    }
-                };
+                _cachedArgsType = argsType;
+                _cachedInvokedItemContainerProperty = argsType.GetProperty("InvokedItemContainer");
+            }
+            
+            if (_cachedInvokedItemContainerProperty == null)
+            {
+                System.Diagnostics.Debug.WriteLine("SettingsWindow: InvokedItemContainer property is null");
+                return;
+            }
+            
+            var invokedItem = _cachedInvokedItemContainerProperty.GetValue(args) as NavigationViewItem;
+            System.Diagnostics.Debug.WriteLine($"SettingsWindow: InvokedItem: {invokedItem}, Tag: {invokedItem?.Tag}, Tag type: {invokedItem?.Tag?.GetType().Name}");
+            
+            if (invokedItem?.Tag is not string tag)
+            {
+                System.Diagnostics.Debug.WriteLine("SettingsWindow: Tag is not a string or invokedItem is null");
+                return;
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"SettingsWindow: Tag value: '{tag}'");
+
+            // タグに応じて適切なページにナビゲート
+            switch (tag)
+            {
+                case "General":
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow: Navigating to GeneralSettingsPage");
+                    NavigateToPage(typeof(GeneralSettingsPage));
+                    break;
+                case "Appearance":
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow: Navigating to AppearanceSettingsPage");
+                    NavigateToPage(typeof(AppearanceSettingsPage));
+                    break;
+                case "About":
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow: Navigating to AboutSettingsPage");
+                    NavigateToPage(typeof(AboutSettingsPage));
+                    break;
+                default:
+                    System.Diagnostics.Debug.WriteLine($"SettingsWindow: Unknown tag '{tag}', navigating to GeneralSettingsPage");
+                    NavigateToPage(typeof(GeneralSettingsPage));
+                    break;
             }
         }
 
         /// <summary>
-        /// ナビゲーションボタンがクリックされたときに呼び出されます
+        /// 指定されたページタイプにナビゲートします
         /// </summary>
-        /// <param name="sender">イベントの送信元</param>
-        /// <param name="e">ルーティングイベント引数</param>
-        private void NavigationButton_Click(object sender, RoutedEventArgs e)
+        /// <param name="pageType">ナビゲート先のページタイプ</param>
+        private void NavigateToPage(Type pageType)
         {
-            if (sender is not Wpf.Ui.Controls.Button button || button.Tag is not string tag)
-                return;
-
-            // すべてのボタンの外観をSecondaryにリセット
-            GeneralButton.Appearance = ControlAppearance.Secondary;
-            AppearanceButton.Appearance = ControlAppearance.Secondary;
-            AboutButton.Appearance = ControlAppearance.Secondary;
-
-            // クリックされたボタンをPrimaryに設定
-            button.Appearance = ControlAppearance.Primary;
-
-            // すべてのページを非表示にする
-            GeneralPage.Visibility = Visibility.Collapsed;
-            AppearancePage.Visibility = Visibility.Collapsed;
-            AboutPage.Visibility = Visibility.Collapsed;
-
-            // タグに応じて適切なページを表示
-            switch (tag)
+            System.Diagnostics.Debug.WriteLine($"SettingsWindow: NavigateToPage called with type: {pageType.Name}");
+            
+            try
             {
-                case "General":
-                    GeneralPage.Visibility = Visibility.Visible;
-                    break;
-                case "Appearance":
-                    AppearancePage.Visibility = Visibility.Visible;
-                    break;
-                case "About":
-                    AboutPage.Visibility = Visibility.Visible;
-                    break;
-                // その他のページは実装予定
-                default:
-                    GeneralPage.Visibility = Visibility.Visible;
-                    break;
+                if (pageType == typeof(GeneralSettingsPage))
+                {
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow: Creating GeneralSettingsPage");
+                    SettingsContentFrame.Navigate(new GeneralSettingsPage(ViewModel));
+                }
+                else if (pageType == typeof(AppearanceSettingsPage))
+                {
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow: Creating AppearanceSettingsPage");
+                    SettingsContentFrame.Navigate(new AppearanceSettingsPage(ViewModel));
+                }
+                else if (pageType == typeof(AboutSettingsPage))
+                {
+                    System.Diagnostics.Debug.WriteLine("SettingsWindow: Creating AboutSettingsPage");
+                    SettingsContentFrame.Navigate(new AboutSettingsPage(ViewModel));
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"SettingsWindow: Unknown page type: {pageType.Name}");
+                }
+                
+                System.Diagnostics.Debug.WriteLine("SettingsWindow: Navigation completed successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SettingsWindow: Error during navigation: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"SettingsWindow: Stack trace: {ex.StackTrace}");
             }
         }
     }

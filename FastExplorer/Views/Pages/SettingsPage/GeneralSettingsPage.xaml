@@ -1,0 +1,83 @@
+<UserControl
+    x:Class="FastExplorer.Views.Pages.SettingsPage.GeneralSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helpers="clr-namespace:FastExplorer.Helpers"
+    xmlns:local="clr-namespace:FastExplorer.Views.Pages.SettingsPage"
+    xmlns:localization="clr-namespace:FastExplorer.Helpers"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    d:DataContext="{d:DesignInstance local:GeneralSettingsPage,
+                                     IsDesignTimeCreatable=False}"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+    ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    mc:Ignorable="d">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24,24,24,0">
+            <TextBlock
+                FontSize="20"
+                FontWeight="Medium"
+                Text="{localization:LocalizationHelperExtension General}" />
+
+            <!--  右クリックメニュー  -->
+            <TextBlock
+                Margin="0,24,0,8"
+                FontSize="16"
+                FontWeight="Medium"
+                Text="{localization:LocalizationHelperExtension ContextMenu}" />
+            <CheckBox
+                Margin="0,8,0,0"
+                Content="{localization:LocalizationHelperExtension UseFastExplorerContextMenu}"
+                IsChecked="{Binding ViewModel.UseFastExplorerContextMenu, Mode=TwoWay}" />
+            <TextBlock
+                Margin="40,8,0,0"
+                FontSize="12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{localization:LocalizationHelperExtension ContextMenuDescription}" />
+
+            <!--  言語設定  -->
+            <TextBlock
+                Margin="0,24,0,8"
+                FontSize="16"
+                FontWeight="Medium"
+                Text="{localization:LocalizationHelperExtension Language}" />
+            <ComboBox
+                Width="200"
+                Margin="0,8,0,0"
+                HorizontalAlignment="Left"
+                DisplayMemberPath="Name"
+                ItemsSource="{Binding ViewModel.AvailableLanguages, Mode=OneWay}"
+                SelectedItem="{Binding ViewModel.SelectedLanguage, Mode=TwoWay}"
+                SelectedValuePath="Code" />
+
+            <!--  日付の形式  -->
+            <TextBlock
+                Margin="0,24,0,8"
+                FontSize="16"
+                FontWeight="Medium"
+                Text="{localization:LocalizationHelperExtension DateFormat}" />
+            <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}" Text="{localization:LocalizationHelperExtension DateFormatExample}" />
+            <ComboBox
+                Width="200"
+                Margin="0,8,0,0"
+                HorizontalAlignment="Left">
+                <ComboBoxItem Content="{localization:LocalizationHelperExtension App}" IsSelected="True" />
+            </ComboBox>
+
+            <!--  起動時の設定  -->
+            <TextBlock
+                Margin="0,24,0,8"
+                FontSize="16"
+                FontWeight="Medium"
+                Text="{localization:LocalizationHelperExtension StartupSettings}" />
+            <ComboBox Width="300" HorizontalAlignment="Left">
+                <ComboBoxItem Content="{localization:LocalizationHelperExtension ContinueLastOperation}" IsSelected="True" />
+            </ComboBox>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
+
