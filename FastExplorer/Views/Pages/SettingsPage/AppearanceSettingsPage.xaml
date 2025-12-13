@@ -60,8 +60,10 @@
                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                 Text="{localization:LocalizationHelperExtension ThemeColorDescription}" />
             <ItemsControl
+                x:Name="ThemeColorsItemsControl"
                 Margin="0,8,0,0"
-                ItemsSource="{Binding ViewModel.ThemeColors, Mode=OneWay}">
+                ItemsSource="{Binding ViewModel.ThemeColors, Mode=OneWay}"
+                Loaded="ThemeColorsItemsControl_Loaded">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel Orientation="Horizontal" />
@@ -77,6 +79,7 @@
                             Command="{Binding DataContext.ViewModel.SelectThemeColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             CommandParameter="{Binding}"
                             Cursor="Hand"
+                            Tag="{Binding}"
                             ToolTip="{Binding Name}">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
@@ -96,6 +99,11 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
+                                        <ContentPresenter
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Content="{TemplateBinding Content}"
+                                            ContentTemplate="{TemplateBinding ContentTemplate}" />
                                     </Border>
                                 </ControlTemplate>
                             </Button.Template>
