@@ -18,6 +18,7 @@
     mc:Ignorable="d">
     <UserControl.Resources>
         <helpers:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+        <helpers:ThemeColorSelectionConverter x:Key="ThemeColorSelectionConverter" />
     </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24,24,24,0">
@@ -47,6 +48,61 @@
                 GroupName="themeSelect"
                 IsChecked="{Binding ViewModel.CurrentTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dark, Mode=OneWay}" />
 
+            <!--  テーマカラー  -->
+            <TextBlock
+                Margin="0,24,0,8"
+                FontSize="16"
+                FontWeight="Medium"
+                Text="{localization:LocalizationHelperExtension ThemeColor}" />
+            <TextBlock
+                Margin="0,0,0,8"
+                FontSize="12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{localization:LocalizationHelperExtension ThemeColorDescription}" />
+            <ItemsControl
+                Margin="0,8,0,0"
+                ItemsSource="{Binding ViewModel.ThemeColors, Mode=OneWay}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button
+                            Width="40"
+                            Height="40"
+                            Margin="4"
+                            Padding="0"
+                            Command="{Binding DataContext.ViewModel.SelectThemeColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}"
+                            Cursor="Hand"
+                            ToolTip="{Binding Name}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border
+                                        Background="{Binding Color}"
+                                        BorderBrush="{DynamicResource TextFillColorSecondaryBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="BorderThickness" Value="2" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
             <!--  背景画像  -->
             <Expander
