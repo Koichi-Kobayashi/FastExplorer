@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using FastExplorer.ViewModels.Pages;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -46,6 +47,10 @@ namespace FastExplorer.Views.Windows
                     
                     // デフォルトで全般ボタンを選択状態にする
                     GeneralButton.Appearance = ControlAppearance.Primary;
+                    
+                    // ナビゲーションボタンのホバーイベントを設定
+                    SetupNavigationButtonHover();
+                    
                     System.Diagnostics.Debug.WriteLine("SettingsWindow Loaded event completed");
                 }
                 catch (Exception ex)
@@ -85,6 +90,76 @@ namespace FastExplorer.Views.Windows
         }
 
         /// <summary>
+        /// ナビゲーションボタンのホバーイベントを設定します
+        /// </summary>
+        private void SetupNavigationButtonHover()
+        {
+            var buttons = new[] { GeneralButton, AppearanceButton, AboutButton };
+            var darkThemeBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2d, 0x2d, 0x2d)); // #2d2d2d
+            
+            foreach (var button in buttons)
+            {
+                // IsMouseOverプロパティの変更を監視
+                var descriptor = System.ComponentModel.DependencyPropertyDescriptor.FromProperty(
+                    System.Windows.UIElement.IsMouseOverProperty, 
+                    typeof(System.Windows.UIElement));
+                
+                if (descriptor != null)
+                {
+                    descriptor.AddValueChanged(button, (s, e) =>
+                    {
+                        if (ViewModel.CurrentTheme == Wpf.Ui.Appearance.ApplicationTheme.Dark)
+                        {
+                            if (button.Appearance == ControlAppearance.Secondary)
+                            {
+                                // 複数回試行して確実に適用
+                                Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                                {
+                                    if (button.IsMouseOver && button.Appearance == ControlAppearance.Secondary)
+                                    {
+                                        button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, darkThemeBrush);
+                                    }
+                                }));
+                                
+                                Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                                {
+                                    if (button.IsMouseOver && button.Appearance == ControlAppearance.Secondary)
+                                    {
+                                        button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, darkThemeBrush);
+                                    }
+                                    else if (!button.IsMouseOver && button.Appearance == ControlAppearance.Secondary)
+                                    {
+                                        button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, System.Windows.Media.Brushes.Transparent);
+                                    }
+                                }));
+                            }
+                        }
+                    });
+                }
+                
+                // MouseEnter/MouseLeaveも設定（二重に設定）
+                button.MouseEnter += (s, e) =>
+                {
+                    if (ViewModel.CurrentTheme == Wpf.Ui.Appearance.ApplicationTheme.Dark)
+                    {
+                        if (button.Appearance == ControlAppearance.Secondary)
+                        {
+                            button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, darkThemeBrush);
+                        }
+                    }
+                };
+                
+                button.MouseLeave += (s, e) =>
+                {
+                    if (button.Appearance == ControlAppearance.Secondary)
+                    {
+                        button.SetCurrentValue(System.Windows.Controls.Control.BackgroundProperty, System.Windows.Media.Brushes.Transparent);
+                    }
+                };
+            }
+        }
+
+        /// <summary>
         /// ナビゲーションボタンがクリックされたときに呼び出されます
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
@@ -97,7 +172,6 @@ namespace FastExplorer.Views.Windows
             // すべてのボタンの外観をSecondaryにリセット
             GeneralButton.Appearance = ControlAppearance.Secondary;
             AppearanceButton.Appearance = ControlAppearance.Secondary;
-            LayoutButton.Appearance = ControlAppearance.Secondary;
             AboutButton.Appearance = ControlAppearance.Secondary;
 
             // クリックされたボタンをPrimaryに設定
@@ -106,7 +180,6 @@ namespace FastExplorer.Views.Windows
             // すべてのページを非表示にする
             GeneralPage.Visibility = Visibility.Collapsed;
             AppearancePage.Visibility = Visibility.Collapsed;
-            LayoutPage.Visibility = Visibility.Collapsed;
             AboutPage.Visibility = Visibility.Collapsed;
 
             // タグに応じて適切なページを表示
@@ -117,9 +190,6 @@ namespace FastExplorer.Views.Windows
                     break;
                 case "Appearance":
                     AppearancePage.Visibility = Visibility.Visible;
-                    break;
-                case "Layout":
-                    LayoutPage.Visibility = Visibility.Visible;
                     break;
                 case "About":
                     AboutPage.Visibility = Visibility.Visible;
