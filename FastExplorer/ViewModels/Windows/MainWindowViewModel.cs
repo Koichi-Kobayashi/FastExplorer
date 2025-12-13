@@ -73,7 +73,7 @@ namespace FastExplorer.ViewModels.Windows
             {
                 _homeMenuItem = new NavigationViewItem()
                 {
-                    Content = "ホーム",
+                    Content = LocalizationHelper.GetString("Home", "ホーム"),
                     Icon = new SymbolIcon { Symbol = SymbolRegular.Folder24 },
                     Tag = "HOME" // ホームアイテムを識別するためのTag
                 };
@@ -378,7 +378,7 @@ namespace FastExplorer.ViewModels.Windows
         {
             new NavigationViewItem()
             {
-                Content = "Settings",
+                Content = LocalizationHelper.GetString("Settings", "設定"),
                 Icon = new SymbolIcon { Symbol = SymbolRegular.Settings24 },
                 Tag = "SETTINGS" // 設定ページを識別するためのTag
             }

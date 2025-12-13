@@ -507,6 +507,16 @@ namespace FastExplorer.ViewModels.Pages
                         break;
                     }
                 }
+                
+                // FooterMenuItemsのContentを更新
+                foreach (var item in mainWindowViewModel.FooterMenuItems)
+                {
+                    if (item is Wpf.Ui.Controls.NavigationViewItem navItem && navItem.Tag is string tag && tag == "SETTINGS")
+                    {
+                        navItem.Content = LocalizationHelper.GetString("Settings", "設定");
+                        break;
+                    }
+                }
             }
 
             // ExplorerViewModelのStatusBarTextを更新
@@ -871,6 +881,16 @@ namespace FastExplorer.ViewModels.Pages
                         if (item is Wpf.Ui.Controls.NavigationViewItem navItem && navItem.Tag is string tag && tag == "HOME")
                         {
                             navItem.Content = LocalizationHelper.GetString("Home", "ホーム");
+                            break;
+                        }
+                    }
+                    
+                    // FooterMenuItemsのContentを更新
+                    foreach (var item in mainWindowViewModel.FooterMenuItems)
+                    {
+                        if (item is Wpf.Ui.Controls.NavigationViewItem navItem && navItem.Tag is string tag && tag == "SETTINGS")
+                        {
+                            navItem.Content = LocalizationHelper.GetString("Settings", "設定");
                             break;
                         }
                     }
